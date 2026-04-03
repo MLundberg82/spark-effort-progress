@@ -6,7 +6,5 @@ type AppProps = {
 };
 
 export default function App({ openPaywall }: AppProps) {
-  const handleOpenPaywall = openPaywall ?? (() => {});
-
-  return <IndexScreen openPaywall={handleOpenPaywall} />;
+  return <IndexScreen openPaywall={openPaywall} />;
 }

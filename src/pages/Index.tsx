@@ -699,8 +699,8 @@ export default function IndexScreen({ openPaywall }: IndexScreenProps) {
                   <div>
                     <div className="text-sm font-bold">💎 Go Premium</div>
                     <div className="text-xs text-accent-foreground/80">
-                      Unlock nutrition, history and premium gear
-                    </div>
+                    Unlock nutrition, history, 2x XP boost and premium gear
+                  </div>
                   </div>
                   <span>›</span>
                 </button>
@@ -716,44 +716,49 @@ export default function IndexScreen({ openPaywall }: IndexScreenProps) {
         }`}
       >
         <div className="w-full max-w-md min-h-[520px] rounded-[32px] border border-border/50 bg-card/40 px-4 py-5 shadow-lg backdrop-blur-sm flex flex-col justify-between">
-          <div className="flex flex-1 flex-col items-center justify-center -mt-2">
-            <EquippedRatPreview size="hero" />
-            <div className="w-full px-2 -mt-2">
-              <XPProgressBar />
-            </div>
-          </div>
+<div className="flex flex-1 flex-col items-center justify-center pt-2">
+  <div className="mb-2 scale-[1.12]">
+    <EquippedRatPreview size="hero" />
+  </div>
 
-          <div className="mt-4 grid grid-cols-3 gap-2">
-            <button
-              onClick={() => {
-                setMenuOpen(false);
-                openTraining();
-              }}
-              className="h-9 rounded-xl bg-primary text-sm font-semibold text-primary-foreground shadow-md transition-transform active:scale-[0.98]"
-            >
-              Start
-            </button>
+  <div className="w-full px-1">
+    <XPProgressBar />
+  </div>
+</div>
 
-            <button
-              onClick={() => {
-                setMenuOpen(false);
-                openGallery();
-              }}
-              className="h-9 rounded-xl bg-secondary text-sm font-medium text-secondary-foreground transition-transform active:scale-[0.98]"
-            >
-              Gallery
-            </button>
+<div className="mt-5 space-y-3">
+  <button
+    onClick={() => {
+      setMenuOpen(false);
+      openTraining();
+    }}
+    className="h-12 w-full rounded-2xl bg-primary text-base font-bold text-primary-foreground shadow-md transition-transform active:scale-[0.98]"
+  >
+    Start Workout
+  </button>
 
-            <button
-              onClick={() => {
-                setMenuOpen(false);
-                openShop();
-              }}
-              className="h-9 rounded-xl bg-secondary text-sm font-medium text-secondary-foreground transition-transform active:scale-[0.98]"
-            >
-              Shop
-            </button>
-          </div>
+  <div className="grid grid-cols-2 gap-2">
+    <button
+      onClick={() => {
+        setMenuOpen(false);
+        openGallery();
+      }}
+      className="h-10 rounded-xl bg-secondary text-sm font-medium text-secondary-foreground transition-transform active:scale-[0.98]"
+    >
+      Level Gallery
+    </button>
+
+    <button
+      onClick={() => {
+        setMenuOpen(false);
+        openShop();
+      }}
+      className="h-10 rounded-xl bg-secondary text-sm font-medium text-secondary-foreground transition-transform active:scale-[0.98]"
+    >
+      Shop
+    </button>
+  </div>
+</div>
         </div>
       </div>
 

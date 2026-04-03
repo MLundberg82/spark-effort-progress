@@ -1,4 +1,17 @@
-import { X, History, Dumbbell, Crown, Settings, Sparkles, ShoppingBag } from 'lucide-react';
+import {
+  X,
+  History,
+  Dumbbell,
+  Crown,
+  Settings,
+  Sparkles,
+  ShoppingBag,
+  Mail,
+  Bug,
+  Lock,
+  Image,
+  House,
+} from 'lucide-react';
 
 type AppPage =
   | 'home'
@@ -19,17 +32,35 @@ type AppMenuProps = {
 type MenuItemProps = {
   label: string;
   icon: React.ReactNode;
-  page: AppPage;
-  currentPage: AppPage;
-  onNavigate: (page: AppPage) => void;
+  page?: AppPage;
+  currentPage?: AppPage;
+  onNavigate?: (page: AppPage) => void;
+  onClick?: () => void;
+  premium?: boolean;
 };
 
-function MenuItem({ label, icon, page, currentPage, onNavigate }: MenuItemProps) {
-  const active = currentPage === page;
+function MenuItem({
+  label,
+  icon,
+  page,
+  currentPage,
+  onNavigate,
+  onClick,
+  premium = false,
+}: MenuItemProps) {
+  const active = page ? currentPage === page : false;
+
+  const handlePress = () => {
+    if (page && onNavigate) {
+      onNavigate(page);
+      return;
+    }
+    onClick?.();
+  };
 
   return (
     <button
-      onClick={() => onNavigate(page)}
+      onClick={handlePress}
       className={`group flex w-full items-center gap-4 rounded-2xl border px-4 py-4 text-left transition-all duration-200 ${
         active
           ? 'border-fuchsia-400/30 bg-fuchsia-500/10 text-white shadow-[0_0_30px_rgba(217,70,239,0.14)]'
@@ -45,7 +76,14 @@ function MenuItem({ label, icon, page, currentPage, onNavigate }: MenuItemProps)
       </div>
 
       <div className="flex-1">
-        <div className="text-sm font-semibold">{label}</div>
+        <div className="flex items-center gap-2">
+          <div className="text-sm font-semibold">{label}</div>
+          {premium && (
+            <span className="rounded-full bg-amber-400/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.14em] text-amber-300">
+              Premium
+            </span>
+          )}
+        </div>
       </div>
     </button>
   );
@@ -62,17 +100,29 @@ export default function AppMenu({
     onClose();
   };
 
+  const openContact = () => {
+    onClose();
+    window.location.href = 'mailto:hello@getgymrat.com?subject=GymRat%20Support';
+  };
+
+  const openBugReport = () => {
+    onClose();
+    window.location.href =
+      'mailto:hello@getgymrat.com?subject=GymRat%20Bug%20Report&body=Describe%20the%20issue%20here:%0A%0AWhat%20happened:%0A%0AWhat%20did%20you%20expect%20to%20happen:%0A';
+  };
+
   return (
     <>
-      <div
+      <button
         onClick={onClose}
+        aria-label="Close menu"
         className={`fixed inset-0 z-40 bg-black/50 backdrop-blur-[2px] transition-opacity duration-300 ${
           open ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'
         }`}
       />
 
       <aside
-        className={`fixed right-0 top-0 z-50 h-full w-[86%] max-w-sm transform border-l border-white/10 bg-zinc-950/96 shadow-2xl backdrop-blur-xl transition-transform duration-300 ease-out ${
+        className={`fixed right-0 top-0 z-50 h-full w-[80vw] max-w-sm transform border-l border-white/10 bg-zinc-950/96 shadow-2xl backdrop-blur-xl transition-transform duration-300 ease-out ${
           open ? 'translate-x-0' : 'translate-x-full'
         }`}
       >
@@ -110,32 +160,38 @@ export default function AppMenu({
           <div className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
             <MenuItem
               label="Home"
-              icon={<Dumbbell size={20} />}
+              icon={<House size={20} />}
               page="home"
               currentPage={currentPage}
               onNavigate={handleNavigate}
             />
+
             <MenuItem
               label="Workout History"
               icon={<History size={20} />}
               page="history"
               currentPage={currentPage}
               onNavigate={handleNavigate}
+              premium
             />
+
             <MenuItem
               label="Nutrition"
               icon={<Sparkles size={20} />}
               page="nutrition"
               currentPage={currentPage}
               onNavigate={handleNavigate}
+              premium
             />
+
             <MenuItem
               label="Level Gallery"
-              icon={<Crown size={20} />}
+              icon={<Image size={20} />}
               page="gallery"
               currentPage={currentPage}
               onNavigate={handleNavigate}
             />
+
             <MenuItem
               label="Shop"
               icon={<ShoppingBag size={20} />}
@@ -143,6 +199,7 @@ export default function AppMenu({
               currentPage={currentPage}
               onNavigate={handleNavigate}
             />
+
             <MenuItem
               label="Premium"
               icon={<Crown size={20} />}
@@ -150,6 +207,7 @@ export default function AppMenu({
               currentPage={currentPage}
               onNavigate={handleNavigate}
             />
+
             <MenuItem
               label="Settings"
               icon={<Settings size={20} />}
@@ -157,18 +215,33 @@ export default function AppMenu({
               currentPage={currentPage}
               onNavigate={handleNavigate}
             />
+
+            <div className="my-2 border-t border-white/8" />
+
+            <MenuItem
+              label="Contact"
+              icon={<Mail size={20} />}
+              onClick={openContact}
+            />
+
+            <MenuItem
+              label="Report a Bug"
+              icon={<Bug size={20} />}
+              onClick={openBugReport}
+            />
           </div>
 
           <div className="border-t border-white/8 p-4">
             <div className="rounded-2xl border border-white/8 bg-white/5 p-4">
-              <div className="text-[10px] uppercase tracking-[0.22em] text-zinc-500">
+              <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.22em] text-zinc-500">
+                <Lock size={12} />
                 Current build
               </div>
               <div className="mt-1 text-sm font-semibold text-white">
                 Premium progression system
               </div>
               <div className="mt-1 text-xs leading-relaxed text-zinc-400">
-                New milestones, new identity variants, better items, stronger backgrounds.
+                New milestones, identity variants, premium tracking and stronger item progression.
               </div>
             </div>
           </div>
