@@ -1,11 +1,11 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { TrainingLevel } from '@/lib/exerciseData';
 import { setTrainingLevel, getPlansForLevel, setSelectedPlanIndex } from '@/lib/trainingStore';
 import { useT } from '@/lib/i18n';
-import { Dumbbell, Target, Zap, ChevronRight, ChevronLeft, Calendar, Ruler, Weight, Crown } from 'lucide-react';
+import { Dumbbell, Target, Zap, ChevronRight, ChevronLeft, Calendar, Ruler, Weight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import logo from '../assets/logo.png';
+import logo from "../assets/logo.png";
 
 const PROFILE_KEY = 'gymrat-profile';
 
@@ -27,12 +27,7 @@ export function saveUserProfile(profile: UserProfile): void {
 }
 
 interface Props {
-  selectedLevel?: TrainingLevel | null;
-  premium?: boolean;
-  onBack?: () => void;
-  onContinue?: () => void;
-  onOpenPremium?: () => void;
-  onComplete?: () => void;
+  onComplete: () => void;
 }
 
 const genderOptions = [
@@ -47,70 +42,62 @@ const goalOptionKeys = [
   { id: 'gain' as const, labelKey: 'buildMuscleGoal' as const, descKey: 'buildMuscleGoalDesc' as const },
 ];
 
-const levels: { id: TrainingLevel; labelKey: string; desc: string; icon: typeof Dumbbell; details: string }[] = [
-  { id: 'beginner', labelKey: 'beginner', desc: '0-12 months', icon: Dumbbell, details: 'Full body workouts 3x/week. Focus on form and foundation.' },
-  { id: 'intermediate', labelKey: 'intermediate', desc: '1-3 years', icon: Target, details: 'Upper/Lower split 4x/week. More volume with progressive overload.' },
-  { id: 'advanced', labelKey: 'advanced', desc: '3+ years', icon: Zap, details: 'Push/Pull/Legs 6x/week. Maximum volume and intensity.' },
+const levels: {
+  id: TrainingLevel;
+  labelKey: string;
+  desc: string;
+  icon: typeof Dumbbell;
+  details: string;
+  premium?: boolean;
+}[] = [
+  {
+    id: 'beginner',
+    labelKey: 'beginner',
+    desc: '0-12 months',
+    icon: Dumbbell,
+    details: 'Full body workouts 3x/week. Focus on form and foundation.',
+    premium: false,
+  },
+  {
+    id: 'intermediate',
+    labelKey: 'intermediate',
+    desc: '1-3 years',
+    icon: Target,
+    details: 'Upper/Lower split 4x/week. More volume with progressive overload.',
+    premium: false,
+  },
+  {
+    id: 'advanced',
+    labelKey: 'advanced',
+    desc: '3+ years',
+    icon: Zap,
+    details: 'Push/Pull/Legs 6x/week. Maximum volume and intensity.',
+    premium: false,
+  },
 ];
 
-const TrainingLevelSelector = ({
-  selectedLevel: selectedLevelProp = null,
-  premium = false,
-  onBack,
-  onContinue,
-  onOpenPremium,
-  onComplete,
-}: Props) => {
+const TrainingLevelSelector = ({ onComplete }: Props) => {
   const t = useT();
-
-  const savedProfile = useMemo(() => getUserProfile(), []);
-  const [step, setStep] = useState(1);
-  const [profile, setProfile] = useState<UserProfile>(
-    savedProfile ?? {
-      height: 0,
-      weight: 0,
-      age: 0,
-      gender: 'male',
-      goal: undefined,
-    }
-  );
-  const [selectedLevel, setSelectedLevel] = useState<TrainingLevel | null>(selectedLevelProp);
+  const [step, setStep] = useState(1); // 1=profile, 2=goal, 3=level, 4=split
+  const [profile, setProfile] = useState<UserProfile>({
+    height: 0,
+    weight: 0,
+    age: 0,
+    gender: 'male',
+    goal: undefined,
+  });
+  const [selectedLevel, setSelectedLevel] = useState<TrainingLevel | null>(null);
   const [selectedPlan, setSelectedPlan] = useState(0);
-
-  const plans = selectedLevel ? getPlansForLevel(selectedLevel) : [];
-
-  const handleNextFromLevel = () => {
-    if (!selectedLevel) return;
-    setStep(4);
-  };
 
   const handleFinish = () => {
     if (!selectedLevel) return;
-    if (!plans.length) return;
-
     saveUserProfile(profile);
     setTrainingLevel(selectedLevel);
     setSelectedPlanIndex(selectedPlan);
-
-    if (onContinue) {
-      onContinue();
-      return;
-    }
-
-    if (onComplete) {
-      onComplete();
-    }
+    onComplete();
   };
 
-  const goBack = () => {
-    if (step > 1) {
-      setStep((prev) => prev - 1);
-      return;
-    }
-    onBack?.();
-  };
-
-  const isAdvancedLocked = !premium;
+  const plans = selectedLevel ? getPlansForLevel(selectedLevel) : [];
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center px-4 py-8 animate-fade-in">
@@ -150,7 +137,6 @@ const TrainingLevelSelector = ({
                   {genderOptions.map((g) => (
                     <button
                       key={g.id}
-                      type="button"
                       onClick={() => setProfile((p) => ({ ...p, gender: g.id }))}
                       className={`py-2.5 px-3 rounded-xl text-xs font-semibold transition-all ${
                         profile.gender === g.id
@@ -218,18 +204,13 @@ const TrainingLevelSelector = ({
               </div>
             </div>
 
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={goBack} className="btn-3d">
-                <ChevronLeft className="w-4 h-4" />
-              </Button>
-              <Button
-                onClick={() => setStep(2)}
-                disabled={!profile.age || !profile.height || !profile.weight}
-                className="flex-1 gradient-primary text-primary-foreground font-bold btn-3d py-6 disabled:opacity-40"
-              >
-                {t('next')} <ChevronRight className="w-4 h-4 ml-1" />
-              </Button>
-            </div>
+            <Button
+              onClick={() => setStep(2)}
+              disabled={!profile.age || !profile.height || !profile.weight}
+              className="w-full gradient-primary text-primary-foreground font-bold btn-3d py-6 disabled:opacity-40"
+            >
+              Next <ChevronRight className="w-4 h-4 ml-1" />
+            </Button>
           </div>
         )}
 
@@ -244,7 +225,6 @@ const TrainingLevelSelector = ({
               {goalOptionKeys.map((g) => (
                 <button
                   key={g.id}
-                  type="button"
                   onClick={() => setProfile((p) => ({ ...p, goal: g.id }))}
                   className={`w-full card-3d rounded-2xl p-4 text-left transition-all ${
                     profile.goal === g.id ? 'glow-border' : ''
@@ -278,50 +258,42 @@ const TrainingLevelSelector = ({
             </div>
 
             <div className="space-y-3">
-              {levels.map(({ id, labelKey, desc, icon: Icon, details }) => {
-                const locked = id === 'advanced' && isAdvancedLocked;
-
-                return (
-                  <button
-                    key={id}
-                    type="button"
-                    onClick={() => {
-                      if (locked) {
-                        onOpenPremium?.();
-                        return;
-                      }
-                      setSelectedLevel(id);
-                      setSelectedPlan(0);
-                    }}
-                    className={`w-full card-3d rounded-2xl p-4 text-left transition-all group relative ${
-                      selectedLevel === id ? 'glow-border' : ''
-                    } ${locked ? 'opacity-90' : ''}`}
-                  >
-                    {locked && (
-                      <div className="absolute top-3 right-3 inline-flex items-center gap-1 rounded-full bg-accent/15 px-2 py-1 text-[10px] font-bold text-accent">
-                        <Crown className="w-3 h-3" />
-                        Premium
-                      </div>
-                    )}
-
-                    <div className="flex items-start gap-3">
-                      <div
-                        className={`w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform shadow-button ${
-                          selectedLevel === id ? 'gradient-primary' : 'bg-secondary'
-                        }`}
-                      >
-                        <Icon className={`w-5 h-5 ${selectedLevel === id ? 'text-primary-foreground' : 'text-foreground'}`} />
-                      </div>
-
-                      <div className="space-y-0.5 flex-1">
-                        <h3 className="font-display font-bold text-foreground">{t(labelKey as any)}</h3>
-                        <p className="text-[10px] text-primary font-semibold">{desc}</p>
-                        <p className="text-[10px] text-muted-foreground">{details}</p>
-                      </div>
+              {levels.map(({ id, labelKey, desc, icon: Icon, details, premium }) => (
+                <button
+                  key={id}
+                  onClick={() => {
+                    setSelectedLevel(id);
+                    setSelectedPlan(0);
+                  }}
+                  className={`w-full card-3d rounded-2xl p-4 text-left transition-all group ${
+                    selectedLevel === id ? 'glow-border' : ''
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div
+                      className={`w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform shadow-button ${
+                        selectedLevel === id ? 'gradient-primary' : 'bg-secondary'
+                      }`}
+                    >
+                      <Icon className={`w-5 h-5 ${selectedLevel === id ? 'text-primary-foreground' : 'text-foreground'}`} />
                     </div>
-                  </button>
-                );
-              })}
+
+                    <div className="space-y-0.5 flex-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <h3 className="font-display font-bold text-foreground">{t(labelKey as any)}</h3>
+                        {premium && (
+                          <span className="text-[9px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
+                            Premium
+                          </span>
+                        )}
+                      </div>
+
+                      <p className="text-[10px] text-primary font-semibold">{desc}</p>
+                      <p className="text-[10px] text-muted-foreground">{details}</p>
+                    </div>
+                  </div>
+                </button>
+              ))}
             </div>
 
             <div className="flex gap-2">
@@ -329,11 +301,11 @@ const TrainingLevelSelector = ({
                 <ChevronLeft className="w-4 h-4" />
               </Button>
               <Button
-                onClick={handleNextFromLevel}
+                onClick={() => setStep(4)}
                 disabled={!selectedLevel}
                 className="flex-1 gradient-primary text-primary-foreground font-bold btn-3d py-6"
               >
-                {t('next')} <ChevronRight className="w-4 h-4 ml-1" />
+                Next <ChevronRight className="w-4 h-4 ml-1" />
               </Button>
             </div>
           </div>
@@ -350,7 +322,6 @@ const TrainingLevelSelector = ({
               {plans.map((plan, idx) => (
                 <button
                   key={idx}
-                  type="button"
                   onClick={() => setSelectedPlan(idx)}
                   className={`w-full card-3d rounded-2xl p-4 text-left transition-all ${
                     selectedPlan === idx ? 'glow-border' : ''
@@ -378,10 +349,9 @@ const TrainingLevelSelector = ({
               </Button>
               <Button
                 onClick={handleFinish}
-                disabled={!plans.length}
                 className="flex-1 gradient-primary text-primary-foreground font-bold btn-3d py-6"
               >
-                🚀 {t('startTraining')}
+                🚀 Start Training
               </Button>
             </div>
           </div>

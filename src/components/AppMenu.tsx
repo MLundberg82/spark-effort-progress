@@ -1,112 +1,179 @@
-import { useState } from 'react';
-import { Sheet, SheetContent } from '@/components/ui/sheet';
-import { Menu, Settings, Apple, Timer, CalendarCheck, ChevronRight, ChevronLeft, Lock } from 'lucide-react';
-import SettingsPanel from './SettingsContent';
-import NutritionPlanner from './NutritionPlanner';
-import RestTimer from './RestTimer';
-import DailyCheckIn from './DailyCheckIn';
-import { isPremium } from '@/lib/gamificationStore';
-import { TrainingLevel } from '@/lib/exerciseData';
-import { useT } from '@/lib/i18n';
+import { X, History, Dumbbell, Crown, Settings, Sparkles, ShoppingBag } from 'lucide-react';
 
-type SubMenu = 'main' | 'settings' | 'food' | 'timer' | 'checkin';
+type AppPage =
+  | 'home'
+  | 'history'
+  | 'nutrition'
+  | 'gallery'
+  | 'shop'
+  | 'premium'
+  | 'settings';
 
-interface Props {
+type AppMenuProps = {
   open: boolean;
-  onOpenChange: (open: boolean) => void;
-  trainingLevel: TrainingLevel;
-  onTrainingLevelChange: (level: TrainingLevel) => void;
+  currentPage: AppPage;
+  onClose: () => void;
+  onNavigate: (page: AppPage) => void;
+};
+
+type MenuItemProps = {
+  label: string;
+  icon: React.ReactNode;
+  page: AppPage;
+  currentPage: AppPage;
+  onNavigate: (page: AppPage) => void;
+};
+
+function MenuItem({ label, icon, page, currentPage, onNavigate }: MenuItemProps) {
+  const active = currentPage === page;
+
+  return (
+    <button
+      onClick={() => onNavigate(page)}
+      className={`group flex w-full items-center gap-4 rounded-2xl border px-4 py-4 text-left transition-all duration-200 ${
+        active
+          ? 'border-fuchsia-400/30 bg-fuchsia-500/10 text-white shadow-[0_0_30px_rgba(217,70,239,0.14)]'
+          : 'border-white/8 bg-white/5 text-zinc-200 hover:border-white/15 hover:bg-white/8'
+      }`}
+    >
+      <div
+        className={`flex h-11 w-11 items-center justify-center rounded-2xl ${
+          active ? 'bg-fuchsia-500/15 text-fuchsia-300' : 'bg-white/6 text-zinc-300'
+        }`}
+      >
+        {icon}
+      </div>
+
+      <div className="flex-1">
+        <div className="text-sm font-semibold">{label}</div>
+      </div>
+    </button>
+  );
 }
 
-const AppMenu = ({ open, onOpenChange, trainingLevel, onTrainingLevelChange }: Props) => {
-  const [sub, setSub] = useState<SubMenu>('main');
-  const premium = isPremium();
-  const t = useT();
-
-  const menuItems: { id: SubMenu; labelKey: keyof ReturnType<typeof t> extends never ? string : string; icon: typeof Settings; premium?: boolean }[] = [
-    { id: 'checkin', labelKey: 'dailyCheckin', icon: CalendarCheck },
-    { id: 'food', labelKey: 'food', icon: Apple },
-    { id: 'timer', labelKey: 'timer', icon: Timer },
-    { id: 'settings', labelKey: 'settings', icon: Settings },
-  ];
-
-  const handleClose = () => {
-    onOpenChange(false);
-    setTimeout(() => setSub('main'), 300);
-  };
-
-  const subLabels: Record<SubMenu, string> = {
-    main: t('menu'),
-    settings: t('settings'),
-    food: t('food'),
-    timer: t('timer'),
-    checkin: t('dailyCheckin'),
+export default function AppMenu({
+  open,
+  currentPage,
+  onClose,
+  onNavigate,
+}: AppMenuProps) {
+  const handleNavigate = (page: AppPage) => {
+    onNavigate(page);
+    onClose();
   };
 
   return (
-    <Sheet open={open} onOpenChange={(v) => { if (!v) handleClose(); else onOpenChange(true); }}>
-      <SheetContent side="bottom" className="rounded-t-2xl max-h-[85vh] overflow-y-auto pb-24 bg-card border-border">
-        {/* Header */}
-        <div className="flex items-center gap-3 mb-4 pt-2">
-          {sub !== 'main' && (
-            <button onClick={() => setSub('main')} className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors">
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-          )}
-          <h2 className="font-display text-lg font-bold text-foreground">{subLabels[sub]}</h2>
+    <>
+      <div
+        onClick={onClose}
+        className={`fixed inset-0 z-40 bg-black/50 backdrop-blur-[2px] transition-opacity duration-300 ${
+          open ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'
+        }`}
+      />
+
+      <aside
+        className={`fixed right-0 top-0 z-50 h-full w-[86%] max-w-sm transform border-l border-white/10 bg-zinc-950/96 shadow-2xl backdrop-blur-xl transition-transform duration-300 ease-out ${
+          open ? 'translate-x-0' : 'translate-x-full'
+        }`}
+      >
+        <div className="flex h-full flex-col">
+          <div className="border-b border-white/8 px-5 pb-5 pt-5">
+            <div className="mb-5 flex items-center justify-between">
+              <div>
+                <div className="text-[10px] uppercase tracking-[0.28em] text-zinc-500">
+                  GymRat
+                </div>
+                <div className="text-xl font-black tracking-tight text-white">
+                  Menu
+                </div>
+              </div>
+
+              <button
+                onClick={onClose}
+                className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-zinc-200 transition hover:bg-white/10"
+                aria-label="Close menu"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="rounded-[24px] border border-fuchsia-400/15 bg-gradient-to-br from-fuchsia-500/12 via-violet-500/8 to-white/5 p-4">
+              <div className="text-[10px] uppercase tracking-[0.24em] text-fuchsia-200/80">
+                Upgrade your grind
+              </div>
+              <div className="mt-1 text-lg font-bold text-white">
+                Build your rat. Unlock status. Own the gym.
+              </div>
+            </div>
+          </div>
+
+          <div className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
+            <MenuItem
+              label="Home"
+              icon={<Dumbbell size={20} />}
+              page="home"
+              currentPage={currentPage}
+              onNavigate={handleNavigate}
+            />
+            <MenuItem
+              label="Workout History"
+              icon={<History size={20} />}
+              page="history"
+              currentPage={currentPage}
+              onNavigate={handleNavigate}
+            />
+            <MenuItem
+              label="Nutrition"
+              icon={<Sparkles size={20} />}
+              page="nutrition"
+              currentPage={currentPage}
+              onNavigate={handleNavigate}
+            />
+            <MenuItem
+              label="Level Gallery"
+              icon={<Crown size={20} />}
+              page="gallery"
+              currentPage={currentPage}
+              onNavigate={handleNavigate}
+            />
+            <MenuItem
+              label="Shop"
+              icon={<ShoppingBag size={20} />}
+              page="shop"
+              currentPage={currentPage}
+              onNavigate={handleNavigate}
+            />
+            <MenuItem
+              label="Premium"
+              icon={<Crown size={20} />}
+              page="premium"
+              currentPage={currentPage}
+              onNavigate={handleNavigate}
+            />
+            <MenuItem
+              label="Settings"
+              icon={<Settings size={20} />}
+              page="settings"
+              currentPage={currentPage}
+              onNavigate={handleNavigate}
+            />
+          </div>
+
+          <div className="border-t border-white/8 p-4">
+            <div className="rounded-2xl border border-white/8 bg-white/5 p-4">
+              <div className="text-[10px] uppercase tracking-[0.22em] text-zinc-500">
+                Current build
+              </div>
+              <div className="mt-1 text-sm font-semibold text-white">
+                Premium progression system
+              </div>
+              <div className="mt-1 text-xs leading-relaxed text-zinc-400">
+                New milestones, new identity variants, better items, stronger backgrounds.
+              </div>
+            </div>
+          </div>
         </div>
-
-        {/* Main menu */}
-        {sub === 'main' && (
-          <div className="space-y-2 animate-fade-in">
-            {menuItems.map(item => {
-              const Icon = item.icon;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => setSub(item.id)}
-                  className="w-full flex items-center justify-between p-4 rounded-xl card-3d hover:shadow-glow transition-all group"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-                      <Icon className="w-5 h-5 text-primary" />
-                    </div>
-                    <span className="font-bold text-foreground">{t(item.labelKey as any)}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {item.premium && !premium && <Lock className="w-3.5 h-3.5 text-muted-foreground" />}
-                    <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Sub-menus */}
-        {sub === 'settings' && (
-          <div className="animate-fade-in">
-            <SettingsPanel trainingLevel={trainingLevel} onTrainingLevelChange={onTrainingLevelChange} />
-          </div>
-        )}
-        {sub === 'food' && (
-          <div className="animate-fade-in">
-            <NutritionPlanner />
-          </div>
-        )}
-        {sub === 'timer' && (
-          <div className="animate-fade-in">
-            <RestTimer />
-          </div>
-        )}
-        {sub === 'checkin' && (
-          <div className="animate-fade-in">
-            <DailyCheckIn />
-          </div>
-        )}
-      </SheetContent>
-    </Sheet>
+      </aside>
+    </>
   );
-};
-
-export default AppMenu;
+}

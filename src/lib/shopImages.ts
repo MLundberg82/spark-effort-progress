@@ -1,1 +1,0 @@
-export const shopItemImages: Record<string, string> = {};
