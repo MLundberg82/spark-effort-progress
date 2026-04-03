@@ -1,125 +1,26 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-
-import * as gamificationStore from '@/lib/gamificationStore';
-import * as shopStore from '@/lib/shopStore';
-import * as ratImagesModule from '@/lib/ratImages';
-import * as trainingStore from '@/lib/trainingStore';
-import * as autosaveStore from '@/lib/autosaveStore';
-import * as analyticsModule from '@/lib/analytics';
-import { getItemById } from '@/lib/itemAssets';
-import { handlePaywallTrigger } from '@/lib/paywallTriggers';
-import SplashScreen from '@/components/SplashScreen';
+import { useEffect, useMemo, useState } from 'react';
+import { Crown, Flame, Menu, Settings, Sparkles, X } from 'lucide-react';
+import { getLevelFromXP, getStreak, getTotalXP, isPremium } from '@/lib/gamificationStore';
 import TrainingLevelSelector from '@/components/TrainingLevelSelector';
-import WorkoutFlow from '@/components/WorkoutFlow';
-import WorkoutComplete from '@/components/WorkoutComplete';
-import GymRatGallery from '@/components/GymRatGallery';
-import RatShop from '@/components/RatShop';
-import ShareButton from '@/components/ShareButton';
-import DailyCheckInScreen from '@/components/DailyCheckInScreen';
-import NutritionScreen from '@/components/NutritionScreen';
-import HistoryScreen from '@/components/HistoryScreen';
 import SettingsScreen from '@/components/SettingsScreen';
-import { type PaywallTrigger, shouldShowPaywall } from '@/lib/paywallStore';
-import EquippedRatPreview from '@/components/EquippedRatPreview';
-import XPProgressBar from '@/components/XPProgressBar';
+import { useT } from '@/lib/i18n';
 
 type ScreenView =
   | 'home'
   | 'training-level'
-  | 'workout'
-  | 'workout-complete'
-  | 'gallery'
-  | 'shop'
   | 'daily-check-in'
   | 'food'
   | 'history'
+  | 'gallery'
+  | 'shop'
+  | 'workout'
   | 'settings';
 
-type GenericRecord = Record<string, any>;
-
-type ShopItem = GenericRecord & {
-  id: string;
-  premium?: boolean;
-  price?: number;
-  cost?: number;
-  image?: any;
-  previewImage?: any;
-  slot?: string;
-  unlockLevel?: number;
-};
-
-type AutosaveState = GenericRecord & {
-  inProgress?: boolean;
-  step?: number;
-  workoutType?: string;
-};
-
 type IndexScreenProps = {
-  openPaywall: (trigger: PaywallTrigger) => void;
-};
-
-type LevelData = {
-  level: number;
-  currentXP: number;
-  xpToNext: number;
-  progress: number;
-};
-
-type TierData = {
-  tier: string;
-  label?: string;
-  emoji?: string;
-  size?: number;
+  openPaywall?: (trigger: string) => void;
 };
 
 const ONBOARDING_COMPLETED_KEY = 'gymrat-onboarding-completed';
-
-const SplashScreenAny = SplashScreen as any;
-const TrainingLevelSelectorAny = TrainingLevelSelector as any;
-const WorkoutFlowAny = WorkoutFlow as any;
-const WorkoutCompleteAny = WorkoutComplete as any;
-const GymRatGalleryAny = GymRatGallery as any;
-const RatShopAny = RatShop as any;
-const ShareButtonAny = ShareButton as any;
-
-function getModuleFunction<T extends (...args: any[]) => any>(
-  moduleObject: GenericRecord,
-  functionNames: string[]
-): T | undefined {
-  for (const name of functionNames) {
-    if (typeof moduleObject?.[name] === 'function') {
-      return moduleObject[name] as T;
-    }
-  }
-  return undefined;
-}
-
-function getModuleValue<T = any>(
-  moduleObject: GenericRecord,
-  valueNames: string[],
-  fallback: T
-): T {
-  for (const name of valueNames) {
-    if (typeof moduleObject?.[name] !== 'undefined') {
-      return moduleObject[name] as T;
-    }
-  }
-  return fallback;
-}
-
-function getSafeNumber(value: unknown, fallback = 0): number {
-  return typeof value === 'number' && !Number.isNaN(value) ? value : fallback;
-}
-
-function getItemPrice(item: ShopItem): number {
-  if (typeof item?.price === 'number') return item.price;
-  if (typeof item?.cost === 'number') return item.cost;
-  return 0;
-}
-
-function itemIsPremium(item: ShopItem): boolean {
-  return !!item?.premium;
-}
 
 function hasCompletedOnboarding(): boolean {
   return localStorage.getItem(ONBOARDING_COMPLETED_KEY) === 'true';
@@ -129,646 +30,562 @@ function markOnboardingCompleted(): void {
   localStorage.setItem(ONBOARDING_COMPLETED_KEY, 'true');
 }
 
-function normalizeLevelData(rawLevel: any, totalXP: number): LevelData {
-  if (typeof rawLevel === 'object' && rawLevel !== null) {
-    return {
-      level: getSafeNumber(rawLevel.level, 1),
-      currentXP: getSafeNumber(rawLevel.currentXP, 0),
-      xpToNext: getSafeNumber(rawLevel.xpToNext, 100),
-      progress: getSafeNumber(rawLevel.progress, 0),
-    };
-  }
+function PlaceholderScreen({
+  title,
+  subtitle,
+  onBack,
+  onOpenPremium,
+  premiumRequired = false,
+  premiumActive = false,
+}: {
+  title: string;
+  subtitle: string;
+  onBack: () => void;
+  onOpenPremium?: () => void;
+  premiumRequired?: boolean;
+  premiumActive?: boolean;
+}) {
+  return (
+    <div className="min-h-screen bg-background px-4 py-4 text-foreground">
+      <div className="mx-auto w-full max-w-md">
+        <button
+          type="button"
+          onClick={onBack}
+          className="mb-4 rounded-2xl border border-border/50 bg-secondary/30 px-4 py-2 text-sm font-medium"
+        >
+          Back
+        </button>
 
-  const numericLevel = Math.max(1, getSafeNumber(rawLevel, 1));
-  const fallbackCurrentXP = totalXP;
-  const fallbackXpToNext = 100;
-  const fallbackProgress =
-    fallbackXpToNext > 0
-      ? Math.max(0, Math.min(100, (fallbackCurrentXP / fallbackXpToNext) * 100))
-      : 0;
+        <div className="rounded-3xl border border-border/40 bg-card/70 p-5 shadow-sm">
+          <div className="text-xs uppercase tracking-[0.24em] text-muted-foreground">
+            GymRat
+          </div>
+          <h1 className="mt-2 text-2xl font-black tracking-tight">{title}</h1>
+          <p className="mt-2 text-sm text-muted-foreground">{subtitle}</p>
 
-  return {
-    level: numericLevel,
-    currentXP: fallbackCurrentXP,
-    xpToNext: fallbackXpToNext,
-    progress: fallbackProgress,
-  };
+          {premiumRequired && !premiumActive && (
+            <div className="mt-4 rounded-2xl border border-amber-400/20 bg-amber-500/5 p-4">
+              <div className="flex items-center gap-2 text-sm font-semibold text-amber-300">
+                <Crown className="h-4 w-4" />
+                Premium required
+              </div>
+              <p className="mt-2 text-sm text-muted-foreground">
+                This area is planned as a premium feature.
+              </p>
+              <button
+                type="button"
+                onClick={onOpenPremium}
+                className="mt-4 rounded-2xl px-4 py-2 text-sm font-semibold gradient-accent text-accent-foreground shadow-gold"
+              >
+                Open Premium
+              </button>
+            </div>
+          )}
+
+          <div className="mt-5 rounded-2xl border border-border/40 bg-secondary/20 p-4 text-sm text-muted-foreground">
+            This screen is temporarily simplified so the app can build cleanly while we repair the remaining broken files one by one.
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
-function normalizeTierData(rawTier: any): TierData {
-  if (typeof rawTier === 'object' && rawTier !== null) {
-    return {
-      tier: String(rawTier.tier ?? 'rookie'),
-      label: rawTier.label,
-      emoji: rawTier.emoji,
-      size: rawTier.size,
-    };
-  }
+function PremiumCard({
+  open,
+  onClose,
+  onOpenPaywall,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onOpenPaywall: () => void;
+}) {
+  if (!open) return null;
 
-  return {
-    tier: typeof rawTier === 'string' ? rawTier : 'rookie',
-  };
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <button
+        type="button"
+        onClick={onClose}
+        className="absolute inset-0 bg-black/45 backdrop-blur-[2px]"
+        aria-label="Close premium modal"
+      />
+
+      <div className="relative z-10 w-full max-w-sm rounded-[28px] border border-white/10 bg-zinc-950/95 p-5 shadow-2xl">
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-xl bg-white/5 text-white/80"
+          aria-label="Close"
+        >
+          <X className="h-4 w-4" />
+        </button>
+
+        <div className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-amber-400/15 text-amber-300">
+          <Crown className="h-5 w-5" />
+        </div>
+
+        <div className="mt-3 text-[11px] uppercase tracking-[0.22em] text-zinc-500">
+          GymRat Premium
+        </div>
+
+        <h2 className="mt-1 text-xl font-black tracking-tight text-white">
+          Unlock deeper features
+        </h2>
+
+        <p className="mt-2 text-sm leading-relaxed text-zinc-400">
+          Premium is for nutrition, history, XP boost and premium gear. You can always close this and continue in the app.
+        </p>
+
+        <div className="mt-4 space-y-2 rounded-3xl border border-white/8 bg-white/[0.03] p-4">
+          <div className="flex items-center gap-2 text-sm text-white/90">
+            <Sparkles className="h-4 w-4" />
+            Nutrition and macro targets
+          </div>
+          <div className="flex items-center gap-2 text-sm text-white/90">
+            <Sparkles className="h-4 w-4" />
+            Training history
+          </div>
+          <div className="flex items-center gap-2 text-sm text-white/90">
+            <Sparkles className="h-4 w-4" />
+            2x XP boost
+          </div>
+          <div className="flex items-center gap-2 text-sm text-white/90">
+            <Sparkles className="h-4 w-4" />
+            Premium cosmetics and gear
+          </div>
+        </div>
+
+        <div className="mt-4 grid gap-2">
+          <button
+            type="button"
+            onClick={onOpenPaywall}
+            className="rounded-xl px-4 py-2.5 text-sm font-bold gradient-accent text-accent-foreground shadow-gold"
+          >
+            Open Premium
+          </button>
+
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-xl px-4 py-2 text-sm font-medium text-zinc-400"
+          >
+            Continue with free version
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default function IndexScreen({ openPaywall }: IndexScreenProps) {
-  const [isBooting, setIsBooting] = useState(true);
+  const t = useT();
   const [view, setView] = useState<ScreenView>(
     hasCompletedOnboarding() ? 'home' : 'training-level'
   );
-  const [autosave, setAutosave] = useState<AutosaveState | null>(null);
-  const [refreshKey, setRefreshKey] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
-
-  const trackEvent = getModuleFunction(analyticsModule as GenericRecord, ['trackEvent']);
-
-  const getTotalXP = getModuleFunction(gamificationStore as GenericRecord, ['getTotalXP']);
-  const getLevelFromXP = getModuleFunction(gamificationStore as GenericRecord, ['getLevelFromXP']);
-  const getRatTier = getModuleFunction(gamificationStore as GenericRecord, ['getRatTier']);
-  const getStreak = getModuleFunction(gamificationStore as GenericRecord, ['getStreak']);
-  const isPremium = getModuleFunction(gamificationStore as GenericRecord, ['isPremium']);
-
-  const getEquipped = getModuleFunction(shopStore as GenericRecord, ['getEquipped']);
-
-  const rawShopItems = getModuleValue<ShopItem[]>(
-    shopStore as GenericRecord,
-    ['shopItems'],
-    []
-  );
-
-  const getCurrentTierImage = getModuleFunction(
-    ratImagesModule as GenericRecord,
-    ['getCurrentTierImage', 'getRatTierImage', 'getTierImage']
-  );
-
-  const getTrainingLevel = getModuleFunction(trainingStore as GenericRecord, ['getTrainingLevel']);
-  const getAutosaveState = getModuleFunction(autosaveStore as GenericRecord, ['getAutosaveState']);
-
-  const syncUI = useCallback(() => {
-    setRefreshKey((prev) => prev + 1);
-  }, []);
-
-  const normalizeShopItem = useCallback((item: ShopItem): ShopItem => {
-    const asset = getItemById(item.id);
-
-    return {
-      ...item,
-      image: asset?.image ?? item?.image ?? null,
-      previewImage: asset?.image ?? item?.image ?? null,
-      price: getItemPrice(item),
-      premium: itemIsPremium(item),
-      slot: item.slot ?? asset?.slot,
-      unlockLevel: item.unlockLevel ?? asset?.unlockLevel,
-    };
-  }, []);
+  const [premiumOpen, setPremiumOpen] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const appState = useMemo(() => {
-    const totalXP = getSafeNumber(getTotalXP?.(), 0);
-    const rawLevel = getLevelFromXP?.(totalXP);
-    const levelData = normalizeLevelData(rawLevel, totalXP);
-
-    let rawTier: any = 'rookie';
-    try {
-      rawTier = getRatTier?.(levelData.level) ?? getRatTier?.() ?? 'rookie';
-    } catch {
-      rawTier = 'rookie';
-    }
-
-    const tierData = normalizeTierData(rawTier);
-    const streak = getSafeNumber(getStreak?.(), 0);
-    const premiumActive = !!isPremium?.();
-    const trainingLevel = getTrainingLevel?.() ?? null;
-    const equipped = getEquipped?.() ?? {};
-
-    let currentTierImage = null;
-
-    try {
-      if (typeof getCurrentTierImage === 'function') {
-        currentTierImage = getCurrentTierImage(tierData.tier) ?? null;
-      }
-    } catch {}
-
+    const totalXP = getTotalXP();
+    const levelData = getLevelFromXP(totalXP);
     return {
       totalXP,
       level: levelData.level,
-      levelData,
-      streak,
-      tier: tierData.tier,
-      premiumActive,
-      trainingLevel,
-      equipped,
-      currentTierImage,
+      currentXP: levelData.currentXP,
+      xpToNext: levelData.xpToNext,
+      progress: Math.round((levelData.progress || 0) * 100),
+      streak: getStreak(),
+      premiumActive: isPremium(),
     };
-  }, [
-    refreshKey,
-    getCurrentTierImage,
-    getEquipped,
-    getLevelFromXP,
-    getRatTier,
-    getStreak,
-    getTotalXP,
-    getTrainingLevel,
-    isPremium,
-  ]);
-
-  const preparedShopItems = useMemo(() => {
-    if (!Array.isArray(rawShopItems)) return [];
-
-    return rawShopItems.map((item) => {
-      const normalized = normalizeShopItem(item);
-
-      if (normalized.premium && appState.premiumActive) {
-        return {
-          ...normalized,
-          price: 0,
-          cost: 0,
-          premiumUnlocked: true,
-        };
-      }
-
-      return normalized;
-    });
-  }, [rawShopItems, normalizeShopItem, appState.premiumActive]);
+  }, [refreshKey]);
 
   useEffect(() => {
-    const MIN_SPLASH_TIME = 1200;
-    const startTime = Date.now();
+    const rerender = () => setRefreshKey((prev) => prev + 1);
 
-    const boot = async () => {
-      try {
-        const autosaveStateValue = (getAutosaveState?.() as AutosaveState | null) ?? null;
-
-        if (autosaveStateValue?.inProgress) {
-          setAutosave(autosaveStateValue);
-        }
-
-        trackEvent?.('app_opened', {
-          premium: appState.premiumActive,
-          level: appState.level,
-        });
-      } catch (error) {
-        console.log('boot error', error);
-      } finally {
-        const elapsed = Date.now() - startTime;
-        const remaining = Math.max(0, MIN_SPLASH_TIME - elapsed);
-
-        window.setTimeout(() => {
-          setIsBooting(false);
-        }, remaining);
-      }
+    window.addEventListener('premium-updated', rerender);
+    window.addEventListener('gymrat-language-changed', rerender);
+    return () => {
+      window.removeEventListener('premium-updated', rerender);
+      window.removeEventListener('gymrat-language-changed', rerender);
     };
-
-    boot();
   }, []);
 
-  const goHome = useCallback(() => {
+  const goHome = () => {
     setMenuOpen(false);
-    syncUI();
+    setRefreshKey((prev) => prev + 1);
+    setView(hasCompletedOnboarding() ? 'home' : 'training-level');
+  };
 
-    if (!hasCompletedOnboarding()) {
-      setView('training-level');
-      return;
-    }
-
-    setView('home');
-  }, [syncUI]);
-
-  const openManualPremium = useCallback(() => {
-    if (appState.premiumActive) return;
-    openPaywall('manual');
-  }, [appState.premiumActive, openPaywall]);
-
-  const openCustomWorkoutPremium = useCallback(() => {
-    if (appState.premiumActive) return;
-    openPaywall('custom_workout');
-  }, [appState.premiumActive, openPaywall]);
-
-  const openHistoryPremium = useCallback(() => {
-    if (appState.premiumActive) return;
-    openPaywall('history');
-  }, [appState.premiumActive, openPaywall]);
-
-  const openShopPremium = useCallback(() => {
-    if (appState.premiumActive) return;
-    openPaywall('shop_premium');
-  }, [appState.premiumActive, openPaywall]);
-
-  const openShop = useCallback(() => {
-    setMenuOpen(false);
-    syncUI();
-    setView('shop');
-  }, [syncUI]);
-
-  const openGallery = useCallback(() => {
-    setMenuOpen(false);
-    syncUI();
-    setView('gallery');
-  }, [syncUI]);
-
-  const openTraining = useCallback(() => {
-    setMenuOpen(false);
-
-    if (!hasCompletedOnboarding()) {
-      setView('training-level');
-      return;
-    }
-
-    syncUI();
-    setView('workout');
-  }, [syncUI]);
-
-  const openDailyCheckIn = useCallback(() => {
-    setMenuOpen(false);
-    setView('daily-check-in');
-  }, []);
-
-  const openFood = useCallback(() => {
-    setMenuOpen(false);
-
-    if (!appState.premiumActive) {
-      openManualPremium();
-      return;
-    }
-
-    setView('food');
-  }, [appState.premiumActive, openManualPremium]);
-
-  const openHistory = useCallback(() => {
-    setMenuOpen(false);
-
-    if (!appState.premiumActive) {
-      openHistoryPremium();
-      return;
-    }
-
-    setView('history');
-  }, [appState.premiumActive, openHistoryPremium]);
-
-  const openSettings = useCallback(() => {
-    setMenuOpen(false);
-    setView('settings');
-  }, []);
-
-  const openContact = useCallback(() => {
-    setMenuOpen(false);
-    window.location.href = 'mailto:hello@getgymrat.com?subject=GymRat%20Support';
-  }, []);
-
-  const openBugReport = useCallback(() => {
-    setMenuOpen(false);
-    window.location.href =
-      'mailto:hello@getgymrat.com?subject=GymRat%20Bug%20Report&body=Describe%20the%20issue%20here:%0A%0AWhat%20happened:%0A%0AWhat%20did%20you%20expect%20to%20happen:%0A';
-  }, []);
-
-  const startWorkout = useCallback(() => {
+  const handleFinishOnboarding = () => {
     markOnboardingCompleted();
-    syncUI();
+    setRefreshKey((prev) => prev + 1);
     setView('home');
-  }, [syncUI]);
+  };
 
-  const completeWorkout = useCallback(() => {
-    syncUI();
-    setView('home');
-    handlePaywallTrigger('workout_complete', openPaywall);
-  }, [syncUI, openPaywall]);
+  const openPremium = () => {
+    setMenuOpen(false);
+    setPremiumOpen(true);
+  };
 
-  useEffect(() => {
-    if (view !== 'workout-complete') return;
-    if (appState.premiumActive) return;
-    if (!shouldShowPaywall()) return;
-
-    const timeout = window.setTimeout(() => {
-      openPaywall('workout_complete');
-    }, 1500);
-
-    return () => window.clearTimeout(timeout);
-  }, [view, appState.premiumActive, openPaywall]);
-
-  if (isBooting) {
-    return <SplashScreenAny isLoading={true} />;
-  }
+  const triggerPaywall = () => {
+    setPremiumOpen(false);
+    openPaywall?.('manual');
+  };
 
   if (view === 'training-level') {
-    return <TrainingLevelSelectorAny onComplete={startWorkout} />;
+    return <TrainingLevelSelector onComplete={handleFinishOnboarding} />;
   }
 
-  if (view === 'workout') {
+  if (view === 'settings') {
     return (
-      <WorkoutFlowAny
-        premium={appState.premiumActive}
-        trainingLevel={appState.trainingLevel}
-        autosave={autosave}
+      <SettingsScreen
         onBack={goHome}
-        onComplete={completeWorkout}
-        onOpenPremium={openCustomWorkoutPremium}
+        premiumActive={appState.premiumActive}
       />
     );
   }
 
-  if (view === 'workout-complete') {
+  if (view === 'daily-check-in') {
     return (
-      <WorkoutCompleteAny
-        premium={appState.premiumActive}
-        level={appState.level}
-        totalXP={appState.totalXP}
-        streak={appState.streak}
-        ratTier={appState.tier}
-        ratImage={appState.currentTierImage}
-        onDone={goHome}
-        onOpenPremium={openHistoryPremium}
+      <PlaceholderScreen
+        title="Daily Check-in"
+        subtitle="Mood, energy, soreness and recovery tracking."
+        onBack={goHome}
+      />
+    );
+  }
+
+  if (view === 'food') {
+    return (
+      <PlaceholderScreen
+        title="Nutrition"
+        subtitle="Daily calories, macros and hydration."
+        onBack={goHome}
+        onOpenPremium={openPremium}
+        premiumRequired
+        premiumActive={appState.premiumActive}
+      />
+    );
+  }
+
+  if (view === 'history') {
+    return (
+      <PlaceholderScreen
+        title="History"
+        subtitle="Training overview, streaks and progress."
+        onBack={goHome}
+        onOpenPremium={openPremium}
+        premiumRequired
+        premiumActive={appState.premiumActive}
       />
     );
   }
 
   if (view === 'gallery') {
     return (
-      <GymRatGalleryAny
-        premium={appState.premiumActive}
-        currentTier={appState.tier}
-        currentImage={appState.currentTierImage}
-        equipped={appState.equipped}
+      <PlaceholderScreen
+        title="Gallery"
+        subtitle="Rat forms and visual progression."
         onBack={goHome}
-        onOpenPremium={openShopPremium}
       />
     );
   }
 
   if (view === 'shop') {
     return (
-      <div className="min-h-screen bg-background">
-        <RatShopAny
-          premium={appState.premiumActive}
-          items={preparedShopItems}
-          equipped={appState.equipped}
-          onBack={goHome}
-          onOpenPremium={openShopPremium}
-          onRefresh={syncUI}
-        />
-      </div>
+      <PlaceholderScreen
+        title="Shop"
+        subtitle="Cosmetics, gear and future item previews."
+        onBack={goHome}
+        onOpenPremium={openPremium}
+        premiumActive={appState.premiumActive}
+      />
     );
   }
 
-  if (view === 'daily-check-in') {
-    return <DailyCheckInScreen onBack={goHome} />;
-  }
-
-  if (view === 'food') {
-    return <NutritionScreen onBack={goHome} />;
-  }
-
-  if (view === 'history') {
-    return <HistoryScreen onBack={goHome} />;
-  }
-
-  if (view === 'settings') {
-    return <SettingsScreen onBack={goHome} premiumActive={appState.premiumActive} />;
+  if (view === 'workout') {
+    return (
+      <PlaceholderScreen
+        title="Workout"
+        subtitle="Workout flow will be restored next."
+        onBack={goHome}
+        onOpenPremium={openPremium}
+        premiumActive={appState.premiumActive}
+      />
+    );
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <div className="px-4 pt-4">
-        <div className="mx-auto flex max-w-md items-center justify-between rounded-2xl border border-border/50 bg-card/60 px-4 py-3 shadow-sm backdrop-blur">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-secondary text-lg">
-              🐭
-            </div>
-            <div>
-              <div className="text-sm font-semibold">Level {appState.level}</div>
-              <div className="text-xs text-muted-foreground">
-                {appState.streak} day streak
-              </div>
-            </div>
-          </div>
+    <div className="min-h-screen bg-background px-4 pb-8 pt-4 text-foreground">
+      <div className="mx-auto w-full max-w-md">
+        <div className="relative overflow-hidden rounded-[32px] border border-border/40 bg-card/70 p-5 shadow-sm">
+          <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_top_right,rgba(255,215,0,0.12),transparent_40%),radial-gradient(circle_at_bottom_left,rgba(34,197,94,0.10),transparent_35%)]" />
 
-          <div className="flex items-center gap-2">
-            {appState.premiumActive && (
-              <div className="rounded-full border border-primary/30 bg-primary/10 px-2.5 py-1 text-[10px] font-semibold text-primary">
-                Premium
+          <div className="relative flex items-start justify-between gap-3">
+            <div>
+              <div className="text-xs uppercase tracking-[0.24em] text-muted-foreground">
+                GymRat
               </div>
-            )}
+              <h1 className="mt-2 text-3xl font-black tracking-tight">Home</h1>
+            </div>
 
             <button
-              onClick={() => setMenuOpen((prev) => !prev)}
-              className="flex h-10 w-10 items-center justify-center rounded-xl bg-secondary text-secondary-foreground text-lg transition-transform active:scale-95"
+              type="button"
+              onClick={() => setMenuOpen(true)}
+              className="flex h-11 w-11 items-center justify-center rounded-2xl border border-border/40 bg-secondary/40 text-secondary-foreground"
               aria-label="Open menu"
             >
-              ☰
+              <Menu className="h-5 w-5" />
             </button>
           </div>
+
+          <div className="relative mt-5 grid grid-cols-2 gap-3">
+            <div className="rounded-2xl border border-border/40 bg-secondary/20 p-4">
+              <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                Level
+              </div>
+              <div className="mt-1 text-2xl font-black">{appState.level}</div>
+            </div>
+
+            <div className="rounded-2xl border border-border/40 bg-secondary/20 p-4">
+              <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                Streak
+              </div>
+              <div className="mt-1 flex items-center gap-2 text-2xl font-black">
+                <Flame className="h-5 w-5" />
+                {appState.streak}
+              </div>
+            </div>
+          </div>
+
+          <div className="relative mt-4 rounded-2xl border border-border/40 bg-secondary/20 p-4">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">XP progress</span>
+              <span className="font-semibold">
+                {appState.currentXP}/{appState.xpToNext}
+              </span>
+            </div>
+            <div className="mt-3 h-3 overflow-hidden rounded-full bg-background/80">
+              <div
+                className="h-full rounded-full bg-primary transition-all"
+                style={{ width: `${appState.progress}%` }}
+              />
+            </div>
+          </div>
+
+          <div className="relative mt-5 rounded-3xl border border-border/40 bg-secondary/20 p-5 text-center">
+            <div className="mx-auto flex h-28 w-28 items-center justify-center rounded-full border border-border/40 bg-background/60 text-5xl">
+              🐀
+            </div>
+            <div className="mt-3 text-sm text-muted-foreground">
+              Temporary stable home view while we rebuild the remaining screens cleanly.
+            </div>
+          </div>
+
+          <div className="relative mt-5 grid gap-3">
+            <button
+              type="button"
+              onClick={() => setView('workout')}
+              className="h-12 w-full rounded-2xl bg-primary text-base font-bold text-primary-foreground shadow-md"
+            >
+              {t('startWorkout')}
+            </button>
+
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setView('gallery')}
+                className="rounded-2xl border border-border/40 bg-secondary/30 px-4 py-3 text-sm font-semibold"
+              >
+                {t('gallery')}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setView('shop')}
+                className="rounded-2xl border border-border/40 bg-secondary/30 px-4 py-3 text-sm font-semibold"
+              >
+                {t('shop')}
+              </button>
+            </div>
+          </div>
+
+          {!appState.premiumActive && (
+            <button
+              type="button"
+              onClick={openPremium}
+              className="relative mt-4 flex w-full items-center justify-between rounded-2xl px-4 py-3 text-left gradient-accent text-accent-foreground shadow-gold"
+            >
+              <div>
+                <div className="font-bold">Go Premium</div>
+                <div className="text-xs text-accent-foreground/80">
+                  Unlock nutrition, history, 2x XP boost and premium gear
+                </div>
+              </div>
+              <Crown className="h-5 w-5" />
+            </button>
+          )}
         </div>
       </div>
 
       <div
-        className={`fixed inset-0 z-50 transition-all duration-300 ${
+        className={`fixed inset-0 z-40 transition ${
           menuOpen ? 'pointer-events-auto' : 'pointer-events-none'
         }`}
       >
         <button
-          aria-label="Close menu"
+          type="button"
           onClick={() => setMenuOpen(false)}
           className={`absolute inset-0 bg-black/45 backdrop-blur-[2px] transition-opacity duration-300 ${
             menuOpen ? 'opacity-100' : 'opacity-0'
           }`}
+          aria-label="Close menu overlay"
         />
 
-        <div
-          className={`absolute right-0 top-0 h-full w-[80vw] max-w-sm border-l border-border/50 bg-card/95 shadow-2xl backdrop-blur-xl transition-transform duration-300 ${
+        <aside
+          className={`absolute right-0 top-0 h-full w-[80%] max-w-sm border-l border-white/10 bg-zinc-950/96 p-4 text-white shadow-2xl transition-transform duration-300 ${
             menuOpen ? 'translate-x-0' : 'translate-x-full'
           }`}
         >
-          <div className="flex h-full flex-col">
-            <div className="flex items-center justify-between border-b border-border/40 px-5 py-4">
-              <div>
-                <div className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
-                  Menu
-                </div>
-                <div className="text-lg font-bold text-foreground">GymRat</div>
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-xs uppercase tracking-[0.22em] text-zinc-500">
+                Menu
               </div>
-
-              <button
-                onClick={() => setMenuOpen(false)}
-                className="flex h-10 w-10 items-center justify-center rounded-xl bg-secondary text-secondary-foreground text-lg transition-transform active:scale-95"
-                aria-label="Close menu"
-              >
-                ✕
-              </button>
+              <div className="mt-1 text-2xl font-black">GymRat</div>
             </div>
 
-            <div className="flex-1 overflow-y-auto px-3 py-3">
-              <div className="space-y-1">
-                <button
-                  onClick={openDailyCheckIn}
-                  className="flex w-full items-center justify-between rounded-2xl px-4 py-3 text-left transition hover:bg-secondary/70"
-                >
-                  <div>
-                    <div className="text-sm font-semibold text-foreground">📅 Daily Check-in</div>
-                    <div className="text-xs text-muted-foreground">Stay consistent every day</div>
-                  </div>
-                  <span className="text-muted-foreground">›</span>
-                </button>
-
-                <button
-                  onClick={openFood}
-                  className="flex w-full items-center justify-between rounded-2xl px-4 py-3 text-left transition hover:bg-secondary/70"
-                >
-                  <div>
-                    <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                      <span>🍎 Nutrition</span>
-                      <span className="rounded-full bg-accent/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-accent">
-                        Premium
-                      </span>
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      Macros, goals and food tracking
-                    </div>
-                  </div>
-                  <span className="text-muted-foreground">›</span>
-                </button>
-
-                <button
-                  onClick={openHistory}
-                  className="flex w-full items-center justify-between rounded-2xl px-4 py-3 text-left transition hover:bg-secondary/70"
-                >
-                  <div>
-                    <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                      <span>📊 Training History</span>
-                      <span className="rounded-full bg-accent/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-accent">
-                        Premium
-                      </span>
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      Logbook, progress and previous sessions
-                    </div>
-                  </div>
-                  <span className="text-muted-foreground">›</span>
-                </button>
-
-                <button
-                  onClick={openSettings}
-                  className="flex w-full items-center justify-between rounded-2xl px-4 py-3 text-left transition hover:bg-secondary/70"
-                >
-                  <div>
-                    <div className="text-sm font-semibold text-foreground">⚙️ Settings</div>
-                    <div className="text-xs text-muted-foreground">
-                      Language, training level and app preferences
-                    </div>
-                  </div>
-                  <span className="text-muted-foreground">›</span>
-                </button>
-              </div>
-
-              <div className="my-4 border-t border-border/40" />
-
-              <div className="space-y-1">
-                <button
-                  onClick={openContact}
-                  className="flex w-full items-center justify-between rounded-2xl px-4 py-3 text-left transition hover:bg-secondary/70"
-                >
-                  <div>
-                    <div className="text-sm font-semibold text-foreground">✉️ Contact</div>
-                    <div className="text-xs text-muted-foreground">
-                      Get help or ask a question
-                    </div>
-                  </div>
-                  <span className="text-muted-foreground">›</span>
-                </button>
-
-                <button
-                  onClick={openBugReport}
-                  className="flex w-full items-center justify-between rounded-2xl px-4 py-3 text-left transition hover:bg-secondary/70"
-                >
-                  <div>
-                    <div className="text-sm font-semibold text-foreground">🐞 Report a Bug</div>
-                    <div className="text-xs text-muted-foreground">
-                      Tell us when something breaks
-                    </div>
-                  </div>
-                  <span className="text-muted-foreground">›</span>
-                </button>
-              </div>
-            </div>
-
-            {!appState.premiumActive && (
-              <div className="border-t border-border/40 p-3">
-                <button
-                  onClick={() => {
-                    setMenuOpen(false);
-                    openManualPremium();
-                  }}
-                  className="flex w-full items-center justify-between rounded-2xl px-4 py-3 text-left gradient-accent text-accent-foreground shadow-gold"
-                >
-                  <div>
-                    <div className="text-sm font-bold">💎 Go Premium</div>
-                    <div className="text-xs text-accent-foreground/80">
-                    Unlock nutrition, history, 2x XP boost and premium gear
-                  </div>
-                  </div>
-                  <span>›</span>
-                </button>
-              </div>
-            )}
+            <button
+              type="button"
+              onClick={() => setMenuOpen(false)}
+              className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/5 text-white/80"
+              aria-label="Close menu"
+            >
+              <X className="h-5 w-5" />
+            </button>
           </div>
-        </div>
+
+          <div className="mt-6 space-y-3">
+            <button
+              type="button"
+              onClick={() => {
+                setMenuOpen(false);
+                setView('daily-check-in');
+              }}
+              className="flex w-full items-center justify-between rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-left"
+            >
+              <div>
+                <div className="font-semibold">Daily Check-in</div>
+                <div className="text-xs text-zinc-400">Stay consistent every day</div>
+              </div>
+              <span>›</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setMenuOpen(false);
+                setView('food');
+              }}
+              className="flex w-full items-center justify-between rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-left"
+            >
+              <div>
+                <div className="font-semibold">Nutrition</div>
+                <div className="text-xs text-zinc-400">Macros, goals and food tracking</div>
+              </div>
+              <span>›</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setMenuOpen(false);
+                setView('history');
+              }}
+              className="flex w-full items-center justify-between rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-left"
+            >
+              <div>
+                <div className="font-semibold">Training History</div>
+                <div className="text-xs text-zinc-400">Logbook, progress and previous sessions</div>
+              </div>
+              <span>›</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setMenuOpen(false);
+                setView('settings');
+              }}
+              className="flex w-full items-center justify-between rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-left"
+            >
+              <div className="flex items-center gap-3">
+                <Settings className="h-4 w-4" />
+                <div>
+                  <div className="font-semibold">Settings</div>
+                  <div className="text-xs text-zinc-400">Language and app preferences</div>
+                </div>
+              </div>
+              <span>›</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setMenuOpen(false);
+                window.location.href = 'mailto:hello@getgymrat.com?subject=GymRat%20Support';
+              }}
+              className="flex w-full items-center justify-between rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-left"
+            >
+              <div>
+                <div className="font-semibold">Contact</div>
+                <div className="text-xs text-zinc-400">Get help or ask a question</div>
+              </div>
+              <span>›</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setMenuOpen(false);
+                window.location.href =
+                  'mailto:hello@getgymrat.com?subject=GymRat%20Bug%20Report&body=Describe%20the%20issue%20here:%0A%0AWhat%20happened:%0A%0AWhat%20did%20you%20expect%20to%20happen:%0A';
+              }}
+              className="flex w-full items-center justify-between rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-left"
+            >
+              <div>
+                <div className="font-semibold">Report a Bug</div>
+                <div className="text-xs text-zinc-400">Tell us when something breaks</div>
+              </div>
+              <span>›</span>
+            </button>
+          </div>
+
+          {!appState.premiumActive && (
+            <button
+              type="button"
+              onClick={openPremium}
+              className="mt-6 flex w-full items-center justify-between rounded-2xl px-4 py-3 text-left gradient-accent text-accent-foreground shadow-gold"
+            >
+              <div>
+                <div className="font-bold">Go Premium</div>
+                <div className="text-xs text-accent-foreground/80">
+                  Unlock nutrition, history, 2x XP boost and premium gear
+                </div>
+              </div>
+              <Crown className="h-5 w-5" />
+            </button>
+          )}
+        </aside>
       </div>
 
-      <div
-        className={`flex flex-col items-center justify-center px-4 pb-2 ${
-          menuOpen ? 'pt-3' : 'pt-4'
-        }`}
-      >
-        <div className="w-full max-w-md min-h-[520px] rounded-[32px] border border-border/50 bg-card/40 px-4 py-5 shadow-lg backdrop-blur-sm flex flex-col justify-between">
-<div className="flex flex-1 flex-col items-center justify-center pt-2">
-  <div className="mb-2 scale-[1.12]">
-    <EquippedRatPreview size="hero" />
-  </div>
-
-  <div className="w-full px-1">
-    <XPProgressBar />
-  </div>
-</div>
-
-<div className="mt-5 space-y-3">
-  <button
-    onClick={() => {
-      setMenuOpen(false);
-      openTraining();
-    }}
-    className="h-12 w-full rounded-2xl bg-primary text-base font-bold text-primary-foreground shadow-md transition-transform active:scale-[0.98]"
-  >
-    Start Workout
-  </button>
-
-  <div className="grid grid-cols-2 gap-2">
-    <button
-      onClick={() => {
-        setMenuOpen(false);
-        openGallery();
-      }}
-      className="h-10 rounded-xl bg-secondary text-sm font-medium text-secondary-foreground transition-transform active:scale-[0.98]"
-    >
-      Level Gallery
-    </button>
-
-    <button
-      onClick={() => {
-        setMenuOpen(false);
-        openShop();
-      }}
-      className="h-10 rounded-xl bg-secondary text-sm font-medium text-secondary-foreground transition-transform active:scale-[0.98]"
-    >
-      Shop
-    </button>
-  </div>
-</div>
-        </div>
-      </div>
-
-      <div className="px-4 pt-2 pb-6">
-        <ShareButtonAny
-          level={appState.level}
-          streak={appState.streak}
-          ratTier={appState.tier}
-        />
-      </div>
+      <PremiumCard
+        open={premiumOpen}
+        onClose={() => setPremiumOpen(false)}
+        onOpenPaywall={triggerPaywall}
+      />
     </div>
   );
 }

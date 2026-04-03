@@ -1,36 +1,20 @@
 import { useState } from 'react';
+import { getLanguage, setLanguage, type Language } from '@/lib/i18n';
 
 type Props = {
   onBack: () => void;
   premiumActive?: boolean;
 };
 
-type LanguageOption = 'en' | 'sv';
-
-const LANGUAGE_STORAGE_KEY = 'gymrat-language';
-
-function detectDefaultLanguage(): LanguageOption {
-  const saved = localStorage.getItem(LANGUAGE_STORAGE_KEY);
-  if (saved === 'sv' || saved === 'en') return saved;
-
-  const deviceLanguage = (navigator.language || 'en').toLowerCase();
-  if (deviceLanguage.startsWith('sv')) return 'sv';
-
-  return 'en';
-}
-
-function saveLanguage(language: LanguageOption) {
-  localStorage.setItem(LANGUAGE_STORAGE_KEY, language);
-  window.dispatchEvent(new Event('gymrat-language-changed'));
-}
+type LanguageOption = Language;
 
 export default function SettingsScreen({ onBack, premiumActive = false }: Props) {
-  const [language, setLanguage] = useState<LanguageOption>(detectDefaultLanguage());
+const [language, setLanguageState] = useState<LanguageOption>(getLanguage());
 
-  const handleLanguageChange = (value: LanguageOption) => {
-    setLanguage(value);
-    saveLanguage(value);
-  };
+const handleLanguageChange = (value: LanguageOption) => {
+  setLanguageState(value);
+  setLanguage(value);
+};
 
   const openSupport = () => {
     window.location.href = 'mailto:hello@getgymrat.com?subject=GymRat Support';
