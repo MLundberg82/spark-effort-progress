@@ -1,95 +1,87 @@
-export type ShopCategory = 'cosmetic' | 'glow' | 'background' | 'premium';
-
 export type ShopItem = {
   id: string;
   name: string;
   description: string;
-  price: number;
-  premiumOnly?: boolean;
-  category: ShopCategory;
-  icon: string;
+  emoji: string;
+  image?: string;
+  isPremium: boolean;
+  owned: boolean;
 };
 
-const SHOP_ITEMS_KEY = 'gymrat-shop-items-owned';
-const SHOP_EQUIPPED_KEY = 'gymrat-shop-equipped';
+type ShopState = {
+  equippedItemIds: string[];
+};
 
-export const shopItems: ShopItem[] = [
-  {
-    id: 'cosmetic-black-tank',
-    name: 'Black Tank',
-    description: 'Clean starter gym-rat energy.',
-    price: 100,
-    category: 'cosmetic',
-    icon: '🖤',
-  },
-  {
-    id: 'cosmetic-gold-chain',
-    name: 'Gold Chain',
-    description: 'Extra aura for the main screen.',
-    price: 250,
-    category: 'cosmetic',
-    icon: '🔗',
-  },
-  {
-    id: 'glow-lime-core',
-    name: 'Lime Core Glow',
-    description: 'Neon progression vibe.',
-    price: 300,
-    category: 'glow',
-    icon: '✨',
-  },
-  {
-    id: 'bg-underground',
-    name: 'Underground Scene',
-    description: 'Dark grind atmosphere.',
-    price: 350,
-    category: 'background',
-    icon: '🌑',
-  },
-  {
-    id: 'premium-obsidian-aura',
-    name: 'Obsidian Aura',
-    description: 'Premium-only prestige cosmetic.',
-    price: 500,
-    category: 'premium',
-    premiumOnly: true,
-    icon: '👑',
-  },
-  {
-    id: 'premium-inferno-glow',
-    name: 'Inferno Glow',
-    description: 'Premium flame flex.',
-    price: 650,
-    category: 'premium',
-    premiumOnly: true,
-    icon: '🔥',
-  },
-];
+const KEY = 'gymrat-shop-store';
 
-export function getOwnedItems(): string[] {
+const defaultState: ShopState = {
+  equippedItemIds: [],
+};
+
+function read(): ShopState {
+  if (typeof window === 'undefined') return defaultState;
+  const raw = localStorage.getItem(KEY);
+  if (!raw) return defaultState;
+
   try {
-    const raw = localStorage.getItem(SHOP_ITEMS_KEY);
-    const parsed = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed) ? parsed : [];
+    return { ...defaultState, ...JSON.parse(raw) } as ShopState;
   } catch {
-    return [];
+    return defaultState;
   }
 }
 
-export function ownItem(itemId: string): void {
-  const current = getOwnedItems();
-  if (current.includes(itemId)) return;
-  localStorage.setItem(SHOP_ITEMS_KEY, JSON.stringify([...current, itemId]));
+function write(state: ShopState) {
+  localStorage.setItem(KEY, JSON.stringify(state));
 }
 
-export function getEquippedItem(): string | null {
-  return localStorage.getItem(SHOP_EQUIPPED_KEY);
+//
+// 🧠 ITEMS (ENKEL VERSION NU)
+//
+export function getShopItems(): ShopItem[] {
+  return [
+    {
+      id: 'hoodie-core',
+      name: 'Core Hoodie',
+      description: 'Clean base cosmetic.',
+      emoji: '🧥',
+      isPremium: false,
+      owned: true,
+    },
+    {
+      id: 'crown-king',
+      name: 'King Crown',
+      description: 'High-status premium cosmetic.',
+      emoji: '👑',
+      isPremium: true,
+      owned: false,
+    },
+    {
+      id: 'aura-neon',
+      name: 'Neon Aura',
+      description: 'Dopamine glow energy.',
+      emoji: '✨',
+      isPremium: true,
+      owned: false,
+    },
+  ];
 }
 
-export function equipItem(itemId: string): void {
-  localStorage.setItem(SHOP_EQUIPPED_KEY, itemId);
+//
+// 🎯 EQUIP SYSTEM
+//
+export function getEquippedItemIds() {
+  return read().equippedItemIds;
 }
 
-export function isOwned(itemId: string): boolean {
-  return getOwnedItems().includes(itemId);
+export function equipItem(itemId: string) {
+  const state = read();
+  write({
+    ...state,
+    equippedItemIds: [itemId],
+  });
+  return true;
+}
+
+export function clearEquippedItems() {
+  write({ equippedItemIds: [] });
 }

@@ -1,252 +1,66 @@
-import {
-  X,
-  History,
-  Dumbbell,
-  Crown,
-  Settings,
-  Sparkles,
-  ShoppingBag,
-  Mail,
-  Bug,
-  Lock,
-  Image,
-  House,
-} from 'lucide-react';
-
-type AppPage =
-  | 'home'
-  | 'history'
-  | 'nutrition'
-  | 'gallery'
-  | 'shop'
-  | 'premium'
-  | 'settings';
-
-type AppMenuProps = {
-  open: boolean;
-  currentPage: AppPage;
-  onClose: () => void;
-  onNavigate: (page: AppPage) => void;
-};
-
-type MenuItemProps = {
-  label: string;
-  icon: React.ReactNode;
-  page?: AppPage;
-  currentPage?: AppPage;
-  onNavigate?: (page: AppPage) => void;
-  onClick?: () => void;
-  premium?: boolean;
-};
-
-function MenuItem({
-  label,
-  icon,
-  page,
-  currentPage,
-  onNavigate,
-  onClick,
-  premium = false,
-}: MenuItemProps) {
-  const active = page ? currentPage === page : false;
-
-  const handlePress = () => {
-    if (page && onNavigate) {
-      onNavigate(page);
-      return;
-    }
-    onClick?.();
-  };
-
-  return (
-    <button
-      onClick={handlePress}
-      className={`group flex w-full items-center gap-4 rounded-2xl border px-4 py-4 text-left transition-all duration-200 ${
-        active
-          ? 'border-fuchsia-400/30 bg-fuchsia-500/10 text-white shadow-[0_0_30px_rgba(217,70,239,0.14)]'
-          : 'border-white/8 bg-white/5 text-zinc-200 hover:border-white/15 hover:bg-white/8'
-      }`}
-    >
-      <div
-        className={`flex h-11 w-11 items-center justify-center rounded-2xl ${
-          active ? 'bg-fuchsia-500/15 text-fuchsia-300' : 'bg-white/6 text-zinc-300'
-        }`}
-      >
-        {icon}
-      </div>
-
-      <div className="flex-1">
-        <div className="flex items-center gap-2">
-          <div className="text-sm font-semibold">{label}</div>
-          {premium && (
-            <span className="rounded-full bg-amber-400/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.14em] text-amber-300">
-              Premium
-            </span>
-          )}
-        </div>
-      </div>
-    </button>
-  );
-}
+import type { AppPage } from '../lib/appStore';
 
 export default function AppMenu({
   open,
   currentPage,
   onClose,
   onNavigate,
-}: AppMenuProps) {
-  const handleNavigate = (page: AppPage) => {
-    onNavigate(page);
-    onClose();
-  };
+  onOpenPaywall,
+}: {
+  open: boolean;
+  currentPage: AppPage;
+  onClose: () => void;
+  onNavigate: (page: AppPage) => void;
+  onOpenPaywall: () => void;
+}) {
+  if (!open) return null;
 
-  const openContact = () => {
-    onClose();
-    window.location.href = 'mailto:hello@getgymrat.com?subject=GymRat%20Support';
-  };
-
-  const openBugReport = () => {
-    onClose();
-    window.location.href =
-      'mailto:hello@getgymrat.com?subject=GymRat%20Bug%20Report&body=Describe%20the%20issue%20here:%0A%0AWhat%20happened:%0A%0AWhat%20did%20you%20expect%20to%20happen:%0A';
-  };
+  const items: { key: AppPage; label: string }[] = [
+    { key: 'home', label: 'Home' },
+    { key: 'daily', label: 'Daily Check-in' },
+    { key: 'history', label: 'History' },
+    { key: 'nutrition', label: 'Nutrition' },
+    { key: 'shop', label: 'Shop' },
+    { key: 'settings', label: 'Settings' },
+  ];
 
   return (
-    <>
-      <button
-        onClick={onClose}
-        aria-label="Close menu"
-        className={`fixed inset-0 z-40 bg-black/50 backdrop-blur-[2px] transition-opacity duration-300 ${
-          open ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'
-        }`}
-      />
-
-      <aside
-        className={`fixed right-0 top-0 z-50 h-full w-[80vw] max-w-sm transform border-l border-white/10 bg-zinc-950/96 shadow-2xl backdrop-blur-xl transition-transform duration-300 ease-out ${
-          open ? 'translate-x-0' : 'translate-x-full'
-        }`}
+    <div className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm" onClick={onClose}>
+      <div
+        className="ml-auto h-full w-[84%] max-w-sm border-l border-white/10 bg-zinc-950/95 p-5"
+        onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex h-full flex-col">
-          <div className="border-b border-white/8 px-5 pb-5 pt-5">
-            <div className="mb-5 flex items-center justify-between">
-              <div>
-                <div className="text-[10px] uppercase tracking-[0.28em] text-zinc-500">
-                  GymRat
-                </div>
-                <div className="text-xl font-black tracking-tight text-white">
-                  Menu
-                </div>
-              </div>
-
-              <button
-                onClick={onClose}
-                className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-zinc-200 transition hover:bg-white/10"
-                aria-label="Close menu"
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            <div className="rounded-[24px] border border-fuchsia-400/15 bg-gradient-to-br from-fuchsia-500/12 via-violet-500/8 to-white/5 p-4">
-              <div className="text-[10px] uppercase tracking-[0.24em] text-fuchsia-200/80">
-                Upgrade your grind
-              </div>
-              <div className="mt-1 text-lg font-bold text-white">
-                Build your rat. Unlock status. Own the gym.
-              </div>
-            </div>
-          </div>
-
-          <div className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
-            <MenuItem
-              label="Home"
-              icon={<House size={20} />}
-              page="home"
-              currentPage={currentPage}
-              onNavigate={handleNavigate}
-            />
-
-            <MenuItem
-              label="Workout History"
-              icon={<History size={20} />}
-              page="history"
-              currentPage={currentPage}
-              onNavigate={handleNavigate}
-              premium
-            />
-
-            <MenuItem
-              label="Nutrition"
-              icon={<Sparkles size={20} />}
-              page="nutrition"
-              currentPage={currentPage}
-              onNavigate={handleNavigate}
-              premium
-            />
-
-            <MenuItem
-              label="Level Gallery"
-              icon={<Image size={20} />}
-              page="gallery"
-              currentPage={currentPage}
-              onNavigate={handleNavigate}
-            />
-
-            <MenuItem
-              label="Shop"
-              icon={<ShoppingBag size={20} />}
-              page="shop"
-              currentPage={currentPage}
-              onNavigate={handleNavigate}
-            />
-
-            <MenuItem
-              label="Premium"
-              icon={<Crown size={20} />}
-              page="premium"
-              currentPage={currentPage}
-              onNavigate={handleNavigate}
-            />
-
-            <MenuItem
-              label="Settings"
-              icon={<Settings size={20} />}
-              page="settings"
-              currentPage={currentPage}
-              onNavigate={handleNavigate}
-            />
-
-            <div className="my-2 border-t border-white/8" />
-
-            <MenuItem
-              label="Contact"
-              icon={<Mail size={20} />}
-              onClick={openContact}
-            />
-
-            <MenuItem
-              label="Report a Bug"
-              icon={<Bug size={20} />}
-              onClick={openBugReport}
-            />
-          </div>
-
-          <div className="border-t border-white/8 p-4">
-            <div className="rounded-2xl border border-white/8 bg-white/5 p-4">
-              <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.22em] text-zinc-500">
-                <Lock size={12} />
-                Current build
-              </div>
-              <div className="mt-1 text-sm font-semibold text-white">
-                Premium progression system
-              </div>
-              <div className="mt-1 text-xs leading-relaxed text-zinc-400">
-                New milestones, identity variants, premium tracking and stronger item progression.
-              </div>
-            </div>
-          </div>
+        <div className="mb-6 flex items-center justify-between">
+          <h2 className="text-xl font-black text-white">Menu</h2>
+          <button
+            onClick={onClose}
+            className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-white"
+          >
+            Close
+          </button>
         </div>
-      </aside>
-    </>
+
+        <div className="space-y-2">
+          {items.map((item) => (
+            <button
+              key={item.key}
+              onClick={() => onNavigate(item.key)}
+              className={`w-full rounded-2xl px-4 py-4 text-left transition ${
+                currentPage === item.key ? 'bg-emerald-400 text-black font-bold' : 'bg-white/5 text-white'
+              }`}
+            >
+              {item.label}
+            </button>
+          ))}
+
+          <button
+            onClick={onOpenPaywall}
+            className="w-full rounded-2xl bg-amber-300/15 px-4 py-4 text-left font-semibold text-amber-200"
+          >
+            Premium
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }

@@ -1,316 +1,207 @@
-import { useMemo, useState } from 'react';
-import {
-  Apple,
-  ArrowLeft,
-  Beef,
-  Droplets,
-  Flame,
-  Sparkles,
-  Target,
-  Wheat,
-} from 'lucide-react';
-import { getUserProfile } from '@/components/TrainingLevelSelector';
-
-type Props = {
-  onBack: () => void;
-  premiumActive?: boolean;
-  onOpenPremium?: () => void;
-};
-
-type NutritionGoal = 'lose' | 'maintain' | 'gain';
-
-type NutritionTargets = {
-  calories: number;
-  protein: number;
-  carbs: number;
-  fats: number;
-  waterLiters: number;
-};
-
-type NutritionLog = {
-  calories: number;
-  protein: number;
-  carbs: number;
-  fats: number;
-  water: number;
-};
-
-const STORAGE_KEY = 'gymrat-nutrition-log';
-
-function getTodayKey() {
-  return new Date().toISOString().slice(0, 10);
-}
-
-function cn(...classes: Array<string | false | null | undefined>) {
-  return classes.filter(Boolean).join(' ');
-}
-
-function getTargets(): NutritionTargets {
-  const profile = getUserProfile();
-  const weight = profile?.weight || 75;
-  const goal = (profile?.goal ?? 'maintain') as NutritionGoal;
-
-  let calories = Math.round(weight * 32);
-  if (goal === 'lose') calories -= 350;
-  if (goal === 'gain') calories += 250;
-
-  const protein = Math.round(weight * 2.0);
-  const fats = Math.round(weight * 0.8);
-  const carbs = Math.max(100, Math.round((calories - protein * 4 - fats * 9) / 4));
-  const waterLiters = Math.max(2.5, Math.round(weight * 0.035 * 10) / 10);
-
-  return { calories, protein, carbs, fats, waterLiters };
-}
-
-function readAllLogs(): Record<string, NutritionLog> {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    const parsed = raw ? JSON.parse(raw) : {};
-    return parsed && typeof parsed === 'object' ? parsed : {};
-  } catch {
-    return {};
-  }
-}
-
-function readTodayLog(): NutritionLog {
-  const all = readAllLogs();
-  return (
-    all[getTodayKey()] ?? {
-      calories: 0,
-      protein: 0,
-      carbs: 0,
-      fats: 0,
-      water: 0,
-    }
-  );
-}
-
-function saveTodayLog(log: NutritionLog) {
-  const all = readAllLogs();
-  all[getTodayKey()] = log;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
-}
-
-function ProgressCard({
-  icon: Icon,
-  label,
-  value,
-  target,
-  suffix,
-}: {
-  icon: React.ComponentType<{ className?: string }>;
-  label: string;
-  value: number;
-  target: number;
-  suffix: string;
-}) {
-  const progress = target > 0 ? Math.max(0, Math.min(100, (value / target) * 100)) : 0;
-
-  return (
-    <div className="rounded-[24px] border border-white/10 bg-white/[0.04] p-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2 text-sm font-bold text-white">
-          <Icon className="h-4 w-4 text-lime-300" />
-          {label}
-        </div>
-        <div className="text-xs font-bold uppercase tracking-[0.15em] text-white/45">
-          {Math.round(progress)}%
-        </div>
-      </div>
-
-      <div className="mt-3 text-lg font-black text-white">
-        {value}
-        {suffix} / {target}
-        {suffix}
-      </div>
-
-      <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-white/10">
-        <div
-          className="h-full rounded-full bg-gradient-to-r from-lime-300 via-emerald-300 to-yellow-300"
-          style={{ width: `${progress}%` }}
-        />
-      </div>
-    </div>
-  );
-}
-
-function NutritionInput({
-  label,
-  value,
-  onChange,
-  suffix,
-  step = 1,
-}: {
-  label: string;
-  value: number;
-  onChange: (value: number) => void;
-  suffix: string;
-  step?: number;
-}) {
-  return (
-    <div className="rounded-[22px] border border-white/10 bg-black/20 p-4">
-      <div className="mb-2 text-sm font-bold text-white/80">{label}</div>
-
-      <div className="flex items-center gap-3">
-        <input
-          type="number"
-          step={step}
-          value={value || ''}
-          onChange={(e) => onChange(Number(e.target.value) || 0)}
-          className="h-12 w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 text-white outline-none"
-        />
-        <div className="text-sm font-bold text-white/55">{suffix}</div>
-      </div>
-    </div>
-  );
-}
+import { Crown, Flame, Sparkles, Target } from 'lucide-react';
+import { useState } from 'react';
+import { getNutritionEntries, saveNutritionEntry } from '../lib/nutritionStore';
+import { isPremiumUnlocked } from '../lib/premiumStore';
 
 export default function NutritionScreen({
   onBack,
-  premiumActive = false,
-  onOpenPremium,
-}: Props) {
-  const targets = useMemo(() => getTargets(), []);
-  const initial = useMemo(() => readTodayLog(), []);
+  onOpenPaywall,
+}: {
+  onBack: () => void;
+  onOpenPaywall: () => void;
+}) {
+  const premium = isPremiumUnlocked();
+  const [protein, setProtein] = useState(150);
+  const [calories, setCalories] = useState(2200);
+  const entries = getNutritionEntries();
 
-  const [calories, setCalories] = useState(initial.calories);
-  const [protein, setProtein] = useState(initial.protein);
-  const [carbs, setCarbs] = useState(initial.carbs);
-  const [fats, setFats] = useState(initial.fats);
-  const [water, setWater] = useState(initial.water);
-  const [saved, setSaved] = useState(false);
+  const latestEntry = entries[0] ?? null;
+  const proteinGoal = 180;
+  const calorieGoal = 2400;
+
+  const proteinPercent = Math.min(100, Math.round((protein / proteinGoal) * 100));
+  const caloriesPercent = Math.min(100, Math.round((calories / calorieGoal) * 100));
 
   const handleSave = () => {
-    saveTodayLog({ calories, protein, carbs, fats, water });
-    setSaved(true);
-    window.setTimeout(() => setSaved(false), 1800);
+    if (!premium) {
+      onOpenPaywall();
+      return;
+    }
+
+    saveNutritionEntry({
+      protein,
+      calories,
+      createdAt: new Date().toISOString(),
+    });
+
+    window.location.reload();
   };
 
   return (
-    <div className="min-h-screen bg-[#07110d] text-white">
-      <div className="mx-auto flex min-h-screen w-full max-w-md flex-col px-5 pb-8 pt-6">
-        <button
-          onClick={onBack}
-          className="mb-4 inline-flex w-fit items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white/85"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back
-        </button>
-
-        <div className="rounded-[32px] border border-white/10 bg-white/[0.04] p-5 shadow-[0_0_50px_rgba(170,255,140,0.08)]">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <div className="text-xs font-bold uppercase tracking-[0.22em] text-lime-300/75">
-                Nutrition
-              </div>
-              <h1 className="mt-2 text-3xl font-black tracking-tight">Fuel the rat</h1>
-              <p className="mt-2 text-sm leading-6 text-white/65">
-                Daily macros and hydration built around your profile and goal.
-              </p>
-            </div>
-
-            <div className="flex h-14 w-14 items-center justify-center rounded-[22px] bg-black/20 text-lime-200">
-              <Apple className="h-7 w-7" />
-            </div>
-          </div>
-
-          {!premiumActive && (
-            <div className="mt-5 rounded-[26px] border border-yellow-300/20 bg-gradient-to-r from-yellow-300/12 via-white/[0.04] to-lime-300/12 p-4">
-              <div className="flex items-start gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-yellow-300/10 text-yellow-200">
-                  <Sparkles className="h-5 w-5" />
-                </div>
-                <div className="flex-1">
-                  <div className="text-sm font-black text-white">Premium Nutrition</div>
-                  <p className="mt-1 text-sm leading-6 text-white/68">
-                    Unlock structured daily tracking, macro targets and stronger consistency.
-                  </p>
-                </div>
-              </div>
-
-              <button
-                onClick={onOpenPremium}
-                className="mt-4 w-full rounded-[18px] bg-gradient-to-r from-yellow-300 via-amber-300 to-lime-300 px-4 py-3 text-sm font-black text-[#111]"
-              >
-                Unlock Premium
-              </button>
-            </div>
-          )}
-
-          <div className="mt-5 grid grid-cols-2 gap-3">
-            <div className="rounded-[24px] border border-white/10 bg-black/20 p-4">
-              <div className="flex items-center gap-2 text-sm font-bold text-white">
-                <Target className="h-4 w-4 text-lime-300" />
-                Goal calories
-              </div>
-              <div className="mt-3 text-2xl font-black text-white">{targets.calories}</div>
-            </div>
-
-            <div className="rounded-[24px] border border-white/10 bg-black/20 p-4">
-              <div className="flex items-center gap-2 text-sm font-bold text-white">
-                <Flame className="h-4 w-4 text-lime-300" />
-                Water target
-              </div>
-              <div className="mt-3 text-2xl font-black text-white">{targets.waterLiters}L</div>
-            </div>
-          </div>
-
-          <div className="mt-5 space-y-3">
-            <ProgressCard
-              icon={Beef}
-              label="Protein"
-              value={protein}
-              target={targets.protein}
-              suffix="g"
-            />
-            <ProgressCard
-              icon={Wheat}
-              label="Carbs"
-              value={carbs}
-              target={targets.carbs}
-              suffix="g"
-            />
-            <ProgressCard
-              icon={Target}
-              label="Calories"
-              value={calories}
-              target={targets.calories}
-              suffix=""
-            />
-            <ProgressCard
-              icon={Droplets}
-              label="Water"
-              value={water}
-              target={targets.waterLiters}
-              suffix="L"
-            />
-          </div>
-
-          <div className="mt-5 space-y-3">
-            <NutritionInput label="Calories" value={calories} onChange={setCalories} suffix="kcal" />
-            <NutritionInput label="Protein" value={protein} onChange={setProtein} suffix="g" />
-            <NutritionInput label="Carbs" value={carbs} onChange={setCarbs} suffix="g" />
-            <NutritionInput label="Fats" value={fats} onChange={setFats} suffix="g" />
-            <NutritionInput
-              label="Water"
-              value={water}
-              onChange={setWater}
-              suffix="L"
-              step={0.1}
-            />
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(16,185,129,0.14),_transparent_24%),linear-gradient(180deg,_#09090b_0%,_#0f172a_100%)] px-4 py-4 text-white">
+      <div className="mx-auto max-w-md">
+        <div className="mb-4 flex items-center justify-between">
+          <div>
+            <p className="text-[10px] uppercase tracking-[0.35em] text-emerald-400">Nutrition</p>
+            <h1 className="mt-1 text-2xl font-black">Fuel your progression</h1>
           </div>
 
           <button
-            onClick={handleSave}
-            className={cn(
-              'mt-6 w-full rounded-[22px] px-4 py-4 text-base font-black transition',
-              saved
-                ? 'bg-lime-300 text-[#101410]'
-                : 'bg-gradient-to-r from-lime-300 via-emerald-300 to-yellow-300 text-[#101410]'
-            )}
+            onClick={onBack}
+            type="button"
+            className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm shadow-[0_8px_30px_rgba(0,0,0,0.25)] transition hover:bg-white/10"
           >
-            {saved ? 'Saved' : 'Save nutrition'}
+            Back
           </button>
+        </div>
+
+        <div className="relative overflow-hidden rounded-[28px] border border-white/10 bg-white/[0.06] p-4 shadow-[0_20px_50px_rgba(0,0,0,0.35)] backdrop-blur-xl">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(52,211,153,0.14),transparent_18%),radial-gradient(circle_at_85%_25%,rgba(250,204,21,0.08),transparent_18%)]" />
+
+          <div className="relative z-10">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-[10px] uppercase tracking-[0.25em] text-zinc-400">Nutrition status</p>
+                <h2 className="mt-1 text-2xl font-black">Build from the inside</h2>
+                <p className="mt-1 text-sm text-zinc-400">
+                  Food is not separate from progression. It supports everything.
+                </p>
+              </div>
+
+              <div className="flex h-16 w-16 items-center justify-center rounded-3xl border border-emerald-400/15 bg-emerald-400/10 text-emerald-300 shadow-[0_0_40px_rgba(52,211,153,0.12)]">
+                <Flame className="h-7 w-7" />
+              </div>
+            </div>
+
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              <div className="rounded-[22px] border border-white/10 bg-black/20 p-4">
+                <div className="mb-3 inline-flex rounded-2xl bg-emerald-400/10 p-2.5 text-emerald-300">
+                  <Target className="h-4 w-4" />
+                </div>
+                <p className="text-[10px] uppercase tracking-[0.22em] text-zinc-400">Protein goal</p>
+                <p className="mt-1 text-2xl font-black">{proteinGoal}g</p>
+                <p className="mt-1 text-sm text-zinc-400">Current: {protein}g</p>
+
+                <div className="mt-3 h-3 overflow-hidden rounded-full bg-white/10">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-emerald-400 via-lime-300 to-yellow-300 transition-all"
+                    style={{ width: `${proteinPercent}%` }}
+                  />
+                </div>
+              </div>
+
+              <div className="rounded-[22px] border border-white/10 bg-black/20 p-4">
+                <div className="mb-3 inline-flex rounded-2xl bg-yellow-300/10 p-2.5 text-yellow-200">
+                  <Sparkles className="h-4 w-4" />
+                </div>
+                <p className="text-[10px] uppercase tracking-[0.22em] text-zinc-400">Calorie goal</p>
+                <p className="mt-1 text-2xl font-black">{calorieGoal}</p>
+                <p className="mt-1 text-sm text-zinc-400">Current: {calories}</p>
+
+                <div className="mt-3 h-3 overflow-hidden rounded-full bg-white/10">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-emerald-400 via-lime-300 to-yellow-300 transition-all"
+                    style={{ width: `${caloriesPercent}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {!premium && (
+          <button
+            onClick={onOpenPaywall}
+            type="button"
+            className="mt-4 flex w-full items-center justify-between rounded-[26px] border border-amber-300/20 bg-gradient-to-r from-amber-300/12 to-yellow-300/10 p-4 text-left shadow-[0_14px_30px_rgba(0,0,0,0.24)] transition hover:scale-[1.01]"
+          >
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.28em] text-amber-200">Premium feature</p>
+              <p className="mt-1 font-black text-amber-100">Unlock nutrition tracking</p>
+              <p className="mt-1 text-sm text-zinc-300">
+                Fuel tracking, consistency and smarter progress.
+              </p>
+            </div>
+            <div className="inline-flex rounded-2xl bg-amber-300/15 p-3 text-amber-200">
+              <Crown className="h-5 w-5" />
+            </div>
+          </button>
+        )}
+
+        <div className="mt-4 space-y-4">
+          <div className="rounded-[28px] border border-white/10 bg-white/[0.06] p-4 shadow-[0_16px_36px_rgba(0,0,0,0.24)]">
+            <p className="text-[10px] uppercase tracking-[0.25em] text-zinc-400">Today’s input</p>
+
+            <div className="mt-4 space-y-4">
+              <div>
+                <label className="mb-2 block text-sm text-zinc-400">Protein (g)</label>
+                <input
+                  type="number"
+                  value={protein}
+                  onChange={(e) => setProtein(Number(e.target.value))}
+                  className="w-full rounded-2xl border border-white/10 bg-zinc-900 px-4 py-3 outline-none transition focus:border-emerald-400"
+                />
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm text-zinc-400">Calories</label>
+                <input
+                  type="number"
+                  value={calories}
+                  onChange={(e) => setCalories(Number(e.target.value))}
+                  className="w-full rounded-2xl border border-white/10 bg-zinc-900 px-4 py-3 outline-none transition focus:border-emerald-400"
+                />
+              </div>
+
+              <button
+                onClick={handleSave}
+                type="button"
+                className={`w-full rounded-[24px] px-5 py-4 text-base font-black transition ${
+                  premium
+                    ? 'bg-gradient-to-r from-emerald-400 via-lime-300 to-yellow-300 text-black shadow-[0_12px_40px_rgba(132,204,22,0.25)] hover:scale-[1.01]'
+                    : 'border border-amber-300/20 bg-amber-300/10 text-amber-200 hover:bg-amber-300/15'
+                }`}
+              >
+                {premium ? 'Save nutrition' : 'Unlock nutrition tracking'}
+              </button>
+            </div>
+          </div>
+
+          <div className="rounded-[28px] border border-white/10 bg-white/[0.05] p-4 shadow-[0_14px_30px_rgba(0,0,0,0.22)]">
+            <p className="text-[10px] uppercase tracking-[0.28em] text-emerald-400">Latest check-in</p>
+
+            {latestEntry ? (
+              <div className="mt-3 grid grid-cols-2 gap-3">
+                <div className="rounded-[22px] border border-white/10 bg-black/20 p-4">
+                  <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-400">Protein</p>
+                  <p className="mt-1 text-2xl font-black">{latestEntry.protein}g</p>
+                  <p className="mt-1 text-xs text-zinc-500">
+                    {new Date(latestEntry.createdAt).toLocaleString()}
+                  </p>
+                </div>
+
+                <div className="rounded-[22px] border border-white/10 bg-black/20 p-4">
+                  <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-400">Calories</p>
+                  <p className="mt-1 text-2xl font-black">{latestEntry.calories}</p>
+                  <p className="mt-1 text-xs text-zinc-500">
+                    {new Date(latestEntry.createdAt).toLocaleString()}
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="mt-3 rounded-[22px] border border-white/10 bg-black/20 p-4 text-sm text-zinc-400">
+                No nutrition entries yet. Start logging to connect food to progression.
+              </div>
+            )}
+          </div>
+
+          <div className="rounded-[28px] border border-white/10 bg-white/[0.05] p-4 shadow-[0_14px_30px_rgba(0,0,0,0.22)]">
+            <p className="text-[10px] uppercase tracking-[0.28em] text-emerald-400">GymRat mindset</p>
+            <h3 className="mt-2 text-xl font-black">Recovery and fuel are part of the grind</h3>
+            <p className="mt-2 text-sm text-zinc-400">
+              Training builds the signal. Nutrition supports the result. The strongest progress comes from both.
+            </p>
+          </div>
         </div>
       </div>
     </div>

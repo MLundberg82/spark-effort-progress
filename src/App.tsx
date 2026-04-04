@@ -1,12 +1,5 @@
-import IndexScreen from '@/pages/Index';
-import type { PaywallTrigger } from '@/lib/paywallStore';
+import Index from '@/pages/Index';
 
-type AppProps = {
-  openPaywall?: (trigger: PaywallTrigger) => void;
-};
-
-export default function App({ openPaywall }: AppProps) {
-  const safeOpenPaywall = openPaywall ?? (() => {});
-
-  return <IndexScreen openPaywall={safeOpenPaywall} />;
+export default function App() {
+  return <Index />;
 }

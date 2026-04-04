@@ -1,87 +1,47 @@
-import { getEquipped } from '@/lib/shopStore';
-import { getLevelFromXP, getRatTier, getTotalXP } from '@/lib/gamificationStore';
-import { getCurrentTierImage, getGenderKey } from '@/lib/ratImages';
-import { getItemById } from '@/lib/itemAssets';
-import type { EquippedItems, ItemAsset, RatVariant } from '@/lib/assetTypes';
+import { getRatImage } from '../lib/assetRegistry';
+import type { UserGender } from '../lib/profileStore';
 
-type EquippedRatPreviewProps = {
-  size?: 'hero' | 'shop' | 'gallery';
+type Props = {
+  level: number;
+  gender?: UserGender;
+  size?: 'hero' | 'card';
 };
 
-const SLOT_RENDER_ORDER: Array<keyof EquippedItems> = [
-  'aura',
-  'pants',
-  'feet',
-  'top',
-  'neck',
-  'head',
-  'eyes',
-];
-
-function getPreviewSizeClass(size: EquippedRatPreviewProps['size']) {
-  if (size === 'hero') return 'w-[260px] h-[260px] sm:w-[320px] sm:h-[320px]';
-  if (size === 'gallery') return 'w-40 h-40';
-  return 'w-48 h-48';
-}
-
-function getEquippedItems(equipped: EquippedItems): ItemAsset[] {
-  return SLOT_RENDER_ORDER.map((slot) => getItemById(equipped[slot])).filter(Boolean) as ItemAsset[];
+function mapGenderToVariant(gender?: UserGender) {
+  if (gender === 'female') return 'female';
+  if (gender === 'non-binary') return 'nonbinary';
+  return 'male';
 }
 
 export default function EquippedRatPreview({
+  level,
+  gender,
   size = 'hero',
-}: EquippedRatPreviewProps) {
-  const totalXP = getTotalXP();
-  const levelData = getLevelFromXP(totalXP);
-  const level = typeof levelData === 'number' ? levelData : levelData?.level ?? 1;
+}: Props) {
+  const ratImage = getRatImage(level, mapGenderToVariant(gender));
 
-  const ratTierData = getRatTier(level);
-  const tier = typeof ratTierData === 'string' ? ratTierData : ratTierData?.tier ?? 'baby';
-
-  const variant = getGenderKey() as RatVariant;
-  const baseRatImage = getCurrentTierImage(tier);
-  const equipped = (getEquipped() ?? {}) as EquippedItems;
-  const equippedItems = getEquippedItems(equipped).sort((a, b) => a.zIndex - b.zIndex);
-  const sizeClass = getPreviewSizeClass(size);
-
-  const auraItems = equippedItems.filter((item) => item.slot === 'aura');
-  const frontItems = equippedItems.filter((item) => item.slot !== 'aura');
+  const frameClass =
+    size === 'hero'
+      ? 'h-[280px] w-[280px] sm:h-[320px] sm:w-[320px]'
+      : 'h-[180px] w-[180px]';
 
   return (
-    <div className={`relative ${sizeClass}`}>
-      {auraItems.map((item) => {
-        const src = item.variants?.[variant] || item.image;
-        if (!src) return null;
+    <div className={`relative ${frameClass}`}>
+      <div className="absolute inset-0 rounded-full bg-emerald-400/10 blur-3xl" />
+      <div className="absolute inset-4 rounded-full border border-white/10 bg-zinc-950/70" />
+      <div className="absolute inset-0 rounded-full border border-white/10 bg-gradient-to-b from-white/8 to-white/3" />
 
-        return (
-          <img
-            key={item.id}
-            src={src}
-            alt={item.name}
-            className="absolute inset-0 h-full w-full object-contain"
-          />
-        );
-      })}
-
-      <img
-        src={baseRatImage}
-        alt="Equipped Gym Rat"
-        className="absolute inset-0 h-full w-full object-contain"
-      />
-
-      {frontItems.map((item) => {
-        const src = item.variants?.[variant] || item.image;
-        if (!src) return null;
-
-        return (
-          <img
-            key={item.id}
-            src={src}
-            alt={item.name}
-            className="absolute inset-0 h-full w-full object-contain"
-          />
-        );
-      })}
+      {ratImage ? (
+        <img
+          src={ratImage}
+          alt="Gym Rat"
+          className="absolute inset-0 z-10 h-full w-full object-contain p-3 drop-shadow-[0_0_20px_rgba(52,211,153,0.18)]"
+        />
+      ) : (
+        <div className="absolute inset-0 z-10 flex items-center justify-center text-[96px]">
+          🐀
+        </div>
+      )}
     </div>
   );
 }

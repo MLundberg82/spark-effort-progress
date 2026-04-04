@@ -1,94 +1,37 @@
-export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
-
-export interface MacroTargets {
-  calories: number;
-  protein: number;
-  carbs: number;
-  fat: number;
-}
-
-export interface FoodEntry {
+export type NutritionEntry = {
   id: string;
-  date: string;
-  mealType: MealType;
-  name: string;
-  calories: number;
   protein: number;
-  carbs: number;
-  fat: number;
-}
-
-export interface NutritionPlannerData {
-  targets: MacroTargets;
-  entries: FoodEntry[];
-}
-
-const NUTRITION_STORAGE_KEY = 'fitforge-nutrition';
-
-const defaultData: NutritionPlannerData = {
-  targets: {
-    calories: 2200,
-    protein: 160,
-    carbs: 220,
-    fat: 70,
-  },
-  entries: [],
+  calories: number;
+  createdAt: string;
 };
 
-export function getTodayDateString(): string {
-  return new Date().toISOString().split('T')[0];
-}
+const KEY = 'gymrat-nutrition-store';
 
-export function getNutritionPlannerData(): NutritionPlannerData {
-  const raw = localStorage.getItem(NUTRITION_STORAGE_KEY);
-  if (!raw) return defaultData;
+function read(): NutritionEntry[] {
+  if (typeof window === 'undefined') return [];
+  const raw = localStorage.getItem(KEY);
+  if (!raw) return [];
 
   try {
-    const parsed = JSON.parse(raw) as NutritionPlannerData;
-    return {
-      targets: {
-        calories: Number(parsed.targets?.calories ?? defaultData.targets.calories),
-        protein: Number(parsed.targets?.protein ?? defaultData.targets.protein),
-        carbs: Number(parsed.targets?.carbs ?? defaultData.targets.carbs),
-        fat: Number(parsed.targets?.fat ?? defaultData.targets.fat),
-      },
-      entries: Array.isArray(parsed.entries) ? parsed.entries : [],
-    };
+    return JSON.parse(raw) as NutritionEntry[];
   } catch {
-    return defaultData;
+    return [];
   }
 }
 
-function saveNutritionPlannerData(data: NutritionPlannerData): void {
-  localStorage.setItem(NUTRITION_STORAGE_KEY, JSON.stringify(data));
+function write(items: NutritionEntry[]) {
+  localStorage.setItem(KEY, JSON.stringify(items));
 }
 
-export function saveMacroTargets(targets: MacroTargets): void {
-  const data = getNutritionPlannerData();
-  saveNutritionPlannerData({ ...data, targets });
+export function getNutritionEntries() {
+  return read().sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt));
 }
 
-export function addFoodEntry(entry: Omit<FoodEntry, 'id'>): void {
-  const data = getNutritionPlannerData();
-  const next: FoodEntry = {
+export function saveNutritionEntry(entry: Omit<NutritionEntry, 'id'>) {
+  const current = read();
+  const next: NutritionEntry = {
     id: crypto.randomUUID(),
     ...entry,
   };
-
-  saveNutritionPlannerData({
-    ...data,
-    entries: [next, ...data.entries],
-  });
-}
-
-export function deleteFoodEntry(id: string): void {
-  const data = getNutritionPlannerData();
-  saveNutritionPlannerData({
-    ...data,
-    entries: data.entries.filter(entry => entry.id !== id),
-  });
-}
-
-export function getFoodEntriesByDate(date: string): FoodEntry[] {
-  return getNutritionPlannerData().entries.filter(entry => entry.date === date);
+  write([next, ...current]);
 }
