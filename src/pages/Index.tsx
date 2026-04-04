@@ -1,9 +1,28 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Crown, Flame, Menu, Settings, Sparkles, X } from 'lucide-react';
+import {
+  Crown,
+  Dumbbell,
+  Flame,
+  Menu,
+  Settings,
+  ShieldCheck,
+  Sparkles,
+  Star,
+  TimerReset,
+  Trophy,
+  X,
+  Zap,
+} from 'lucide-react';
+
 import { getLevelFromXP, getStreak, getTotalXP, isPremium } from '@/lib/gamificationStore';
 import TrainingLevelSelector from '@/components/TrainingLevelSelector';
 import SettingsScreen from '@/components/SettingsScreen';
 import { useT } from '@/lib/i18n';
+import WorkoutFlow from '@/components/WorkoutFlow';
+import HistoryScreen from '@/components/HistoryScreen';
+import NutritionScreen from '@/components/NutritionScreen';
+import GymRatGallery from '@/components/GymRatGallery';
+import RatShop from '@/components/RatShop';
 
 type ScreenView =
   | 'home'
@@ -30,6 +49,21 @@ function markOnboardingCompleted(): void {
   localStorage.setItem(ONBOARDING_COMPLETED_KEY, 'true');
 }
 
+function cn(...classes: Array<string | false | null | undefined>) {
+  return classes.filter(Boolean).join(' ');
+}
+
+function ProgressBar({ value }: { value: number }) {
+  return (
+    <div className="h-3 w-full overflow-hidden rounded-full bg-white/10 ring-1 ring-white/10">
+      <div
+        className="h-full rounded-full bg-gradient-to-r from-lime-400 via-emerald-400 to-yellow-300 transition-all duration-500"
+        style={{ width: `${Math.max(0, Math.min(100, value))}%` }}
+      />
+    </div>
+  );
+}
+
 function PlaceholderScreen({
   title,
   subtitle,
@@ -46,44 +80,49 @@ function PlaceholderScreen({
   premiumActive?: boolean;
 }) {
   return (
-    <div className="min-h-screen bg-background px-4 py-4 text-foreground">
-      <div className="mx-auto w-full max-w-md">
+    <div className="min-h-screen bg-[#07110d] text-white">
+      <div className="mx-auto flex min-h-screen w-full max-w-md flex-col px-5 pb-8 pt-6">
         <button
-          type="button"
           onClick={onBack}
-          className="mb-4 rounded-2xl border border-border/50 bg-secondary/30 px-4 py-2 text-sm font-medium"
+          className="mb-4 inline-flex w-fit items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white/90"
         >
-          Back
+          ← Back
         </button>
 
-        <div className="rounded-3xl border border-border/40 bg-card/70 p-5 shadow-sm">
-          <div className="text-xs uppercase tracking-[0.24em] text-muted-foreground">
+        <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-5 shadow-[0_0_50px_rgba(132,255,136,0.08)]">
+          <div className="mb-2 text-xs font-semibold uppercase tracking-[0.22em] text-emerald-300/80">
             GymRat
           </div>
-          <h1 className="mt-2 text-2xl font-black tracking-tight">{title}</h1>
-          <p className="mt-2 text-sm text-muted-foreground">{subtitle}</p>
+
+          <h1 className="text-3xl font-black tracking-tight">{title}</h1>
+          <p className="mt-2 text-sm leading-6 text-white/70">{subtitle}</p>
 
           {premiumRequired && !premiumActive && (
-            <div className="mt-4 rounded-2xl border border-amber-400/20 bg-amber-500/5 p-4">
-              <div className="flex items-center gap-2 text-sm font-semibold text-amber-300">
+            <div className="mt-5 rounded-3xl border border-amber-400/20 bg-amber-300/10 p-4">
+              <div className="flex items-center gap-2 text-sm font-bold text-amber-200">
                 <Crown className="h-4 w-4" />
                 Premium required
               </div>
-              <p className="mt-2 text-sm text-muted-foreground">
-                This area is planned as a premium feature.
+              <p className="mt-2 text-sm text-amber-100/80">
+                This area is part of the premium path.
               </p>
+
               <button
-                type="button"
                 onClick={onOpenPremium}
-                className="mt-4 rounded-2xl px-4 py-2 text-sm font-semibold gradient-accent text-accent-foreground shadow-gold"
+                className="mt-4 w-full rounded-2xl bg-gradient-to-r from-yellow-300 via-amber-300 to-lime-300 px-4 py-3 text-sm font-black text-[#111]"
               >
                 Open Premium
               </button>
             </div>
           )}
 
-          <div className="mt-5 rounded-2xl border border-border/40 bg-secondary/20 p-4 text-sm text-muted-foreground">
-            This screen is temporarily simplified so the app can build cleanly while we repair the remaining broken files one by one.
+          <div className="mt-5 rounded-3xl border border-white/10 bg-black/20 p-4">
+            <div className="text-sm font-bold text-white/90">Rebuild mode</div>
+            <p className="mt-2 text-sm leading-6 text-white/65">
+              This section is intentionally simplified while Home / Index is rebuilt first.
+              The goal is to keep the app feeling premium and stable while the deeper pages are
+              repaired one by one.
+            </p>
           </div>
         </div>
       </div>
@@ -91,7 +130,7 @@ function PlaceholderScreen({
   );
 }
 
-function PremiumCard({
+function PremiumModal({
   open,
   onClose,
   onOpenPaywall,
@@ -102,75 +141,89 @@ function PremiumCard({
 }) {
   if (!open) return null;
 
+  const premiumItems = [
+    {
+      icon: Zap,
+      title: 'XP boost',
+      text: 'Double down on progress and level up faster.',
+    },
+    {
+      icon: Trophy,
+      title: 'History',
+      text: 'Track sessions, momentum and progression over time.',
+    },
+    {
+      icon: Sparkles,
+      title: 'Nutrition',
+      text: 'Macros, targets and better structure around your results.',
+    },
+    {
+      icon: Crown,
+      title: 'Cosmetics',
+      text: 'Premium looks, gear and a more elite rat identity.',
+    },
+    {
+      icon: Dumbbell,
+      title: 'Custom workout',
+      text: 'Build your own training flow instead of only preset paths.',
+    },
+  ];
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <button
-        type="button"
-        onClick={onClose}
-        className="absolute inset-0 bg-black/45 backdrop-blur-[2px]"
-        aria-label="Close premium modal"
-      />
-
-      <div className="relative z-10 w-full max-w-sm rounded-[28px] border border-white/10 bg-zinc-950/95 p-5 shadow-2xl">
-        <button
-          type="button"
-          onClick={onClose}
-          className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-xl bg-white/5 text-white/80"
-          aria-label="Close"
-        >
-          <X className="h-4 w-4" />
-        </button>
-
-        <div className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-amber-400/15 text-amber-300">
-          <Crown className="h-5 w-5" />
-        </div>
-
-        <div className="mt-3 text-[11px] uppercase tracking-[0.22em] text-zinc-500">
-          GymRat Premium
-        </div>
-
-        <h2 className="mt-1 text-xl font-black tracking-tight text-white">
-          Unlock deeper features
-        </h2>
-
-        <p className="mt-2 text-sm leading-relaxed text-zinc-400">
-          Premium is for nutrition, history, XP boost and premium gear. You can always close this and continue in the app.
-        </p>
-
-        <div className="mt-4 space-y-2 rounded-3xl border border-white/8 bg-white/[0.03] p-4">
-          <div className="flex items-center gap-2 text-sm text-white/90">
-            <Sparkles className="h-4 w-4" />
-            Nutrition and macro targets
-          </div>
-          <div className="flex items-center gap-2 text-sm text-white/90">
-            <Sparkles className="h-4 w-4" />
-            Training history
-          </div>
-          <div className="flex items-center gap-2 text-sm text-white/90">
-            <Sparkles className="h-4 w-4" />
-            2x XP boost
-          </div>
-          <div className="flex items-center gap-2 text-sm text-white/90">
-            <Sparkles className="h-4 w-4" />
-            Premium cosmetics and gear
-          </div>
-        </div>
-
-        <div className="mt-4 grid gap-2">
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-4 backdrop-blur-md">
+      <div className="w-full max-w-md overflow-hidden rounded-[32px] border border-yellow-300/20 bg-[#111915] text-white shadow-[0_25px_100px_rgba(0,0,0,0.55)]">
+        <div className="relative overflow-hidden border-b border-white/10 bg-gradient-to-br from-lime-300/10 via-transparent to-yellow-300/10 p-5">
           <button
-            type="button"
-            onClick={onOpenPaywall}
-            className="rounded-xl px-4 py-2.5 text-sm font-bold gradient-accent text-accent-foreground shadow-gold"
+            onClick={onClose}
+            className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-2xl bg-white/8 text-white/80"
+            aria-label="Close premium modal"
           >
-            Open Premium
+            <X className="h-5 w-5" />
+          </button>
+
+          <div className="inline-flex items-center gap-2 rounded-full border border-yellow-300/20 bg-yellow-300/10 px-3 py-1 text-xs font-bold uppercase tracking-[0.2em] text-yellow-200">
+            <Crown className="h-3.5 w-3.5" />
+            Premium
+          </div>
+
+          <h2 className="mt-4 text-3xl font-black tracking-tight">
+            Level up faster in real life
+          </h2>
+          <p className="mt-2 text-sm leading-6 text-white/70">
+            Built for dopamine, progress and momentum — not fluff.
+          </p>
+        </div>
+
+        <div className="space-y-3 p-5">
+          {premiumItems.map(({ icon: Icon, title, text }) => (
+            <div
+              key={title}
+              className="rounded-3xl border border-white/10 bg-white/[0.04] p-4"
+            >
+              <div className="flex items-start gap-3">
+                <div className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-lime-300/20 to-yellow-300/20 text-lime-200">
+                  <Icon className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="text-sm font-extrabold text-white">{title}</div>
+                  <div className="mt-1 text-sm leading-6 text-white/65">{text}</div>
+                </div>
+              </div>
+            </div>
+          ))}
+
+          <button
+            onClick={onOpenPaywall}
+            className="mt-2 w-full rounded-2xl bg-gradient-to-r from-lime-300 via-emerald-300 to-yellow-300 px-4 py-4 text-base font-black text-[#101410] shadow-[0_10px_30px_rgba(180,255,120,0.2)]"
+          >
+            Unlock Premium
           </button>
 
           <button
-            type="button"
             onClick={onClose}
-            className="rounded-xl px-4 py-2 text-sm font-medium text-zinc-400"
+            className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-semibold text-white/80"
           >
-            Continue with free version
+            Continue free
           </button>
         </div>
       </div>
@@ -178,8 +231,91 @@ function PremiumCard({
   );
 }
 
+function StatCard({
+  label,
+  value,
+  glow = false,
+  icon: Icon,
+}: {
+  label: string;
+  value: string | number;
+  glow?: boolean;
+  icon: React.ComponentType<{ className?: string }>;
+}) {
+  return (
+    <div
+      className={cn(
+        'rounded-[24px] border p-4',
+        glow
+          ? 'border-lime-300/20 bg-gradient-to-br from-lime-300/10 to-yellow-300/10 shadow-[0_0_35px_rgba(170,255,140,0.12)]'
+          : 'border-white/10 bg-white/[0.04]'
+      )}
+    >
+      <div className="flex items-center justify-between">
+        <div className="text-xs font-bold uppercase tracking-[0.18em] text-white/50">{label}</div>
+        <Icon className="h-4 w-4 text-white/45" />
+      </div>
+      <div className="mt-3 text-3xl font-black tracking-tight text-white">{value}</div>
+    </div>
+  );
+}
+
+function HomeAction({
+  title,
+  text,
+  icon: Icon,
+  onClick,
+  premium = false,
+  highlight = false,
+}: {
+  title: string;
+  text: string;
+  icon: React.ComponentType<{ className?: string }>;
+  onClick: () => void;
+  premium?: boolean;
+  highlight?: boolean;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        'w-full rounded-[26px] border p-4 text-left transition duration-200',
+        highlight
+          ? 'border-lime-300/20 bg-gradient-to-br from-lime-300/10 via-emerald-300/8 to-yellow-300/10 shadow-[0_0_35px_rgba(170,255,140,0.08)]'
+          : 'border-white/10 bg-white/[0.04] hover:bg-white/[0.06]'
+      )}
+    >
+      <div className="flex items-start gap-3">
+        <div
+          className={cn(
+            'flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl',
+            highlight
+              ? 'bg-gradient-to-br from-lime-300/20 to-yellow-300/20 text-lime-200'
+              : 'bg-white/8 text-white/75'
+          )}
+        >
+          <Icon className="h-5 w-5" />
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <div className="text-sm font-extrabold text-white">{title}</div>
+            {premium && (
+              <span className="rounded-full border border-yellow-300/20 bg-yellow-300/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.18em] text-yellow-200">
+                Premium
+              </span>
+            )}
+          </div>
+          <div className="mt-1 text-sm leading-6 text-white/62">{text}</div>
+        </div>
+      </div>
+    </button>
+  );
+}
+
 export default function IndexScreen({ openPaywall }: IndexScreenProps) {
   const t = useT();
+
   const [view, setView] = useState<ScreenView>(
     hasCompletedOnboarding() ? 'home' : 'training-level'
   );
@@ -190,6 +326,7 @@ export default function IndexScreen({ openPaywall }: IndexScreenProps) {
   const appState = useMemo(() => {
     const totalXP = getTotalXP();
     const levelData = getLevelFromXP(totalXP);
+
     return {
       totalXP,
       level: levelData.level,
@@ -206,9 +343,12 @@ export default function IndexScreen({ openPaywall }: IndexScreenProps) {
 
     window.addEventListener('premium-updated', rerender);
     window.addEventListener('gymrat-language-changed', rerender);
+    window.addEventListener('focus', rerender);
+
     return () => {
       window.removeEventListener('premium-updated', rerender);
       window.removeEventListener('gymrat-language-changed', rerender);
+      window.removeEventListener('focus', rerender);
     };
   }, []);
 
@@ -235,23 +375,22 @@ export default function IndexScreen({ openPaywall }: IndexScreenProps) {
   };
 
   if (view === 'training-level') {
-    return <TrainingLevelSelector onComplete={handleFinishOnboarding} />;
+    return (
+      <div className="min-h-screen bg-[#07110d]">
+        <TrainingLevelSelector onComplete={handleFinishOnboarding} />
+      </div>
+    );
   }
 
   if (view === 'settings') {
-    return (
-      <SettingsScreen
-        onBack={goHome}
-        premiumActive={appState.premiumActive}
-      />
-    );
+    return <SettingsScreen onBack={goHome} premiumActive={appState.premiumActive} />;
   }
 
   if (view === 'daily-check-in') {
     return (
       <PlaceholderScreen
         title="Daily Check-in"
-        subtitle="Mood, energy, soreness and recovery tracking."
+        subtitle="Consistency, focus and momentum tracking will live here."
         onBack={goHome}
       />
     );
@@ -259,329 +398,359 @@ export default function IndexScreen({ openPaywall }: IndexScreenProps) {
 
   if (view === 'food') {
     return (
-      <PlaceholderScreen
-        title="Nutrition"
-        subtitle="Daily calories, macros and hydration."
+      <NutritionScreen
         onBack={goHome}
-        onOpenPremium={openPremium}
-        premiumRequired
         premiumActive={appState.premiumActive}
+        onOpenPremium={openPremium}
       />
     );
   }
 
   if (view === 'history') {
     return (
-      <PlaceholderScreen
-        title="History"
-        subtitle="Training overview, streaks and progress."
+      <HistoryScreen
         onBack={goHome}
-        onOpenPremium={openPremium}
-        premiumRequired
         premiumActive={appState.premiumActive}
+        onOpenPremium={openPremium}
       />
     );
   }
 
   if (view === 'gallery') {
-    return (
-      <PlaceholderScreen
-        title="Gallery"
-        subtitle="Rat forms and visual progression."
-        onBack={goHome}
-      />
-    );
+    return <GymRatGallery onBack={goHome} />;
   }
 
   if (view === 'shop') {
     return (
-      <PlaceholderScreen
-        title="Shop"
-        subtitle="Cosmetics, gear and future item previews."
+      <RatShop
         onBack={goHome}
-        onOpenPremium={openPremium}
         premiumActive={appState.premiumActive}
+        onOpenPremium={openPremium}
       />
     );
   }
 
   if (view === 'workout') {
     return (
-      <PlaceholderScreen
-        title="Workout"
-        subtitle="Workout flow will be restored next."
+      <WorkoutFlow
         onBack={goHome}
-        onOpenPremium={openPremium}
-        premiumActive={appState.premiumActive}
+        onComplete={() => setRefreshKey((prev) => prev + 1)}
+        openPaywall={(trigger) => openPaywall?.(trigger as never)}
       />
     );
   }
 
+  const nextLevelXP = Math.max(appState.xpToNext - appState.currentXP, 0);
+
   return (
-    <div className="min-h-screen bg-background px-4 pb-8 pt-4 text-foreground">
-      <div className="mx-auto w-full max-w-md">
-        <div className="relative overflow-hidden rounded-[32px] border border-border/40 bg-card/70 p-5 shadow-sm">
-          <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_top_right,rgba(255,215,0,0.12),transparent_40%),radial-gradient(circle_at_bottom_left,rgba(34,197,94,0.10),transparent_35%)]" />
-
-          <div className="relative flex items-start justify-between gap-3">
-            <div>
-              <div className="text-xs uppercase tracking-[0.24em] text-muted-foreground">
-                GymRat
-              </div>
-              <h1 className="mt-2 text-3xl font-black tracking-tight">Home</h1>
+    <div className="min-h-screen overflow-hidden bg-[#07110d] text-white">
+      <div className="mx-auto flex min-h-screen w-full max-w-md flex-col px-5 pb-10 pt-5">
+        <div className="mb-5 flex items-center justify-between">
+          <div>
+            <div className="text-[11px] font-bold uppercase tracking-[0.24em] text-lime-300/75">
+              GymRat
             </div>
-
-            <button
-              type="button"
-              onClick={() => setMenuOpen(true)}
-              className="flex h-11 w-11 items-center justify-center rounded-2xl border border-border/40 bg-secondary/40 text-secondary-foreground"
-              aria-label="Open menu"
-            >
-              <Menu className="h-5 w-5" />
-            </button>
+            <h1 className="mt-1 text-3xl font-black tracking-tight">Level up IRL</h1>
           </div>
 
-          <div className="relative mt-5 grid grid-cols-2 gap-3">
-            <div className="rounded-2xl border border-border/40 bg-secondary/20 p-4">
-              <div className="text-xs uppercase tracking-wide text-muted-foreground">
-                Level
-              </div>
-              <div className="mt-1 text-2xl font-black">{appState.level}</div>
-            </div>
+          <button
+            onClick={() => setMenuOpen(true)}
+            className="flex h-12 w-12 items-center justify-center rounded-[20px] border border-white/10 bg-white/[0.05] text-white/90 shadow-[0_0_20px_rgba(255,255,255,0.04)]"
+            aria-label="Open menu"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
+        </div>
 
-            <div className="rounded-2xl border border-border/40 bg-secondary/20 p-4">
-              <div className="text-xs uppercase tracking-wide text-muted-foreground">
-                Streak
-              </div>
-              <div className="mt-1 flex items-center gap-2 text-2xl font-black">
-                <Flame className="h-5 w-5" />
-                {appState.streak}
-              </div>
-            </div>
-          </div>
+        <div className="relative overflow-hidden rounded-[32px] border border-lime-300/20 bg-[radial-gradient(circle_at_top,_rgba(173,255,120,0.20),_transparent_35%),linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.03))] p-5 shadow-[0_0_60px_rgba(160,255,120,0.10)]">
+          <div className="absolute -right-12 -top-12 h-36 w-36 rounded-full bg-yellow-300/10 blur-3xl" />
+          <div className="absolute -left-8 bottom-0 h-28 w-28 rounded-full bg-lime-300/10 blur-3xl" />
 
-          <div className="relative mt-4 rounded-2xl border border-border/40 bg-secondary/20 p-4">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">XP progress</span>
-              <span className="font-semibold">
-                {appState.currentXP}/{appState.xpToNext}
-              </span>
-            </div>
-            <div className="mt-3 h-3 overflow-hidden rounded-full bg-background/80">
-              <div
-                className="h-full rounded-full bg-primary transition-all"
-                style={{ width: `${appState.progress}%` }}
-              />
-            </div>
-          </div>
-
-          <div className="relative mt-5 rounded-3xl border border-border/40 bg-secondary/20 p-5 text-center">
-            <div className="mx-auto flex h-28 w-28 items-center justify-center rounded-full border border-border/40 bg-background/60 text-5xl">
-              🐀
-            </div>
-            <div className="mt-3 text-sm text-muted-foreground">
-              Temporary stable home view while we rebuild the remaining screens cleanly.
-            </div>
-          </div>
-
-          <div className="relative mt-5 grid gap-3">
-            <button
-              type="button"
-              onClick={() => setView('workout')}
-              className="h-12 w-full rounded-2xl bg-primary text-base font-bold text-primary-foreground shadow-md"
-            >
-              {t('startWorkout')}
-            </button>
-
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={() => setView('gallery')}
-                className="rounded-2xl border border-border/40 bg-secondary/30 px-4 py-3 text-sm font-semibold"
-              >
-                {t('gallery')}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setView('shop')}
-                className="rounded-2xl border border-border/40 bg-secondary/30 px-4 py-3 text-sm font-semibold"
-              >
-                {t('shop')}
-              </button>
-            </div>
-          </div>
-
-          {!appState.premiumActive && (
-            <button
-              type="button"
-              onClick={openPremium}
-              className="relative mt-4 flex w-full items-center justify-between rounded-2xl px-4 py-3 text-left gradient-accent text-accent-foreground shadow-gold"
-            >
+          <div className="relative z-10">
+            <div className="flex items-center justify-between gap-3">
               <div>
-                <div className="font-bold">Go Premium</div>
-                <div className="text-xs text-accent-foreground/80">
-                  Unlock nutrition, history, 2x XP boost and premium gear
+                <div className="inline-flex items-center gap-2 rounded-full border border-lime-300/20 bg-lime-300/10 px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-lime-200">
+                  <Star className="h-3.5 w-3.5" />
+                  Dopamine loop
+                </div>
+
+                <div className="mt-3 text-4xl font-black tracking-tight">
+                  Level {appState.level}
+                </div>
+                <div className="mt-1 text-sm text-white/65">
+                  {appState.premiumActive
+                    ? 'Premium active — faster, deeper, cleaner progression.'
+                    : 'Train, gain XP and unlock your next form.'}
                 </div>
               </div>
-              <Crown className="h-5 w-5" />
+
+              <div className="flex h-20 w-20 items-center justify-center rounded-[28px] border border-white/10 bg-black/20 text-4xl shadow-inner">
+                🐀
+              </div>
+            </div>
+
+            <div className="mt-5">
+              <div className="mb-2 flex items-center justify-between text-xs font-bold uppercase tracking-[0.16em] text-white/55">
+                <span>XP progress</span>
+                <span>
+                  {appState.currentXP}/{appState.xpToNext}
+                </span>
+              </div>
+              <ProgressBar value={appState.progress} />
+              <div className="mt-2 text-sm text-white/60">
+                {nextLevelXP} XP until next level
+              </div>
+            </div>
+
+            <button
+              onClick={() => setView('workout')}
+              className="mt-5 flex h-14 w-full items-center justify-center gap-2 rounded-[22px] bg-gradient-to-r from-lime-300 via-emerald-300 to-yellow-300 text-base font-black text-[#0c120d] shadow-[0_10px_35px_rgba(170,255,140,0.25)] transition hover:scale-[1.01]"
+            >
+              <Dumbbell className="h-5 w-5" />
+              {t('startWorkout')}
             </button>
-          )}
+          </div>
+        </div>
+
+        <div className="mt-4 grid grid-cols-3 gap-3">
+          <StatCard label="Streak" value={appState.streak} icon={Flame} glow />
+          <StatCard label="Total XP" value={appState.totalXP.toLocaleString()} icon={Zap} />
+          <StatCard
+            label="Plan"
+            value={appState.premiumActive ? 'PRO' : 'FREE'}
+            icon={appState.premiumActive ? ShieldCheck : Crown}
+          />
+        </div>
+
+        {!appState.premiumActive && (
+          <button
+            onClick={openPremium}
+            className="mt-4 overflow-hidden rounded-[28px] border border-yellow-300/20 bg-gradient-to-r from-yellow-300/12 via-white/[0.04] to-lime-300/12 p-4 text-left shadow-[0_0_40px_rgba(255,220,120,0.07)]"
+          >
+            <div className="flex items-start gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-yellow-300/20 to-lime-300/20 text-yellow-200">
+                <Crown className="h-5 w-5" />
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  <div className="text-base font-black text-white">Go Premium</div>
+                  <span className="rounded-full border border-yellow-300/20 bg-yellow-300/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.18em] text-yellow-200">
+                    XP boost
+                  </span>
+                </div>
+                <p className="mt-1 text-sm leading-6 text-white/68">
+                  Nutrition, history, custom workout, cosmetics and a faster level-up loop.
+                </p>
+              </div>
+            </div>
+          </button>
+        )}
+
+        <div className="mt-5">
+          <div className="mb-3 text-xs font-bold uppercase tracking-[0.22em] text-white/45">
+            Main actions
+          </div>
+
+          <div className="space-y-3">
+            <HomeAction
+              title={t('gallery')}
+              text="See level milestones, future forms and your evolution path."
+              icon={Sparkles}
+              onClick={() => setView('gallery')}
+            />
+
+            <HomeAction
+              title={t('shop')}
+              text="Cosmetics, identity and visual flex."
+              icon={Crown}
+              onClick={() => setView('shop')}
+              premium={!appState.premiumActive}
+            />
+
+            <HomeAction
+              title={t('nutrition')}
+              text="Macros, food tracking and goals."
+              icon={Zap}
+              onClick={() => setView('food')}
+              premium
+              highlight
+            />
+
+            <HomeAction
+              title={t('history')}
+              text="Sessions, momentum and progression tracking."
+              icon={TimerReset}
+              onClick={() => setView('history')}
+              premium
+            />
+
+            <HomeAction
+              title="Daily Check-in"
+              text="Small daily actions that keep momentum alive."
+              icon={Flame}
+              onClick={() => setView('daily-check-in')}
+            />
+          </div>
         </div>
       </div>
 
       <div
-        className={`fixed inset-0 z-40 transition ${
-          menuOpen ? 'pointer-events-auto' : 'pointer-events-none'
-        }`}
+        className={cn(
+          'pointer-events-none fixed inset-0 z-40 bg-black/45 backdrop-blur-[2px] transition-opacity duration-300',
+          menuOpen ? 'opacity-100' : 'opacity-0'
+        )}
+      />
+
+      <aside
+        className={cn(
+          'fixed right-0 top-0 z-50 flex h-screen w-[88%] max-w-sm flex-col border-l border-white/10 bg-[#101713] p-5 text-white shadow-[-20px_0_60px_rgba(0,0,0,0.45)] transition-transform duration-300',
+          menuOpen ? 'translate-x-0' : 'translate-x-full'
+        )}
       >
+        <div className="mb-4 flex items-center justify-between">
+          <div>
+            <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-lime-300/70">
+              Menu
+            </div>
+            <div className="mt-1 text-2xl font-black tracking-tight">GymRat</div>
+          </div>
+
+          <button
+            onClick={() => setMenuOpen(false)}
+            className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/5 text-white/80"
+            aria-label="Close menu"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="mb-5 rounded-[26px] border border-white/10 bg-white/[0.04] p-4">
+          <div className="flex items-center justify-between">
+            <div className="text-sm font-bold text-white/75">Current status</div>
+            {appState.premiumActive ? (
+              <span className="rounded-full border border-lime-300/20 bg-lime-300/10 px-2 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-lime-200">
+                Premium
+              </span>
+            ) : (
+              <span className="rounded-full border border-white/10 bg-white/5 px-2 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-white/65">
+                Free
+              </span>
+            )}
+          </div>
+
+          <div className="mt-3 text-3xl font-black">Level {appState.level}</div>
+          <div className="mt-1 text-sm text-white/60">Streak: {appState.streak} days</div>
+        </div>
+
+        <div className="space-y-3 overflow-y-auto pb-4">
+          <button
+            onClick={() => {
+              setMenuOpen(false);
+              setView('daily-check-in');
+            }}
+            className="flex w-full items-center justify-between rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-left"
+          >
+            <div>
+              <div className="text-sm font-bold">Daily Check-in</div>
+              <div className="mt-1 text-xs text-white/55">Stay consistent every day</div>
+            </div>
+            <span className="text-white/35">›</span>
+          </button>
+
+          <button
+            onClick={() => {
+              setMenuOpen(false);
+              setView('food');
+            }}
+            className="flex w-full items-center justify-between rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-left"
+          >
+            <div>
+              <div className="text-sm font-bold">Nutrition</div>
+              <div className="mt-1 text-xs text-white/55">Macros, goals and food tracking</div>
+            </div>
+            <span className="text-white/35">›</span>
+          </button>
+
+          <button
+            onClick={() => {
+              setMenuOpen(false);
+              setView('history');
+            }}
+            className="flex w-full items-center justify-between rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-left"
+          >
+            <div>
+              <div className="text-sm font-bold">Training History</div>
+              <div className="mt-1 text-xs text-white/55">Logbook, progress and previous sessions</div>
+            </div>
+            <span className="text-white/35">›</span>
+          </button>
+
+          <button
+            onClick={() => {
+              setMenuOpen(false);
+              setView('settings');
+            }}
+            className="flex w-full items-center justify-between rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-left"
+          >
+            <div>
+              <div className="flex items-center gap-2 text-sm font-bold">
+                <Settings className="h-4 w-4" />
+                Settings
+              </div>
+              <div className="mt-1 text-xs text-white/55">Language and app preferences</div>
+            </div>
+            <span className="text-white/35">›</span>
+          </button>
+
+          <button
+            onClick={() => {
+              setMenuOpen(false);
+              window.location.href = 'mailto:hello@getgymrat.com?subject=GymRat%20Support';
+            }}
+            className="flex w-full items-center justify-between rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-left"
+          >
+            <div>
+              <div className="text-sm font-bold">Contact</div>
+              <div className="mt-1 text-xs text-white/55">Get help or ask a question</div>
+            </div>
+            <span className="text-white/35">›</span>
+          </button>
+
+          <button
+            onClick={() => {
+              setMenuOpen(false);
+              window.location.href =
+                'mailto:hello@getgymrat.com?subject=GymRat%20Bug%20Report&body=Describe%20the%20issue%20here:%0A%0AWhat%20happened:%0A%0AWhat%20did%20you%20expect%20to%20happen:%0A';
+            }}
+            className="flex w-full items-center justify-between rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-left"
+          >
+            <div>
+              <div className="text-sm font-bold">Report a Bug</div>
+              <div className="mt-1 text-xs text-white/55">Tell us when something breaks</div>
+            </div>
+            <span className="text-white/35">›</span>
+          </button>
+        </div>
+
+        {!appState.premiumActive && (
+          <button
+            onClick={openPremium}
+            className="mt-auto rounded-[22px] bg-gradient-to-r from-yellow-300 via-amber-300 to-lime-300 px-4 py-4 text-sm font-black text-[#111]"
+          >
+            Go Premium
+          </button>
+        )}
+      </aside>
+
+      {menuOpen && (
         <button
-          type="button"
           onClick={() => setMenuOpen(false)}
-          className={`absolute inset-0 bg-black/45 backdrop-blur-[2px] transition-opacity duration-300 ${
-            menuOpen ? 'opacity-100' : 'opacity-0'
-          }`}
+          className="fixed inset-0 z-30"
           aria-label="Close menu overlay"
         />
+      )}
 
-        <aside
-          className={`absolute right-0 top-0 h-full w-[80%] max-w-sm border-l border-white/10 bg-zinc-950/96 p-4 text-white shadow-2xl transition-transform duration-300 ${
-            menuOpen ? 'translate-x-0' : 'translate-x-full'
-          }`}
-        >
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-xs uppercase tracking-[0.22em] text-zinc-500">
-                Menu
-              </div>
-              <div className="mt-1 text-2xl font-black">GymRat</div>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => setMenuOpen(false)}
-              className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/5 text-white/80"
-              aria-label="Close menu"
-            >
-              <X className="h-5 w-5" />
-            </button>
-          </div>
-
-          <div className="mt-6 space-y-3">
-            <button
-              type="button"
-              onClick={() => {
-                setMenuOpen(false);
-                setView('daily-check-in');
-              }}
-              className="flex w-full items-center justify-between rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-left"
-            >
-              <div>
-                <div className="font-semibold">Daily Check-in</div>
-                <div className="text-xs text-zinc-400">Stay consistent every day</div>
-              </div>
-              <span>›</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setMenuOpen(false);
-                setView('food');
-              }}
-              className="flex w-full items-center justify-between rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-left"
-            >
-              <div>
-                <div className="font-semibold">Nutrition</div>
-                <div className="text-xs text-zinc-400">Macros, goals and food tracking</div>
-              </div>
-              <span>›</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setMenuOpen(false);
-                setView('history');
-              }}
-              className="flex w-full items-center justify-between rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-left"
-            >
-              <div>
-                <div className="font-semibold">Training History</div>
-                <div className="text-xs text-zinc-400">Logbook, progress and previous sessions</div>
-              </div>
-              <span>›</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setMenuOpen(false);
-                setView('settings');
-              }}
-              className="flex w-full items-center justify-between rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-left"
-            >
-              <div className="flex items-center gap-3">
-                <Settings className="h-4 w-4" />
-                <div>
-                  <div className="font-semibold">Settings</div>
-                  <div className="text-xs text-zinc-400">Language and app preferences</div>
-                </div>
-              </div>
-              <span>›</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setMenuOpen(false);
-                window.location.href = 'mailto:hello@getgymrat.com?subject=GymRat%20Support';
-              }}
-              className="flex w-full items-center justify-between rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-left"
-            >
-              <div>
-                <div className="font-semibold">Contact</div>
-                <div className="text-xs text-zinc-400">Get help or ask a question</div>
-              </div>
-              <span>›</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setMenuOpen(false);
-                window.location.href =
-                  'mailto:hello@getgymrat.com?subject=GymRat%20Bug%20Report&body=Describe%20the%20issue%20here:%0A%0AWhat%20happened:%0A%0AWhat%20did%20you%20expect%20to%20happen:%0A';
-              }}
-              className="flex w-full items-center justify-between rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-left"
-            >
-              <div>
-                <div className="font-semibold">Report a Bug</div>
-                <div className="text-xs text-zinc-400">Tell us when something breaks</div>
-              </div>
-              <span>›</span>
-            </button>
-          </div>
-
-          {!appState.premiumActive && (
-            <button
-              type="button"
-              onClick={openPremium}
-              className="mt-6 flex w-full items-center justify-between rounded-2xl px-4 py-3 text-left gradient-accent text-accent-foreground shadow-gold"
-            >
-              <div>
-                <div className="font-bold">Go Premium</div>
-                <div className="text-xs text-accent-foreground/80">
-                  Unlock nutrition, history, 2x XP boost and premium gear
-                </div>
-              </div>
-              <Crown className="h-5 w-5" />
-            </button>
-          )}
-        </aside>
-      </div>
-
-      <PremiumCard
+      <PremiumModal
         open={premiumOpen}
         onClose={() => setPremiumOpen(false)}
         onOpenPaywall={triggerPaywall}

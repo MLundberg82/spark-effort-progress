@@ -1,359 +1,209 @@
 import { useMemo, useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { ArrowLeft, Crown, ShoppingBag, Sparkles, Zap } from 'lucide-react';
 import {
-  shopItems as fallbackShopItems,
-  type ShopItem,
-  getPurchases,
-  purchaseItem,
   equipItem,
-  getEquipped,
-  isEquipped as isItemEquipped,
+  getEquippedItem,
+  getOwnedItems,
+  isOwned,
+  ownItem,
+  shopItems,
+  type ShopCategory,
 } from '@/lib/shopStore';
-import { getItemById } from '@/lib/itemAssets';
-import type { EquippedItems, ItemSlot, RatVariant } from '@/lib/assetTypes';
-import GymRatStage from '@/components/GymRatStage';
-import { ShoppingBag, Check, Sparkles, ArrowLeft, Crown, Lock } from 'lucide-react';
-import { toast } from 'sonner';
-import { getLevelFromXP, getTotalXP } from '@/lib/gamificationStore';
-import { formatPrice, getItemPrice as getCurrencyItemPrice } from '@/lib/currency';
-import { getGenderKey } from '@/lib/ratImages';
 
-const slotLabels: Record<ItemSlot, string> = {
-  head: '🧢 Head',
-  eyes: '🕶 Eyes',
-  neck: '⛓ Neck',
-  top: '🧥 Top',
-  pants: '👖 Pants',
-  feet: '👟 Feet',
-  aura: '✨ Aura',
-};
-
-type RatShopProps = {
-  premium?: boolean;
-  items?: ShopItem[];
-  equipped?: EquippedItems;
-  glowClass?: string;
-  onBack?: () => void;
+type Props = {
+  onBack: () => void;
+  premiumActive?: boolean;
   onOpenPremium?: () => void;
-  onRefresh?: () => void;
 };
 
-function RatShop({
-  premium = false,
-  items,
-  equipped: equippedProp,
+const categories: { id: 'all' | ShopCategory; label: string }[] = [
+  { id: 'all', label: 'All' },
+  { id: 'cosmetic', label: 'Cosmetics' },
+  { id: 'glow', label: 'Glow' },
+  { id: 'background', label: 'Backgrounds' },
+  { id: 'premium', label: 'Premium' },
+];
+
+export default function RatShop({
+  onBack,
+  premiumActive = false,
   onOpenPremium,
-  onRefresh,
-}: RatShopProps) {
-  const [open, setOpen] = useState(true);
-  const [activeSlot, setActiveSlot] = useState<ItemSlot>('top');
-  const [purchases, setPurchases] = useState<string[]>(getPurchases());
-  const [equippedState, setEquippedState] = useState<EquippedItems>(equippedProp ?? getEquipped());
-  const [previewItem, setPreviewItem] = useState<ShopItem | null>(null);
-  const [showPremium, setShowPremium] = useState(false);
+}: Props) {
+  const [activeCategory, setActiveCategory] = useState<'all' | ShopCategory>('all');
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  const sourceItems = items && items.length > 0 ? items : fallbackShopItems;
-
-  const totalXP = getTotalXP();
-  const levelData = getLevelFromXP(totalXP);
-  const level = typeof levelData === 'number' ? levelData : levelData?.level ?? 1;
-  const variant = getGenderKey() as RatVariant;
+  const owned = useMemo(() => getOwnedItems(), [refreshKey]);
+  const equipped = useMemo(() => getEquippedItem(), [refreshKey]);
 
   const filteredItems = useMemo(() => {
-    return sourceItems.filter((item) => {
-      const matchesSlot = item.slot === activeSlot;
-      const matchesPremiumTab = showPremium ? !!item.premium : !item.premium;
-      return matchesSlot && matchesPremiumTab;
-    });
-  }, [sourceItems, activeSlot, showPremium]);
+    if (activeCategory === 'all') return shopItems;
+    return shopItems.filter((item) => item.category === activeCategory);
+  }, [activeCategory]);
 
-  const refreshLocalState = () => {
-    setPurchases(getPurchases());
-    setEquippedState(getEquipped());
-    onRefresh?.();
+  const handleBuy = (itemId: string) => {
+    ownItem(itemId);
+    setRefreshKey((prev) => prev + 1);
   };
 
-  const getDisplayPrice = (item: ShopItem): number => {
-    if (item.premium && premium) return 0;
-    if (typeof item.price === 'number') return item.price;
-
-    try {
-      const fallback = getCurrencyItemPrice(!!item.premium);
-      return typeof fallback === 'number' ? fallback : 0;
-    } catch {
-      return 0;
-    }
-  };
-
-  const handlePurchase = (item: ShopItem) => {
-    if (item.premium && !premium) {
-      toast.error('Premium item — unlock Premium first.');
-      onOpenPremium?.();
-      return;
-    }
-
-    if (item.premium && premium) {
-      toast.success(`${item.name} unlocked with Premium!`);
-      refreshLocalState();
-      return;
-    }
-
-    if (purchaseItem(item.id)) {
-      setPurchases(getPurchases());
-      toast.success(`Purchased ${item.name}!`);
-      onRefresh?.();
-    }
-  };
-
-  const handleEquip = (item: ShopItem) => {
-    if (item.premium && !premium) {
-      toast.error('Premium item — unlock Premium first.');
-      onOpenPremium?.();
-      return;
-    }
-
-    if (!purchases.includes(item.id) && !(item.premium && premium)) {
-      handlePurchase(item);
-      return;
-    }
-
-    equipItem(item.id, item.slot);
-    setEquippedState(getEquipped());
-    toast.success(`Equipped ${item.name}!`);
-    setPreviewItem(null);
-    onRefresh?.();
-  };
-
-  const previewEquipped: EquippedItems = previewItem
-    ? {
-        ...equippedState,
-        [previewItem.slot]: previewItem.id,
-      }
-    : equippedState;
-
-  const renderPreviewStage = (size: 'lg' | 'sm' = 'lg') => {
-    return (
-      <GymRatStage
-        level={level}
-        variant={variant}
-        equipped={previewEquipped}
-        showTierBadge={size === 'lg'}
-        showLevelBadge={size === 'lg'}
-        className={size === 'lg' ? 'min-h-[420px]' : 'min-h-[220px]'}
-      />
-    );
+  const handleEquip = (itemId: string) => {
+    equipItem(itemId);
+    setRefreshKey((prev) => prev + 1);
   };
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(v) => {
-        setOpen(v);
-        if (!v) setPreviewItem(null);
-      }}
-    >
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto bg-card border-border">
-        <DialogHeader>
-          <DialogTitle className="font-display text-foreground flex items-center gap-2">
-            <ShoppingBag className="w-5 h-5 text-accent" /> Rat Shop
-          </DialogTitle>
-        </DialogHeader>
+    <div className="min-h-screen bg-[#07110d] text-white">
+      <div className="mx-auto flex min-h-screen w-full max-w-md flex-col px-5 pb-8 pt-6">
+        <button
+          onClick={onBack}
+          className="mb-4 inline-flex w-fit items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white/85"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back
+        </button>
 
-        {previewItem ? (
-          <div className="space-y-4 animate-fade-in">
-            <button
-              onClick={() => setPreviewItem(null)}
-              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <ArrowLeft className="w-3.5 h-3.5" /> Back to shop
-            </button>
-
-            <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
-              <div>{renderPreviewStage('lg')}</div>
-
-              <div className="flex flex-col justify-center rounded-3xl border border-border/40 bg-secondary/20 p-5">
-                <div className="space-y-2">
-                  <div className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
-                    {slotLabels[previewItem.slot]}
-                  </div>
-
-                  <h3 className="font-display font-bold text-foreground text-2xl">
-                    {previewItem.name}
-                  </h3>
-
-                  <p className="text-sm text-muted-foreground">
-                    {previewItem.description}
-                  </p>
-
-                  {typeof previewItem.unlockLevel === 'number' && (
-                    <p className="text-xs text-accent font-semibold">
-                      Unlock level: {previewItem.unlockLevel}
-                    </p>
-                  )}
-                </div>
-
-                <div className="mt-5">
-                  {previewItem.premium && !premium ? (
-                    <button
-                      onClick={() => onOpenPremium?.()}
-                      className="w-full px-4 py-3 rounded-2xl bg-secondary/50 text-muted-foreground font-bold text-sm flex items-center justify-center gap-2"
-                    >
-                      <Lock className="w-4 h-4" /> Premium Only
-                    </button>
-                  ) : purchases.includes(previewItem.id) || (previewItem.premium && premium) ? (
-                    equippedState[previewItem.slot] === previewItem.id ? (
-                      <span className="w-full px-4 py-3 rounded-2xl gradient-primary text-primary-foreground font-bold text-sm flex items-center justify-center gap-2">
-                        <Check className="w-4 h-4" /> Equipped
-                      </span>
-                    ) : (
-                      <button
-                        onClick={() => handleEquip(previewItem)}
-                        className="w-full px-6 py-3 rounded-2xl gradient-primary text-primary-foreground font-bold text-sm btn-3d shadow-button"
-                      >
-                        Equip Item
-                      </button>
-                    )
-                  ) : (
-                    <button
-                      onClick={() => handlePurchase(previewItem)}
-                      className="w-full px-6 py-3 rounded-2xl gradient-accent text-accent-foreground font-bold text-sm btn-gold flex items-center justify-center gap-2"
-                    >
-                      <Sparkles className="w-4 h-4" />
-                      {premium && previewItem.premium
-                        ? 'Unlock Free'
-                        : `Buy for ${formatPrice(getDisplayPrice(previewItem))}`}
-                    </button>
-                  )}
-                </div>
+        <div className="rounded-[32px] border border-white/10 bg-white/[0.04] p-5 shadow-[0_0_50px_rgba(170,255,140,0.08)]">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className="text-xs font-bold uppercase tracking-[0.22em] text-lime-300/75">
+                Shop
               </div>
+              <h1 className="mt-2 text-3xl font-black tracking-tight">Rat cosmetics</h1>
+              <p className="mt-2 text-sm leading-6 text-white/65">
+                Identity, aura and visual progression.
+              </p>
+            </div>
+
+            <div className="flex h-14 w-14 items-center justify-center rounded-[22px] bg-black/20 text-lime-200">
+              <ShoppingBag className="h-7 w-7" />
             </div>
           </div>
-        ) : (
-          <>
-            <div className="grid gap-4 lg:grid-cols-[0.95fr_1.05fr]">
-              <div className="space-y-4">
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setShowPremium(false)}
-                    className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-all ${
-                      !showPremium
-                        ? 'gradient-primary text-primary-foreground shadow-button'
-                        : 'bg-secondary/50 text-muted-foreground'
-                    }`}
-                  >
-                    🛒 Shop
-                  </button>
-                  <button
-                    onClick={() => setShowPremium(true)}
-                    className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-1 ${
-                      showPremium
-                        ? 'gradient-accent text-accent-foreground shadow-gold'
-                        : 'bg-secondary/50 text-muted-foreground'
-                    }`}
-                  >
-                    <Crown className="w-3 h-3" /> Premium
-                  </button>
-                </div>
 
-                <div className="grid grid-cols-2 gap-2">
-                  {(Object.keys(slotLabels) as ItemSlot[]).map((slot) => (
-                    <button
-                      key={slot}
-                      onClick={() => setActiveSlot(slot)}
-                      className={`py-2 rounded-xl text-xs font-semibold transition-all ${
-                        activeSlot === slot
-                          ? 'gradient-primary text-primary-foreground shadow-button'
-                          : 'bg-secondary/50 text-muted-foreground'
-                      }`}
-                    >
-                      {slotLabels[slot]}
-                    </button>
-                  ))}
+          {!premiumActive && (
+            <div className="mt-5 rounded-[26px] border border-yellow-300/20 bg-gradient-to-r from-yellow-300/12 via-white/[0.04] to-lime-300/12 p-4">
+              <div className="flex items-start gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-yellow-300/10 text-yellow-200">
+                  <Crown className="h-5 w-5" />
                 </div>
-
-                <div className="rounded-3xl border border-border/40 bg-secondary/20 p-3">
-                  {renderPreviewStage('sm')}
+                <div className="flex-1">
+                  <div className="text-sm font-black text-white">Premium cosmetics</div>
+                  <p className="mt-1 text-sm leading-6 text-white/68">
+                    Unlock premium-only looks, glows and prestige visuals.
+                  </p>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                {filteredItems.map((item) => {
-                  const asset = getItemById(item.id);
-                  const owned = purchases.includes(item.id) || (item.premium && premium);
-                  const equippedNow = equippedState[item.slot] === item.id;
-                  const locked = item.premium && !premium;
-                  const previewImage = asset?.variants?.[variant] || asset?.image;
-
-                  return (
-                    <div
-                      key={item.id}
-                      onClick={() => setPreviewItem(item)}
-                      className={`rounded-2xl p-4 flex flex-col items-center gap-3 transition-all cursor-pointer hover:scale-[1.02] ${
-                        equippedNow
-                          ? 'card-3d glow-border'
-                          : owned
-                            ? 'card-3d'
-                            : 'bg-secondary/30 border border-border/30'
-                      } ${item.premium ? 'ring-1 ring-accent/30' : ''}`}
-                    >
-                      <div className="w-16 h-16 rounded-2xl flex items-center justify-center overflow-hidden bg-[hsl(220_15%_12%)] relative">
-                        {locked && (
-                          <Lock className="w-4 h-4 text-muted-foreground absolute z-20" />
-                        )}
-
-                        {previewImage ? (
-                          <img
-                            src={previewImage}
-                            alt={item.name}
-                            className="w-14 h-14 object-contain"
-                          />
-                        ) : (
-                          <span className="text-2xl">{item.icon}</span>
-                        )}
-                      </div>
-
-                      <div className="text-center">
-                        <p className="text-xs font-bold text-foreground">
-                          {item.name}
-                        </p>
-                        <p className="text-[10px] text-muted-foreground line-clamp-2">
-                          {item.description}
-                        </p>
-                      </div>
-
-                      {equippedNow ? (
-                        <span className="text-[10px] px-2 py-1 rounded-full gradient-primary text-primary-foreground font-bold flex items-center gap-1">
-                          <Check className="w-3 h-3" /> Equipped
-                        </span>
-                      ) : owned ? (
-                        <span className="text-[10px] px-2 py-1 rounded-full bg-primary/20 text-primary font-bold">
-                          {item.premium && premium ? 'Included in Premium' : 'Owned'}
-                        </span>
-                      ) : locked ? (
-                        <span className="text-[10px] px-2 py-1 rounded-full bg-accent/20 text-accent font-bold flex items-center gap-1">
-                          <Crown className="w-3 h-3" /> Premium
-                        </span>
-                      ) : (
-                        <span className="text-[10px] px-2 py-1 rounded-full gradient-accent text-accent-foreground font-bold flex items-center gap-1">
-                          <Sparkles className="w-3 h-3" /> {formatPrice(getDisplayPrice(item))}
-                        </span>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
+              <button
+                onClick={onOpenPremium}
+                className="mt-4 w-full rounded-[18px] bg-gradient-to-r from-yellow-300 via-amber-300 to-lime-300 px-4 py-3 text-sm font-black text-[#111]"
+              >
+                Unlock Premium
+              </button>
             </div>
+          )}
 
-            {filteredItems.length === 0 && (
-              <p className="text-center text-sm text-muted-foreground py-8">
-                No {showPremium ? 'premium' : 'free'} items in this slot
-              </p>
-            )}
-          </>
-        )}
-      </DialogContent>
-    </Dialog>
+          <div className="mt-5 flex gap-2 overflow-x-auto pb-1">
+            {categories.map((category) => {
+              const active = activeCategory === category.id;
+              return (
+                <button
+                  key={category.id}
+                  onClick={() => setActiveCategory(category.id)}
+                  className={`shrink-0 rounded-2xl px-4 py-3 text-sm font-bold transition ${
+                    active
+                      ? 'bg-gradient-to-r from-lime-300 to-emerald-300 text-[#111]'
+                      : 'border border-white/10 bg-white/[0.04] text-white/80'
+                  }`}
+                >
+                  {category.label}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="mt-5 space-y-3">
+            {filteredItems.map((item) => {
+              const ownedItem = owned.includes(item.id) || isOwned(item.id);
+              const equippedItem = equipped === item.id;
+              const lockedByPremium = item.premiumOnly && !premiumActive;
+
+              return (
+                <div
+                  key={item.id}
+                  className="rounded-[24px] border border-white/10 bg-black/20 p-4"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[20px] bg-white/[0.04] text-2xl">
+                      {item.icon}
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <div className="text-sm font-black text-white">{item.name}</div>
+                        {item.premiumOnly && (
+                          <span className="rounded-full border border-yellow-300/20 bg-yellow-300/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.18em] text-yellow-200">
+                            Premium
+                          </span>
+                        )}
+                        {equippedItem && (
+                          <span className="rounded-full border border-lime-300/20 bg-lime-300/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.18em] text-lime-200">
+                            Equipped
+                          </span>
+                        )}
+                      </div>
+
+                      <p className="mt-2 text-sm leading-6 text-white/65">{item.description}</p>
+
+                      <div className="mt-3 flex items-center justify-between gap-3">
+                        <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs font-semibold text-white/75">
+                          <Zap className="h-3.5 w-3.5 text-lime-300" />
+                          {item.price} coins
+                        </div>
+
+                        {lockedByPremium ? (
+                          <button
+                            onClick={onOpenPremium}
+                            className="rounded-2xl bg-gradient-to-r from-yellow-300 via-amber-300 to-lime-300 px-4 py-2 text-xs font-black text-[#111]"
+                          >
+                            Unlock
+                          </button>
+                        ) : ownedItem ? (
+                          <button
+                            onClick={() => handleEquip(item.id)}
+                            className={`rounded-2xl px-4 py-2 text-xs font-black ${
+                              equippedItem
+                                ? 'bg-lime-300 text-[#111]'
+                                : 'bg-white/10 text-white'
+                            }`}
+                          >
+                            {equippedItem ? 'Equipped' : 'Equip'}
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handleBuy(item.id)}
+                            className="rounded-2xl bg-gradient-to-r from-lime-300 via-emerald-300 to-yellow-300 px-4 py-2 text-xs font-black text-[#111]"
+                          >
+                            Buy
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="mt-5 rounded-[24px] border border-white/10 bg-black/20 p-4">
+            <div className="flex items-center gap-2 text-sm font-black text-white">
+              <Sparkles className="h-4 w-4 text-lime-300" />
+              Current style
+            </div>
+            <p className="mt-2 text-sm leading-6 text-white/65">
+              Equipped item: <span className="font-bold text-white">{equipped ?? 'None yet'}</span>
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
-
-export default RatShop;

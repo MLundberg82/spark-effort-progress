@@ -1,17 +1,20 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useMemo, useState } from 'react';
 import {
-  ArrowLeft,
   Apple,
+  ArrowLeft,
   Beef,
-  Wheat,
   Droplets,
+  Flame,
+  Sparkles,
   Target,
-  CheckCircle2,
+  Wheat,
 } from 'lucide-react';
 import { getUserProfile } from '@/components/TrainingLevelSelector';
 
 type Props = {
   onBack: () => void;
+  premiumActive?: boolean;
+  onOpenPremium?: () => void;
 };
 
 type NutritionGoal = 'lose' | 'maintain' | 'gain';
@@ -38,6 +41,10 @@ function getTodayKey() {
   return new Date().toISOString().slice(0, 10);
 }
 
+function cn(...classes: Array<string | false | null | undefined>) {
+  return classes.filter(Boolean).join(' ');
+}
+
 function getTargets(): NutritionTargets {
   const profile = getUserProfile();
   const weight = profile?.weight || 75;
@@ -52,69 +59,82 @@ function getTargets(): NutritionTargets {
   const carbs = Math.max(100, Math.round((calories - protein * 4 - fats * 9) / 4));
   const waterLiters = Math.max(2.5, Math.round(weight * 0.035 * 10) / 10);
 
-  return {
-    calories,
-    protein,
-    carbs,
-    fats,
-    waterLiters,
-  };
+  return { calories, protein, carbs, fats, waterLiters };
+}
+
+function readAllLogs(): Record<string, NutritionLog> {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
 }
 
 function readTodayLog(): NutritionLog {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    const data = raw ? JSON.parse(raw) : {};
-    return (
-      data[getTodayKey()] ?? {
-        calories: 0,
-        protein: 0,
-        carbs: 0,
-        fats: 0,
-        water: 0,
-      }
-    );
-  } catch {
-    return {
+  const all = readAllLogs();
+  return (
+    all[getTodayKey()] ?? {
       calories: 0,
       protein: 0,
       carbs: 0,
       fats: 0,
       water: 0,
-    };
-  }
+    }
+  );
 }
 
 function saveTodayLog(log: NutritionLog) {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    const data = raw ? JSON.parse(raw) : {};
-    data[getTodayKey()] = log;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-  } catch {}
+  const all = readAllLogs();
+  all[getTodayKey()] = log;
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
 }
 
-function TargetCard({
+function ProgressCard({
+  icon: Icon,
   label,
   value,
-  icon,
+  target,
+  suffix,
 }: {
+  icon: React.ComponentType<{ className?: string }>;
   label: string;
-  value: string;
-  icon: ReactNode;
+  value: number;
+  target: number;
+  suffix: string;
 }) {
+  const progress = target > 0 ? Math.max(0, Math.min(100, (value / target) * 100)) : 0;
+
   return (
-    <div className="rounded-2xl border border-border/40 bg-secondary/20 p-4">
-      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        {icon}
-        <span>{label}</span>
+    <div className="rounded-[24px] border border-white/10 bg-white/[0.04] p-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 text-sm font-bold text-white">
+          <Icon className="h-4 w-4 text-lime-300" />
+          {label}
+        </div>
+        <div className="text-xs font-bold uppercase tracking-[0.15em] text-white/45">
+          {Math.round(progress)}%
+        </div>
       </div>
-      <div className="mt-2 text-xl font-bold">{value}</div>
+
+      <div className="mt-3 text-lg font-black text-white">
+        {value}
+        {suffix} / {target}
+        {suffix}
+      </div>
+
+      <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-white/10">
+        <div
+          className="h-full rounded-full bg-gradient-to-r from-lime-300 via-emerald-300 to-yellow-300"
+          style={{ width: `${progress}%` }}
+        />
+      </div>
     </div>
   );
 }
 
-function StatInput({
+function NutritionInput({
   label,
   value,
   onChange,
@@ -128,54 +148,28 @@ function StatInput({
   step?: number;
 }) {
   return (
-    <div className="rounded-2xl border border-border/40 bg-secondary/20 p-4">
-      <div className="mb-2 text-sm font-semibold">{label}</div>
-      <div className="flex items-center gap-2">
+    <div className="rounded-[22px] border border-white/10 bg-black/20 p-4">
+      <div className="mb-2 text-sm font-bold text-white/80">{label}</div>
+
+      <div className="flex items-center gap-3">
         <input
           type="number"
-          min={0}
           step={step}
-          value={value}
+          value={value || ''}
           onChange={(e) => onChange(Number(e.target.value) || 0)}
-          className="h-11 w-full rounded-xl border border-border bg-background/70 px-3 outline-none"
+          className="h-12 w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 text-white outline-none"
         />
-        <div className="min-w-[42px] text-sm text-muted-foreground">{suffix}</div>
+        <div className="text-sm font-bold text-white/55">{suffix}</div>
       </div>
     </div>
   );
 }
 
-function ProgressRow({
-  label,
-  value,
-  target,
-}: {
-  label: string;
-  value: number;
-  target: number;
-}) {
-  const safeTarget = Math.max(1, target);
-  const progress = Math.max(0, Math.min(100, (value / safeTarget) * 100));
-
-  return (
-    <div className="rounded-2xl border border-border/40 bg-secondary/20 p-4">
-      <div className="mb-2 flex items-center justify-between text-sm">
-        <span className="font-medium">{label}</span>
-        <span className="text-muted-foreground">
-          {value} / {target}
-        </span>
-      </div>
-      <div className="h-3 overflow-hidden rounded-full bg-background/80">
-        <div
-          className="h-full rounded-full bg-primary transition-all"
-          style={{ width: `${progress}%` }}
-        />
-      </div>
-    </div>
-  );
-}
-
-export default function NutritionScreen({ onBack }: Props) {
+export default function NutritionScreen({
+  onBack,
+  premiumActive = false,
+  onOpenPremium,
+}: Props) {
   const targets = useMemo(() => getTargets(), []);
   const initial = useMemo(() => readTodayLog(), []);
 
@@ -193,123 +187,130 @@ export default function NutritionScreen({ onBack }: Props) {
   };
 
   return (
-    <div className="min-h-screen bg-background px-4 py-4 text-foreground">
-      <div className="mx-auto w-full max-w-md">
+    <div className="min-h-screen bg-[#07110d] text-white">
+      <div className="mx-auto flex min-h-screen w-full max-w-md flex-col px-5 pb-8 pt-6">
         <button
-          type="button"
           onClick={onBack}
-          className="mb-4 rounded-2xl border border-border/50 bg-secondary/30 px-4 py-2 text-sm font-medium"
+          className="mb-4 inline-flex w-fit items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white/85"
         >
-          <span className="inline-flex items-center gap-2">
-            <ArrowLeft className="h-4 w-4" />
-            Back
-          </span>
+          <ArrowLeft className="h-4 w-4" />
+          Back
         </button>
 
-        <div className="rounded-3xl border border-border/40 bg-card/70 p-5 shadow-sm">
-          <div className="text-xs uppercase tracking-[0.24em] text-muted-foreground">
-            Food
-          </div>
-          <h1 className="mt-2 text-3xl font-black tracking-tight">
-            Daily macros and hydration
-          </h1>
+        <div className="rounded-[32px] border border-white/10 bg-white/[0.04] p-5 shadow-[0_0_50px_rgba(170,255,140,0.08)]">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className="text-xs font-bold uppercase tracking-[0.22em] text-lime-300/75">
+                Nutrition
+              </div>
+              <h1 className="mt-2 text-3xl font-black tracking-tight">Fuel the rat</h1>
+              <p className="mt-2 text-sm leading-6 text-white/65">
+                Daily macros and hydration built around your profile and goal.
+              </p>
+            </div>
 
-          <div className="mt-5">
-            <h2 className="text-lg font-bold">Your daily targets</h2>
-            <div className="mt-3 grid grid-cols-2 gap-3">
-              <TargetCard
-                label="Calories"
-                value={`${targets.calories} kcal`}
-                icon={<Target className="h-4 w-4" />}
-              />
-              <TargetCard
-                label="Protein"
-                value={`${targets.protein} g`}
-                icon={<Beef className="h-4 w-4" />}
-              />
-              <TargetCard
-                label="Carbs"
-                value={`${targets.carbs} g`}
-                icon={<Wheat className="h-4 w-4" />}
-              />
-              <TargetCard
-                label="Water"
-                value={`${targets.waterLiters} L`}
-                icon={<Droplets className="h-4 w-4" />}
-              />
+            <div className="flex h-14 w-14 items-center justify-center rounded-[22px] bg-black/20 text-lime-200">
+              <Apple className="h-7 w-7" />
             </div>
           </div>
 
-          <div className="mt-5">
-            <h2 className="text-lg font-bold">Today's intake</h2>
-            <div className="mt-3 space-y-3">
-              <StatInput
-                label="Calories"
-                value={calories}
-                onChange={setCalories}
-                suffix="kcal"
-              />
-              <StatInput
-                label="Protein"
-                value={protein}
-                onChange={setProtein}
-                suffix="g"
-              />
-              <StatInput
-                label="Carbs"
-                value={carbs}
-                onChange={setCarbs}
-                suffix="g"
-              />
-              <StatInput
-                label="Fats"
-                value={fats}
-                onChange={setFats}
-                suffix="g"
-              />
-              <StatInput
-                label="Water"
-                value={water}
-                onChange={setWater}
-                suffix="L"
-                step={0.1}
-              />
-            </div>
-          </div>
+          {!premiumActive && (
+            <div className="mt-5 rounded-[26px] border border-yellow-300/20 bg-gradient-to-r from-yellow-300/12 via-white/[0.04] to-lime-300/12 p-4">
+              <div className="flex items-start gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-yellow-300/10 text-yellow-200">
+                  <Sparkles className="h-5 w-5" />
+                </div>
+                <div className="flex-1">
+                  <div className="text-sm font-black text-white">Premium Nutrition</div>
+                  <p className="mt-1 text-sm leading-6 text-white/68">
+                    Unlock structured daily tracking, macro targets and stronger consistency.
+                  </p>
+                </div>
+              </div>
 
-          <button
-            type="button"
-            onClick={handleSave}
-            className="mt-5 h-12 w-full rounded-2xl bg-primary text-base font-semibold text-primary-foreground shadow-md"
-          >
-            Save Nutrition
-          </button>
-
-          {saved && (
-            <div className="mt-3 flex items-center justify-center gap-2 text-sm text-primary">
-              <CheckCircle2 className="h-4 w-4" />
-              Saved for today
+              <button
+                onClick={onOpenPremium}
+                className="mt-4 w-full rounded-[18px] bg-gradient-to-r from-yellow-300 via-amber-300 to-lime-300 px-4 py-3 text-sm font-black text-[#111]"
+              >
+                Unlock Premium
+              </button>
             </div>
           )}
 
-          <div className="mt-5">
-            <h3 className="mb-3 text-base font-bold">Progress today</h3>
-            <div className="space-y-3">
-              <ProgressRow label="Calories" value={calories} target={targets.calories} />
-              <ProgressRow label="Protein" value={protein} target={targets.protein} />
-              <ProgressRow label="Carbs" value={carbs} target={targets.carbs} />
-              <ProgressRow label="Fats" value={fats} target={targets.fats} />
-              <ProgressRow
-                label="Water"
-                value={Math.round(water * 10)}
-                target={Math.round(targets.waterLiters * 10)}
-              />
+          <div className="mt-5 grid grid-cols-2 gap-3">
+            <div className="rounded-[24px] border border-white/10 bg-black/20 p-4">
+              <div className="flex items-center gap-2 text-sm font-bold text-white">
+                <Target className="h-4 w-4 text-lime-300" />
+                Goal calories
+              </div>
+              <div className="mt-3 text-2xl font-black text-white">{targets.calories}</div>
+            </div>
+
+            <div className="rounded-[24px] border border-white/10 bg-black/20 p-4">
+              <div className="flex items-center gap-2 text-sm font-bold text-white">
+                <Flame className="h-4 w-4 text-lime-300" />
+                Water target
+              </div>
+              <div className="mt-3 text-2xl font-black text-white">{targets.waterLiters}L</div>
             </div>
           </div>
 
-          <div className="mt-5 rounded-2xl border border-border/40 bg-secondary/20 p-4 text-sm text-muted-foreground">
-            Macro targets are based on the onboarding profile you entered earlier.
+          <div className="mt-5 space-y-3">
+            <ProgressCard
+              icon={Beef}
+              label="Protein"
+              value={protein}
+              target={targets.protein}
+              suffix="g"
+            />
+            <ProgressCard
+              icon={Wheat}
+              label="Carbs"
+              value={carbs}
+              target={targets.carbs}
+              suffix="g"
+            />
+            <ProgressCard
+              icon={Target}
+              label="Calories"
+              value={calories}
+              target={targets.calories}
+              suffix=""
+            />
+            <ProgressCard
+              icon={Droplets}
+              label="Water"
+              value={water}
+              target={targets.waterLiters}
+              suffix="L"
+            />
           </div>
+
+          <div className="mt-5 space-y-3">
+            <NutritionInput label="Calories" value={calories} onChange={setCalories} suffix="kcal" />
+            <NutritionInput label="Protein" value={protein} onChange={setProtein} suffix="g" />
+            <NutritionInput label="Carbs" value={carbs} onChange={setCarbs} suffix="g" />
+            <NutritionInput label="Fats" value={fats} onChange={setFats} suffix="g" />
+            <NutritionInput
+              label="Water"
+              value={water}
+              onChange={setWater}
+              suffix="L"
+              step={0.1}
+            />
+          </div>
+
+          <button
+            onClick={handleSave}
+            className={cn(
+              'mt-6 w-full rounded-[22px] px-4 py-4 text-base font-black transition',
+              saved
+                ? 'bg-lime-300 text-[#101410]'
+                : 'bg-gradient-to-r from-lime-300 via-emerald-300 to-yellow-300 text-[#101410]'
+            )}
+          >
+            {saved ? 'Saved' : 'Save nutrition'}
+          </button>
         </div>
       </div>
     </div>

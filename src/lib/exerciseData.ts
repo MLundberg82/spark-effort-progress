@@ -1,242 +1,386 @@
-export type MuscleGroup = 'chest' | 'back' | 'shoulders' | 'legs' | 'arms' | 'core' | 'warmup' | 'stretching';
-
 export type TrainingLevel = 'beginner' | 'intermediate' | 'advanced';
 
-export interface Exercise {
+export type MuscleGroup =
+  | 'chest'
+  | 'back'
+  | 'shoulders'
+  | 'arms'
+  | 'legs'
+  | 'core';
+
+export type EquipmentType =
+  | 'bodyweight'
+  | 'machine'
+  | 'barbell'
+  | 'dumbbell'
+  | 'cable'
+  | 'mixed';
+
+export type Exercise = {
   id: string;
   name: string;
   muscleGroup: MuscleGroup;
-  description: string;
-  animationSteps: string[];
-  tips: string[];
-  level?: TrainingLevel;
-}
+  level: TrainingLevel;
+  equipment: EquipmentType;
+  primaryMuscles: string[];
+  instructions: string[];
+};
 
 export const exercises: Exercise[] = [
-  // ═══════════════════════════════
-  // CHEST (20)
-  // ═══════════════════════════════
-  { id: 'bench-press', name: 'Bench Press', muscleGroup: 'chest', description: 'Classic chest builder targeting pecs, front delts, and triceps.', animationSteps: ['Lie flat on bench', 'Lower bar to chest', 'Press up explosively'], tips: ['Keep feet flat on floor', 'Retract shoulder blades', 'Control the descent'], level: 'beginner' },
-  { id: 'incline-press', name: 'Incline Dumbbell Press', muscleGroup: 'chest', description: 'Targets upper chest with dumbbell variation on an incline bench.', animationSteps: ['Set bench 30-45°', 'Press dumbbells up', 'Lower with control'], tips: ['Don\'t flare elbows too wide', 'Touch dumbbells at top', 'Feel the stretch'], level: 'beginner' },
-  { id: 'chest-fly', name: 'Dumbbell Fly', muscleGroup: 'chest', description: 'Isolation movement that stretches and contracts the pectorals.', animationSteps: ['Arms wide, slight bend', 'Bring dumbbells together', 'Open back slowly'], tips: ['Keep slight elbow bend', 'Squeeze at the top', 'Don\'t go too heavy'], level: 'beginner' },
-  { id: 'push-up', name: 'Push-Up', muscleGroup: 'chest', description: 'Bodyweight classic for chest, shoulders, and triceps.', animationSteps: ['Plank position', 'Lower chest to floor', 'Push back up'], tips: ['Keep body in a line', 'Elbows at 45°', 'Full range of motion'], level: 'beginner' },
-  { id: 'cable-crossover', name: 'Cable Crossover', muscleGroup: 'chest', description: 'Cable isolation for inner chest definition and constant tension.', animationSteps: ['Stand between cables', 'Bring hands together', 'Return with control'], tips: ['Step forward for stretch', 'Squeeze at bottom', 'Control the eccentric'], level: 'intermediate' },
-  { id: 'chest-dip', name: 'Chest Dips', muscleGroup: 'chest', description: 'Parallel bar dip leaning forward to target lower chest and triceps.', animationSteps: ['Grip parallel bars', 'Lean forward, lower body', 'Press back up'], tips: ['Lean forward for more chest', 'Go to 90° elbow bend', 'Control the descent'], level: 'intermediate' },
-  { id: 'pec-deck', name: 'Pec Deck Fly', muscleGroup: 'chest', description: 'Machine fly isolating the pectorals with guided movement.', animationSteps: ['Sit with arms on pads', 'Bring pads together', 'Open back slowly'], tips: ['Keep back against pad', 'Squeeze chest at peak', 'Don\'t use momentum'], level: 'beginner' },
-  { id: 'decline-press', name: 'Decline Bench Press', muscleGroup: 'chest', description: 'Decline angle targets lower pectorals with heavy loading.', animationSteps: ['Lie on decline bench', 'Lower bar to lower chest', 'Press up explosively'], tips: ['Secure legs firmly', 'Control the bar path', 'Don\'t bounce off chest'], level: 'intermediate' },
-  { id: 'landmine-press', name: 'Landmine Press', muscleGroup: 'chest', description: 'Single-arm pressing with a landmine for shoulder-friendly chest work.', animationSteps: ['Hold barbell end at chest', 'Press up and forward', 'Lower with control'], tips: ['Stagger stance for stability', 'Press at an arc', 'Great for shoulder issues'], level: 'advanced' },
-  { id: 'chest-press-machine', name: 'Chest Press Machine', muscleGroup: 'chest', description: 'Guided machine press for safe chest hypertrophy.', animationSteps: ['Sit, grip handles', 'Press forward', 'Return slowly'], tips: ['Adjust seat height', 'Full range of motion', 'Squeeze chest'], level: 'beginner' },
-  { id: 'svend-press', name: 'Svend Press', muscleGroup: 'chest', description: 'Squeeze two plates together while pressing for inner chest activation.', animationSteps: ['Hold plates at chest', 'Press out squeezing plates', 'Return to chest'], tips: ['Squeeze hard throughout', 'Light weight works', 'Feel the inner chest'], level: 'beginner' },
-  { id: 'floor-press', name: 'Floor Press', muscleGroup: 'chest', description: 'Press from the floor to limit range and focus on lockout strength.', animationSteps: ['Lie on floor with dumbbells', 'Press up', 'Lower until elbows touch floor'], tips: ['Pause at bottom', 'Great for tricep strength', 'Shoulder-friendly'], level: 'intermediate' },
-  { id: 'incline-cable-fly', name: 'Incline Cable Fly', muscleGroup: 'chest', description: 'Cables on an incline bench for constant tension upper chest work.', animationSteps: ['Set bench 30°, cables low', 'Bring cables up and together', 'Lower with stretch'], tips: ['Keep slight bend in elbows', 'Squeeze at top', 'Controlled eccentric'], level: 'intermediate' },
-  { id: 'close-grip-bench', name: 'Close-Grip Bench Press', muscleGroup: 'chest', description: 'Narrow grip bench targeting inner chest and triceps.', animationSteps: ['Hands shoulder-width', 'Lower to mid-chest', 'Press up'], tips: ['Elbows close to body', 'Full lockout', 'Great compound for tris'], level: 'intermediate' },
-  { id: 'dumbbell-pullover', name: 'Dumbbell Pullover', muscleGroup: 'chest', description: 'Stretch-focused movement hitting chest and lats simultaneously.', animationSteps: ['Lie across bench', 'Lower dumbbell behind head', 'Pull back over chest'], tips: ['Keep slight elbow bend', 'Feel the stretch', 'Don\'t go too heavy'], level: 'intermediate' },
-  { id: 'hex-press', name: 'Hex Press', muscleGroup: 'chest', description: 'Press dumbbells together in a neutral grip for inner chest focus.', animationSteps: ['Lie flat, dumbbells touching', 'Press up keeping contact', 'Lower with control'], tips: ['Keep dumbbells pressed together', 'Squeeze chest hard', 'Moderate weight'], level: 'beginner' },
-  { id: 'machine-fly', name: 'Machine Fly', muscleGroup: 'chest', description: 'Smooth guided fly motion for consistent chest isolation.', animationSteps: ['Sit in machine', 'Bring arms together', 'Return slowly'], tips: ['Don\'t lock elbows', 'Slow controlled reps', 'Full stretch'], level: 'beginner' },
-  { id: 'ring-push-up', name: 'Ring Push-Up', muscleGroup: 'chest', description: 'Unstable push-up on rings for enhanced stabilizer and chest activation.', animationSteps: ['Grip rings in push-up', 'Lower chest between rings', 'Push back up'], tips: ['Keep rings close to body', 'Core tight', 'Scale with elevation'], level: 'advanced' },
-  { id: 'deficit-push-up', name: 'Deficit Push-Up', muscleGroup: 'chest', description: 'Hands elevated on plates for deeper range of motion push-ups.', animationSteps: ['Hands on raised surface', 'Lower deep past hands', 'Push back up'], tips: ['Go deeper than normal', 'Great chest stretch', 'Core tight'], level: 'intermediate' },
-  { id: 'smith-bench', name: 'Smith Machine Bench', muscleGroup: 'chest', description: 'Guided barbell bench for safe heavy chest pressing.', animationSteps: ['Lie under smith bar', 'Unhook and lower', 'Press up, rehook'], tips: ['Set safety catches', 'Great for drop sets', 'Control the path'], level: 'beginner' },
+  {
+    id: 'push-up',
+    name: 'Push-Up',
+    muscleGroup: 'chest',
+    level: 'beginner',
+    equipment: 'bodyweight',
+    primaryMuscles: ['Chest', 'Front delts', 'Triceps'],
+    instructions: [
+      'Place hands slightly wider than shoulder width.',
+      'Keep body straight from head to heel.',
+      'Lower under control and press back up.',
+    ],
+  },
+  {
+    id: 'machine-chest-press',
+    name: 'Machine Chest Press',
+    muscleGroup: 'chest',
+    level: 'beginner',
+    equipment: 'machine',
+    primaryMuscles: ['Chest', 'Triceps'],
+    instructions: [
+      'Set seat so handles are around mid-chest height.',
+      'Press forward without locking harshly.',
+      'Return slowly with control.',
+    ],
+  },
+  {
+    id: 'incline-dumbbell-press',
+    name: 'Incline Dumbbell Press',
+    muscleGroup: 'chest',
+    level: 'intermediate',
+    equipment: 'dumbbell',
+    primaryMuscles: ['Upper chest', 'Front delts', 'Triceps'],
+    instructions: [
+      'Set bench to a slight incline.',
+      'Press dumbbells up and slightly inward.',
+      'Lower with control to a deep stretch.',
+    ],
+  },
+  {
+    id: 'barbell-bench-press',
+    name: 'Barbell Bench Press',
+    muscleGroup: 'chest',
+    level: 'advanced',
+    equipment: 'barbell',
+    primaryMuscles: ['Chest', 'Front delts', 'Triceps'],
+    instructions: [
+      'Set shoulder blades and stable foot position.',
+      'Lower bar to lower chest under control.',
+      'Drive bar up while keeping upper back tight.',
+    ],
+  },
 
-  // ═══════════════════════════════
-  // BACK (20)
-  // ═══════════════════════════════
-  { id: 'deadlift', name: 'Deadlift', muscleGroup: 'back', description: 'Full body compound lift focusing on posterior chain.', animationSteps: ['Hinge at hips', 'Grip the bar', 'Drive hips forward'], tips: ['Keep bar close to body', 'Neutral spine', 'Engage lats'], level: 'intermediate' },
-  { id: 'barbell-row', name: 'Barbell Row', muscleGroup: 'back', description: 'Horizontal pull for upper back thickness.', animationSteps: ['Hinge forward 45°', 'Pull to lower chest', 'Squeeze shoulder blades'], tips: ['Keep torso stable', 'Lead with elbows', 'Control the negative'], level: 'beginner' },
-  { id: 'lat-pulldown', name: 'Lat Pulldown', muscleGroup: 'back', description: 'Machine exercise for lat width and V-taper development.', animationSteps: ['Wide grip overhead', 'Pull bar to upper chest', 'Release with control'], tips: ['Pull elbows down & back', 'Don\'t lean too far back', 'Squeeze lats'], level: 'beginner' },
-  { id: 'pull-up', name: 'Pull-Up', muscleGroup: 'back', description: 'Bodyweight king for back and bicep development.', animationSteps: ['Hang from bar', 'Pull chin above bar', 'Lower with control'], tips: ['Dead hang start', 'Engage lats first', 'Full range of motion'], level: 'intermediate' },
-  { id: 'seated-row', name: 'Seated Cable Row', muscleGroup: 'back', description: 'Cable row for mid-back thickness and posture improvement.', animationSteps: ['Sit upright, arms extended', 'Pull handles to torso', 'Extend arms slowly'], tips: ['Don\'t round the back', 'Squeeze shoulder blades', 'Controlled tempo'], level: 'beginner' },
-  { id: 'tbar-row', name: 'T-Bar Row', muscleGroup: 'back', description: 'Heavy rowing variation for thick mid-back and lat development.', animationSteps: ['Straddle the bar', 'Pull handle to chest', 'Lower with control'], tips: ['Keep chest up', 'Squeeze at top', 'Don\'t jerk the weight'], level: 'intermediate' },
-  { id: 'single-arm-row', name: 'Single Arm Dumbbell Row', muscleGroup: 'back', description: 'Unilateral row for addressing imbalances and lat engagement.', animationSteps: ['Hand and knee on bench', 'Row dumbbell to hip', 'Lower with control'], tips: ['Keep hips square', 'Pull to hip, not chest', 'Full stretch at bottom'], level: 'beginner' },
-  { id: 'hyperextension', name: 'Hyperextension', muscleGroup: 'back', description: 'Lower back and glute strengthener on a hyperextension bench.', animationSteps: ['Hips on pad, body hanging', 'Raise torso to straight', 'Lower back down'], tips: ['Don\'t hyperextend', 'Squeeze glutes at top', 'Hold a plate for more challenge'], level: 'beginner' },
-  { id: 'shrug', name: 'Barbell Shrug', muscleGroup: 'back', description: 'Trap isolation for upper back thickness and neck stability.', animationSteps: ['Hold barbell at thighs', 'Shrug shoulders to ears', 'Lower with control'], tips: ['Don\'t roll shoulders', 'Hold at top', 'Use straps if needed'], level: 'beginner' },
-  { id: 'chin-up', name: 'Chin-Up', muscleGroup: 'back', description: 'Supinated grip pull-up for lats and biceps emphasis.', animationSteps: ['Underhand grip on bar', 'Pull chin over bar', 'Lower fully'], tips: ['Squeeze biceps at top', 'Full dead hang', 'Control the negative'], level: 'intermediate' },
-  { id: 'pendlay-row', name: 'Pendlay Row', muscleGroup: 'back', description: 'Strict barbell row from the floor each rep for explosive back power.', animationSteps: ['Bar on floor, hinge over', 'Explosively row to chest', 'Return to floor'], tips: ['Reset each rep', 'Explosive pull', 'Keep torso parallel'], level: 'advanced' },
-  { id: 'chest-supported-row', name: 'Chest-Supported Row', muscleGroup: 'back', description: 'Incline bench row eliminating momentum for pure back isolation.', animationSteps: ['Lie face down on incline', 'Row dumbbells to hips', 'Lower with control'], tips: ['No momentum possible', 'Great for isolation', 'Squeeze shoulder blades'], level: 'beginner' },
-  { id: 'cable-pullover', name: 'Cable Pullover', muscleGroup: 'back', description: 'Standing cable pullover for lat isolation with constant tension.', animationSteps: ['Face cable, arms overhead', 'Pull bar to thighs', 'Return overhead'], tips: ['Keep arms slightly bent', 'Feel lat stretch', 'Controlled tempo'], level: 'intermediate' },
-  { id: 'meadows-row', name: 'Meadows Row', muscleGroup: 'back', description: 'Landmine row variation for extreme lat stretch and contraction.', animationSteps: ['Stand perpendicular to bar', 'Row bar end to hip', 'Lower with stretch'], tips: ['Stagger stance', 'Get a big stretch', 'Pull to hip'], level: 'advanced' },
-  { id: 'inverted-row', name: 'Inverted Row', muscleGroup: 'back', description: 'Bodyweight horizontal pull for back and bicep development.', animationSteps: ['Hang under bar', 'Pull chest to bar', 'Lower with control'], tips: ['Keep body straight', 'Squeeze at top', 'Adjust angle for difficulty'], level: 'beginner' },
-  { id: 'rack-pull', name: 'Rack Pull', muscleGroup: 'back', description: 'Partial deadlift from rack for upper back and trap overload.', animationSteps: ['Bar at knee height', 'Stand up with bar', 'Lower to rack'], tips: ['Heavy loads okay', 'Squeeze traps at top', 'Use straps'], level: 'intermediate' },
-  { id: 'straight-arm-pulldown', name: 'Straight-Arm Pulldown', muscleGroup: 'back', description: 'Cable isolation for lats without bicep involvement.', animationSteps: ['Stand at cable, arms up', 'Pull bar to thighs', 'Return up slowly'], tips: ['Keep arms straight', 'Squeeze lats hard', 'Light weight'], level: 'beginner' },
-  { id: 'seal-row', name: 'Seal Row', muscleGroup: 'back', description: 'Flat bench row eliminating all momentum for strict back work.', animationSteps: ['Lie on elevated bench', 'Row dumbbells from floor', 'Lower fully'], tips: ['Zero momentum', 'Full stretch at bottom', 'Great isolation'], level: 'intermediate' },
-  { id: 'dumbbell-shrug', name: 'Dumbbell Shrug', muscleGroup: 'back', description: 'Dumbbell variation for traps with greater range of motion.', animationSteps: ['Dumbbells at sides', 'Shrug up to ears', 'Lower slowly'], tips: ['Hold at top 2 sec', 'Don\'t roll', 'Heavy weight okay'], level: 'beginner' },
-  { id: 'snatch-grip-deadlift', name: 'Snatch-Grip Deadlift', muscleGroup: 'back', description: 'Wide grip deadlift for incredible upper back and trap activation.', animationSteps: ['Extra wide grip on bar', 'Stand up with bar', 'Lower with control'], tips: ['Requires flexibility', 'Great trap builder', 'Moderate weight'], level: 'advanced' },
+  {
+    id: 'lat-pulldown',
+    name: 'Lat Pulldown',
+    muscleGroup: 'back',
+    level: 'beginner',
+    equipment: 'machine',
+    primaryMuscles: ['Lats', 'Upper back', 'Biceps'],
+    instructions: [
+      'Pull the bar toward upper chest.',
+      'Keep chest proud and shoulders down.',
+      'Control the stretch on the way up.',
+    ],
+  },
+  {
+    id: 'seated-row',
+    name: 'Seated Cable Row',
+    muscleGroup: 'back',
+    level: 'beginner',
+    equipment: 'cable',
+    primaryMuscles: ['Mid-back', 'Lats', 'Biceps'],
+    instructions: [
+      'Keep torso stable and chest lifted.',
+      'Pull elbows back close to the body.',
+      'Squeeze shoulder blades together.',
+    ],
+  },
+  {
+    id: 'chest-supported-row',
+    name: 'Chest Supported Row',
+    muscleGroup: 'back',
+    level: 'intermediate',
+    equipment: 'dumbbell',
+    primaryMuscles: ['Mid-back', 'Lats', 'Rear delts'],
+    instructions: [
+      'Support chest on the bench.',
+      'Row elbows back and slightly out.',
+      'Control both top squeeze and bottom stretch.',
+    ],
+  },
+  {
+    id: 'barbell-row',
+    name: 'Barbell Row',
+    muscleGroup: 'back',
+    level: 'advanced',
+    equipment: 'barbell',
+    primaryMuscles: ['Lats', 'Mid-back', 'Rear delts'],
+    instructions: [
+      'Hinge at the hips and brace hard.',
+      'Row bar toward lower torso.',
+      'Keep torso stable throughout the set.',
+    ],
+  },
 
-  // ═══════════════════════════════
-  // SHOULDERS (20)
-  // ═══════════════════════════════
-  { id: 'overhead-press', name: 'Overhead Press', muscleGroup: 'shoulders', description: 'Standing press for shoulder strength and stability.', animationSteps: ['Bar at collarbone', 'Press overhead', 'Lock out arms'], tips: ['Squeeze glutes', 'Move head through at top', 'Full lockout'], level: 'beginner' },
-  { id: 'lateral-raise', name: 'Lateral Raise', muscleGroup: 'shoulders', description: 'Isolation for side delts to build shoulder width.', animationSteps: ['Dumbbells at sides', 'Raise to shoulder height', 'Lower with control'], tips: ['Lead with elbows', 'Don\'t go above shoulders', 'Light weight, high reps'], level: 'beginner' },
-  { id: 'front-raise', name: 'Front Raise', muscleGroup: 'shoulders', description: 'Targets anterior deltoid with alternating dumbbell raises.', animationSteps: ['Dumbbells in front', 'Raise one arm forward', 'Alternate arms'], tips: ['Don\'t swing', 'Stop at shoulder height', 'Controlled movement'], level: 'beginner' },
-  { id: 'face-pull', name: 'Face Pull', muscleGroup: 'shoulders', description: 'Rear delt and rotator cuff exercise for shoulder health.', animationSteps: ['Cable at face height', 'Pull rope to face', 'Spread hands apart'], tips: ['External rotate at end', 'Squeeze rear delts', 'Keep elbows high'], level: 'beginner' },
-  { id: 'arnold-press', name: 'Arnold Press', muscleGroup: 'shoulders', description: 'Rotational press hitting all three delt heads in one movement.', animationSteps: ['Dumbbells at chin, palms in', 'Rotate and press up', 'Reverse back down'], tips: ['Smooth rotation', 'Full lockout at top', 'Control the tempo'], level: 'intermediate' },
-  { id: 'upright-row', name: 'Upright Row', muscleGroup: 'shoulders', description: 'Compound lift for traps and side delts with a barbell.', animationSteps: ['Bar at thighs', 'Pull up to chin height', 'Elbows flare high'], tips: ['Wide grip is safer', 'Don\'t go too heavy', 'Lead with elbows'], level: 'intermediate' },
-  { id: 'reverse-fly', name: 'Reverse Fly', muscleGroup: 'shoulders', description: 'Bent-over isolation for rear deltoids and upper back.', animationSteps: ['Bend forward, arms hanging', 'Raise dumbbells to sides', 'Lower with control'], tips: ['Keep slight elbow bend', 'Squeeze shoulder blades', 'Light weight works best'], level: 'beginner' },
-  { id: 'cable-lateral-raise', name: 'Cable Lateral Raise', muscleGroup: 'shoulders', description: 'Constant tension lateral raise using a cable for side delt growth.', animationSteps: ['Stand sideways to cable', 'Raise arm to shoulder height', 'Lower with control'], tips: ['Lean slightly away', 'Constant tension throughout', 'Pause at top'], level: 'advanced' },
-  { id: 'seated-dumbbell-press', name: 'Seated Dumbbell Press', muscleGroup: 'shoulders', description: 'Seated pressing for strict shoulder development without leg drive.', animationSteps: ['Sit upright, dumbbells at shoulders', 'Press overhead', 'Lower to ears'], tips: ['Back against pad', 'Full lockout', 'Controlled descent'], level: 'beginner' },
-  { id: 'behind-neck-press', name: 'Behind-the-Neck Press', muscleGroup: 'shoulders', description: 'Advanced press variation hitting all delt heads with bar behind neck.', animationSteps: ['Bar behind neck', 'Press overhead', 'Lower behind neck'], tips: ['Requires good mobility', 'Lighter weight', 'Not for everyone'], level: 'advanced' },
-  { id: 'lu-raise', name: 'Lu Raise', muscleGroup: 'shoulders', description: 'Lateral raise to front raise combo for complete delt development.', animationSteps: ['Raise laterally', 'Swing to front', 'Lower and repeat'], tips: ['Light weight', 'Smooth transitions', 'Feel the burn'], level: 'intermediate' },
-  { id: 'plate-front-raise', name: 'Plate Front Raise', muscleGroup: 'shoulders', description: 'Hold a plate and raise it for front delt and core work.', animationSteps: ['Hold plate at waist', 'Raise to eye level', 'Lower with control'], tips: ['Grip plate firmly', 'Don\'t swing', 'Core engaged'], level: 'beginner' },
-  { id: 'machine-shoulder-press', name: 'Machine Shoulder Press', muscleGroup: 'shoulders', description: 'Guided pressing machine for safe heavy shoulder work.', animationSteps: ['Sit in machine', 'Press handles up', 'Lower to start'], tips: ['Adjust seat height', 'Full lockout', 'Great for burnouts'], level: 'beginner' },
-  { id: 'rear-delt-fly-machine', name: 'Rear Delt Machine', muscleGroup: 'shoulders', description: 'Machine isolation for rear deltoids and upper back.', animationSteps: ['Face the pad', 'Open arms wide', 'Return slowly'], tips: ['Squeeze rear delts', 'Don\'t use momentum', 'Light weight'], level: 'beginner' },
-  { id: 'dumbbell-z-press', name: 'Z Press', muscleGroup: 'shoulders', description: 'Seated on floor press forcing strict shoulder work without back support.', animationSteps: ['Sit on floor, legs out', 'Press dumbbells overhead', 'Lower to shoulders'], tips: ['No back support', 'Core must engage', 'Humbling exercise'], level: 'advanced' },
-  { id: 'band-pull-apart', name: 'Band Pull-Apart', muscleGroup: 'shoulders', description: 'Resistance band exercise for rear delts and shoulder health.', animationSteps: ['Band at chest height', 'Pull band apart', 'Return slowly'], tips: ['Squeeze shoulder blades', 'High reps', 'Great for warm-up'], level: 'beginner' },
-  { id: 'landmine-lateral-raise', name: 'Landmine Lateral Raise', muscleGroup: 'shoulders', description: 'Unique lateral raise using a landmine for side delt activation.', animationSteps: ['Hold bar end at side', 'Raise laterally', 'Lower with control'], tips: ['Unique angle', 'Great mind-muscle', 'Moderate weight'], level: 'intermediate' },
-  { id: 'incline-rear-delt-raise', name: 'Incline Rear Delt Raise', muscleGroup: 'shoulders', description: 'Chest-supported rear delt fly eliminating momentum.', animationSteps: ['Lie face down on incline', 'Raise dumbbells to sides', 'Lower slowly'], tips: ['No swinging possible', 'Light weight', 'Squeeze rear delts'], level: 'beginner' },
-  { id: 'handstand-push-up', name: 'Handstand Push-Up', muscleGroup: 'shoulders', description: 'Bodyweight overhead press in a handstand position.', animationSteps: ['Kick up to wall', 'Lower head to floor', 'Press back up'], tips: ['Wall supported first', 'Build up gradually', 'Core tight'], level: 'advanced' },
-  { id: 'viking-press', name: 'Viking Press', muscleGroup: 'shoulders', description: 'Landmine variation overhead press for shoulder power.', animationSteps: ['Grip handles at shoulders', 'Press up', 'Lower with control'], tips: ['Great for heavy loads', 'Shoulder-friendly angle', 'Strong lockout'], level: 'intermediate' },
+  {
+    id: 'machine-shoulder-press',
+    name: 'Machine Shoulder Press',
+    muscleGroup: 'shoulders',
+    level: 'beginner',
+    equipment: 'machine',
+    primaryMuscles: ['Delts', 'Triceps'],
+    instructions: [
+      'Start with handles just below shoulder height.',
+      'Press overhead without shrugging excessively.',
+      'Lower slowly and stay stable.',
+    ],
+  },
+  {
+    id: 'dumbbell-shoulder-press',
+    name: 'Dumbbell Shoulder Press',
+    muscleGroup: 'shoulders',
+    level: 'intermediate',
+    equipment: 'dumbbell',
+    primaryMuscles: ['Delts', 'Triceps', 'Upper chest'],
+    instructions: [
+      'Keep core braced and elbows under wrists.',
+      'Press overhead in a smooth arc.',
+      'Control the lowering phase.',
+    ],
+  },
+  {
+    id: 'lateral-raise',
+    name: 'Lateral Raise',
+    muscleGroup: 'shoulders',
+    level: 'beginner',
+    equipment: 'dumbbell',
+    primaryMuscles: ['Side delts'],
+    instructions: [
+      'Raise arms out to the sides with soft elbows.',
+      'Stop around shoulder height.',
+      'Avoid swinging the weight.',
+    ],
+  },
+  {
+    id: 'cable-lateral-raise',
+    name: 'Cable Lateral Raise',
+    muscleGroup: 'shoulders',
+    level: 'advanced',
+    equipment: 'cable',
+    primaryMuscles: ['Side delts'],
+    instructions: [
+      'Set cable low and move slightly away from stack.',
+      'Lift outward under full control.',
+      'Hold tension at the top briefly.',
+    ],
+  },
 
-  // ═══════════════════════════════
-  // LEGS (20)
-  // ═══════════════════════════════
-  { id: 'squat', name: 'Barbell Squat', muscleGroup: 'legs', description: 'King of exercises. Targets quads, glutes, hamstrings, and core.', animationSteps: ['Bar on upper back', 'Sit back and down', 'Drive through heels'], tips: ['Keep chest up', 'Knees track over toes', 'Go below parallel'], level: 'beginner' },
-  { id: 'lunges', name: 'Walking Lunges', muscleGroup: 'legs', description: 'Unilateral leg exercise for balance and strength.', animationSteps: ['Stand upright', 'Step forward deep', 'Push through front heel'], tips: ['Keep torso upright', '90° angles', 'Step far enough'], level: 'beginner' },
-  { id: 'leg-press', name: 'Leg Press', muscleGroup: 'legs', description: 'Machine compound for quad and glute development with back support.', animationSteps: ['Feet on platform', 'Lower weight down', 'Push up powerfully'], tips: ['Don\'t lock knees', 'Full range of motion', 'Feet placement varies targeting'], level: 'beginner' },
-  { id: 'leg-curl', name: 'Leg Curl', muscleGroup: 'legs', description: 'Isolation for hamstrings on a lying or seated machine.', animationSteps: ['Lie face down', 'Curl heels to glutes', 'Lower with control'], tips: ['Don\'t lift hips', 'Squeeze hamstrings', 'Slow eccentric'], level: 'beginner' },
-  { id: 'calf-raise', name: 'Calf Raise', muscleGroup: 'legs', description: 'Standing or seated calf isolation for lower leg development.', animationSteps: ['Stand on edge', 'Rise onto toes', 'Lower below platform'], tips: ['Full stretch at bottom', 'Pause at top', 'Don\'t bounce'], level: 'beginner' },
-  { id: 'romanian-deadlift', name: 'Romanian Deadlift', muscleGroup: 'legs', description: 'Hip hinge focusing on hamstrings and glutes with a barbell.', animationSteps: ['Hold bar at hips', 'Hinge forward, bar slides down', 'Drive hips forward to stand'], tips: ['Keep bar close to legs', 'Slight knee bend', 'Feel the hamstring stretch'], level: 'intermediate' },
-  { id: 'bulgarian-split-squat', name: 'Bulgarian Split Squat', muscleGroup: 'legs', description: 'Rear-foot elevated split squat for single-leg strength and balance.', animationSteps: ['Rear foot on bench', 'Lower into split squat', 'Push back up'], tips: ['Keep torso upright', 'Front knee over ankle', 'Go deep for glutes'], level: 'intermediate' },
-  { id: 'hack-squat', name: 'Hack Squat', muscleGroup: 'legs', description: 'Machine squat variation for quad-dominant leg development.', animationSteps: ['Shoulders under pads', 'Squat down deep', 'Push back up'], tips: ['Feet lower for more quads', 'Full depth', 'Don\'t lock knees at top'], level: 'intermediate' },
-  { id: 'leg-extension', name: 'Leg Extension', muscleGroup: 'legs', description: 'Isolation machine exercise for quadriceps definition.', animationSteps: ['Sit with shins behind pad', 'Extend legs fully', 'Lower with control'], tips: ['Squeeze quads at top', 'Don\'t swing', 'Slow negatives'], level: 'beginner' },
-  { id: 'front-squat', name: 'Front Squat', muscleGroup: 'legs', description: 'Bar in front rack position for quad-dominant squatting.', animationSteps: ['Bar on front delts', 'Squat deep', 'Drive up keeping chest high'], tips: ['Elbows high', 'Core tight', 'Deeper than back squat'], level: 'intermediate' },
-  { id: 'goblet-squat', name: 'Goblet Squat', muscleGroup: 'legs', description: 'Dumbbell held at chest for beginner-friendly deep squats.', animationSteps: ['Hold dumbbell at chest', 'Squat deep', 'Stand up'], tips: ['Elbows inside knees', 'Great for mobility', 'Deep squat'], level: 'beginner' },
-  { id: 'hip-thrust', name: 'Hip Thrust', muscleGroup: 'legs', description: 'Glute-focused hip extension with barbell for maximum glute activation.', animationSteps: ['Upper back on bench', 'Bar on hips, lower', 'Drive hips up, squeeze'], tips: ['Chin tucked', 'Full hip extension', 'Squeeze glutes hard'], level: 'beginner' },
-  { id: 'step-up', name: 'Step-Up', muscleGroup: 'legs', description: 'Unilateral step onto a box for quad and glute development.', animationSteps: ['Stand before box', 'Step up with one leg', 'Step down controlled'], tips: ['Don\'t push off back foot', 'Full extension at top', 'Higher box = harder'], level: 'beginner' },
-  { id: 'sumo-deadlift', name: 'Sumo Deadlift', muscleGroup: 'legs', description: 'Wide stance deadlift targeting inner thighs and glutes.', animationSteps: ['Wide stance, toes out', 'Grip bar inside legs', 'Stand up'], tips: ['Push knees out', 'Stay upright', 'Hip dominant'], level: 'intermediate' },
-  { id: 'sissy-squat', name: 'Sissy Squat', muscleGroup: 'legs', description: 'Quad isolation leaning back on toes for extreme stretch.', animationSteps: ['Stand on toes', 'Lean back, bend knees', 'Return to standing'], tips: ['Hold something for balance', 'Feel the quad stretch', 'Bodyweight first'], level: 'advanced' },
-  { id: 'nordic-curl', name: 'Nordic Curl', muscleGroup: 'legs', description: 'Eccentric hamstring exercise for injury prevention and strength.', animationSteps: ['Kneel, feet anchored', 'Lower body forward slowly', 'Push back up'], tips: ['Control the descent', 'Extremely difficult', 'Use band for assistance'], level: 'advanced' },
-  { id: 'seated-calf-raise', name: 'Seated Calf Raise', muscleGroup: 'legs', description: 'Seated variation targeting the soleus muscle of the calf.', animationSteps: ['Sit with knees under pad', 'Raise heels', 'Lower with stretch'], tips: ['Full range of motion', 'Targets soleus', 'Higher reps work best'], level: 'beginner' },
-  { id: 'reverse-lunge', name: 'Reverse Lunge', muscleGroup: 'legs', description: 'Step backward into a lunge for safer knee-friendly leg training.', animationSteps: ['Stand tall', 'Step back into lunge', 'Push off back foot'], tips: ['Easier on knees', 'Keep torso upright', 'Great glute activation'], level: 'beginner' },
-  { id: 'belt-squat', name: 'Belt Squat', muscleGroup: 'legs', description: 'Squat with weight on hips, sparing the spine.', animationSteps: ['Belt attached to weight', 'Squat deep', 'Stand up'], tips: ['No spinal loading', 'Great for back issues', 'Deep squats possible'], level: 'intermediate' },
-  { id: 'glute-bridge', name: 'Glute Bridge', muscleGroup: 'legs', description: 'Floor-based glute exercise for activation and strength.', animationSteps: ['Lie on back, knees bent', 'Drive hips up', 'Lower slowly'], tips: ['Squeeze glutes at top', 'Core engaged', 'Add weight for progression'], level: 'beginner' },
+  {
+    id: 'rope-pushdown',
+    name: 'Rope Pushdown',
+    muscleGroup: 'arms',
+    level: 'beginner',
+    equipment: 'cable',
+    primaryMuscles: ['Triceps'],
+    instructions: [
+      'Keep elbows pinned near your sides.',
+      'Extend fully and separate rope at the bottom.',
+      'Return slowly without shoulder movement.',
+    ],
+  },
+  {
+    id: 'dumbbell-curl',
+    name: 'Dumbbell Curl',
+    muscleGroup: 'arms',
+    level: 'beginner',
+    equipment: 'dumbbell',
+    primaryMuscles: ['Biceps'],
+    instructions: [
+      'Curl without swinging torso.',
+      'Squeeze at the top.',
+      'Lower slowly for full control.',
+    ],
+  },
+  {
+    id: 'hammer-curl',
+    name: 'Hammer Curl',
+    muscleGroup: 'arms',
+    level: 'intermediate',
+    equipment: 'dumbbell',
+    primaryMuscles: ['Brachialis', 'Biceps', 'Forearms'],
+    instructions: [
+      'Keep palms facing inward the whole set.',
+      'Lift with elbows stable.',
+      'Lower fully without losing tension.',
+    ],
+  },
+  {
+    id: 'skull-crusher',
+    name: 'Skull Crusher',
+    muscleGroup: 'arms',
+    level: 'advanced',
+    equipment: 'barbell',
+    primaryMuscles: ['Triceps'],
+    instructions: [
+      'Keep upper arms mostly fixed.',
+      'Lower toward forehead or behind head.',
+      'Extend back to lockout with control.',
+    ],
+  },
 
-  // ═══════════════════════════════
-  // ARMS (20)
-  // ═══════════════════════════════
-  { id: 'bicep-curl', name: 'Bicep Curl', muscleGroup: 'arms', description: 'Isolation exercise for bicep peak and size.', animationSteps: ['Dumbbells at sides', 'Curl up with control', 'Squeeze at top'], tips: ['No swinging', 'Keep elbows pinned', 'Full range of motion'], level: 'beginner' },
-  { id: 'tricep-dip', name: 'Tricep Dips', muscleGroup: 'arms', description: 'Bodyweight tricep builder with chest engagement.', animationSteps: ['Grip parallel bars', 'Lower body down', 'Push back up'], tips: ['Lean slightly forward', 'Keep elbows close', 'Control descent'], level: 'intermediate' },
-  { id: 'hammer-curl', name: 'Hammer Curl', muscleGroup: 'arms', description: 'Neutral grip curl targeting brachialis and forearms.', animationSteps: ['Neutral grip at sides', 'Curl up thumbs forward', 'Lower slowly'], tips: ['Keep wrists neutral', 'Don\'t swing', 'Squeeze at top'], level: 'beginner' },
-  { id: 'tricep-pushdown', name: 'Tricep Pushdown', muscleGroup: 'arms', description: 'Cable isolation for all three tricep heads.', animationSteps: ['Grip cable bar high', 'Push down to thighs', 'Return with control'], tips: ['Elbows at your sides', 'Full lockout', 'Squeeze triceps'], level: 'beginner' },
-  { id: 'preacher-curl', name: 'Preacher Curl', muscleGroup: 'arms', description: 'Strict curl variation that eliminates cheating and targets bicep peak.', animationSteps: ['Arms on preacher pad', 'Curl bar up', 'Lower fully'], tips: ['Don\'t lift elbows', 'Full stretch at bottom', 'Controlled tempo'], level: 'intermediate' },
-  { id: 'concentration-curl', name: 'Concentration Curl', muscleGroup: 'arms', description: 'Seated single-arm curl for strict bicep isolation and peak contraction.', animationSteps: ['Elbow on inner thigh', 'Curl dumbbell up', 'Lower with control'], tips: ['Don\'t swing', 'Squeeze at peak', 'Slow and controlled'], level: 'beginner' },
-  { id: 'overhead-tricep', name: 'Overhead Tricep Extension', muscleGroup: 'arms', description: 'Overhead extension targeting the long head of the triceps.', animationSteps: ['Hold dumbbell overhead', 'Lower behind head', 'Extend back up'], tips: ['Keep elbows pointing up', 'Full stretch at bottom', 'Don\'t flare elbows'], level: 'beginner' },
-  { id: 'cable-curl', name: 'Cable Curl', muscleGroup: 'arms', description: 'Constant tension bicep curl using a low cable for even resistance.', animationSteps: ['Grip low cable handle', 'Curl to chin', 'Lower with control'], tips: ['Stand upright', 'Squeeze at top', 'Constant tension'], level: 'intermediate' },
-  { id: 'skull-crusher', name: 'Skull Crusher', muscleGroup: 'arms', description: 'Lying tricep extension for mass building in all three tricep heads.', animationSteps: ['Lie flat, arms extended', 'Lower to forehead', 'Extend back up'], tips: ['Keep elbows stable', 'Don\'t flare', 'Control the weight'], level: 'intermediate' },
-  { id: 'barbell-curl', name: 'Barbell Curl', muscleGroup: 'arms', description: 'Heavy barbell curl for maximum bicep mass and strength.', animationSteps: ['Grip barbell, arms down', 'Curl to shoulders', 'Lower with control'], tips: ['Strict form', 'No swinging', 'Great for strength'], level: 'beginner' },
-  { id: 'close-grip-push-up', name: 'Close-Grip Push-Up', muscleGroup: 'arms', description: 'Narrow hand push-up emphasizing tricep activation.', animationSteps: ['Hands close together', 'Lower chest', 'Push back up'], tips: ['Hands under chest', 'Elbows close to body', 'Great finisher'], level: 'beginner' },
-  { id: 'rope-pushdown', name: 'Rope Pushdown', muscleGroup: 'arms', description: 'Rope attachment pushdown for tricep isolation with spread at bottom.', animationSteps: ['Grip rope at cable', 'Push down and spread', 'Return up'], tips: ['Split rope at bottom', 'Elbows pinned', 'Squeeze hard'], level: 'beginner' },
-  { id: 'incline-curl', name: 'Incline Dumbbell Curl', muscleGroup: 'arms', description: 'Incline bench curl for maximum bicep stretch and long head emphasis.', animationSteps: ['Lie on incline bench', 'Curl dumbbells up', 'Lower with full stretch'], tips: ['Great stretch', 'Don\'t swing', 'Feel the long head'], level: 'intermediate' },
-  { id: 'dip-machine', name: 'Dip Machine', muscleGroup: 'arms', description: 'Assisted or weighted dip machine for controlled tricep work.', animationSteps: ['Sit in machine', 'Push handles down', 'Return slowly'], tips: ['Adjust weight', 'Full range', 'Great for beginners'], level: 'beginner' },
-  { id: 'reverse-curl', name: 'Reverse Curl', muscleGroup: 'arms', description: 'Overhand grip curl targeting brachioradialis and forearms.', animationSteps: ['Overhand grip on bar', 'Curl up', 'Lower slowly'], tips: ['Lighter weight needed', 'Great for forearms', 'Controlled tempo'], level: 'intermediate' },
-  { id: 'spider-curl', name: 'Spider Curl', muscleGroup: 'arms', description: 'Face-down on incline bench for zero-momentum bicep curls.', animationSteps: ['Lie face down on incline', 'Curl dumbbells', 'Lower fully'], tips: ['No swinging possible', 'Pure isolation', 'Great peak contraction'], level: 'intermediate' },
-  { id: 'kickback', name: 'Tricep Kickback', muscleGroup: 'arms', description: 'Bent-over dumbbell extension for tricep isolation.', animationSteps: ['Hinge forward, arm at side', 'Extend arm back', 'Return to 90°'], tips: ['Keep upper arm still', 'Squeeze at lockout', 'Light weight'], level: 'beginner' },
-  { id: 'wrist-curl', name: 'Wrist Curl', muscleGroup: 'arms', description: 'Forearm flexor isolation for grip strength and forearm size.', animationSteps: ['Forearms on bench', 'Curl wrist up', 'Lower down'], tips: ['Full range of motion', 'Both directions', 'High reps'], level: 'beginner' },
-  { id: 'cross-body-curl', name: 'Cross-Body Hammer Curl', muscleGroup: 'arms', description: 'Hammer curl across the body for brachialis and outer bicep.', animationSteps: ['Dumbbell at side', 'Curl across body', 'Lower back'], tips: ['Curl toward opposite shoulder', 'Squeeze peak', 'Alternate arms'], level: 'beginner' },
-  { id: 'jm-press', name: 'JM Press', muscleGroup: 'arms', description: 'Hybrid close-grip bench and skull crusher for tricep mass.', animationSteps: ['Lie flat, close grip', 'Lower to chin level', 'Press and extend'], tips: ['Elbows come forward', 'Heavy tricep builder', 'Control the bar'], level: 'advanced' },
+  {
+    id: 'goblet-squat',
+    name: 'Goblet Squat',
+    muscleGroup: 'legs',
+    level: 'beginner',
+    equipment: 'dumbbell',
+    primaryMuscles: ['Quads', 'Glutes', 'Core'],
+    instructions: [
+      'Hold weight close to chest.',
+      'Sit down between the hips.',
+      'Drive up through midfoot.',
+    ],
+  },
+  {
+    id: 'leg-press',
+    name: 'Leg Press',
+    muscleGroup: 'legs',
+    level: 'beginner',
+    equipment: 'machine',
+    primaryMuscles: ['Quads', 'Glutes'],
+    instructions: [
+      'Place feet shoulder width apart.',
+      'Lower with control to comfortable depth.',
+      'Press without bouncing at the bottom.',
+    ],
+  },
+  {
+    id: 'romanian-deadlift',
+    name: 'Romanian Deadlift',
+    muscleGroup: 'legs',
+    level: 'intermediate',
+    equipment: 'barbell',
+    primaryMuscles: ['Hamstrings', 'Glutes', 'Lower back'],
+    instructions: [
+      'Push hips back while keeping bar close.',
+      'Maintain a neutral spine.',
+      'Stand tall by driving hips through.',
+    ],
+  },
+  {
+    id: 'barbell-back-squat',
+    name: 'Barbell Back Squat',
+    muscleGroup: 'legs',
+    level: 'advanced',
+    equipment: 'barbell',
+    primaryMuscles: ['Quads', 'Glutes', 'Core'],
+    instructions: [
+      'Brace before each rep.',
+      'Sit down and slightly back under control.',
+      'Drive up while keeping chest and hips together.',
+    ],
+  },
+  {
+    id: 'walking-lunge',
+    name: 'Walking Lunge',
+    muscleGroup: 'legs',
+    level: 'intermediate',
+    equipment: 'dumbbell',
+    primaryMuscles: ['Quads', 'Glutes', 'Adductors'],
+    instructions: [
+      'Step long enough to keep balance.',
+      'Lower rear knee toward the floor.',
+      'Push through front foot into the next step.',
+    ],
+  },
+  {
+    id: 'leg-curl',
+    name: 'Leg Curl',
+    muscleGroup: 'legs',
+    level: 'beginner',
+    equipment: 'machine',
+    primaryMuscles: ['Hamstrings'],
+    instructions: [
+      'Set machine axis in line with knee joint.',
+      'Curl smoothly to full contraction.',
+      'Lower with control.',
+    ],
+  },
 
-  // ═══════════════════════════════
-  // CORE (20)
-  // ═══════════════════════════════
-  { id: 'plank', name: 'Plank', muscleGroup: 'core', description: 'Isometric core stability exercise.', animationSteps: ['Forearms on ground', 'Body in straight line', 'Hold and breathe'], tips: ['Don\'t sag hips', 'Breathe steadily', 'Squeeze everything'], level: 'beginner' },
-  { id: 'cable-crunch', name: 'Cable Crunch', muscleGroup: 'core', description: 'Weighted ab exercise for rectus abdominis.', animationSteps: ['Kneel at cable', 'Crunch down hard', 'Return up slowly'], tips: ['Flex spine, not hips', 'Controlled tempo', 'Feel the squeeze'], level: 'intermediate' },
-  { id: 'russian-twist', name: 'Russian Twist', muscleGroup: 'core', description: 'Rotational core exercise for obliques and anti-rotation strength.', animationSteps: ['Sit with knees bent', 'Rotate torso left', 'Rotate torso right'], tips: ['Lean back slightly', 'Keep feet off ground', 'Touch floor each side'], level: 'beginner' },
-  { id: 'hanging-leg-raise', name: 'Hanging Leg Raise', muscleGroup: 'core', description: 'Advanced ab exercise from a pull-up bar for lower abs.', animationSteps: ['Hang from bar', 'Raise legs to 90°', 'Lower with control'], tips: ['Minimize swing', 'Curl pelvis up', 'Slow negative'], level: 'advanced' },
-  { id: 'mountain-climber', name: 'Mountain Climber', muscleGroup: 'core', description: 'Dynamic core and cardio exercise combining plank with knee drives.', animationSteps: ['Push-up position', 'Drive knee to chest', 'Alternate legs rapidly'], tips: ['Keep hips level', 'Stay on balls of feet', 'Maintain plank form'], level: 'beginner' },
-  { id: 'dead-bug', name: 'Dead Bug', muscleGroup: 'core', description: 'Anti-extension core exercise for deep stabilizer activation.', animationSteps: ['Lie on back, arms up', 'Extend opposite arm and leg', 'Return and switch'], tips: ['Press lower back into floor', 'Move slowly', 'Breathe out on extension'], level: 'beginner' },
-  { id: 'ab-wheel', name: 'Ab Wheel Rollout', muscleGroup: 'core', description: 'Advanced anti-extension exercise for total core strength.', animationSteps: ['Kneel with ab wheel', 'Roll forward', 'Roll back to start'], tips: ['Don\'t arch lower back', 'Squeeze abs to return', 'Start with short range'], level: 'advanced' },
-  { id: 'side-plank', name: 'Side Plank', muscleGroup: 'core', description: 'Lateral core stability exercise targeting obliques.', animationSteps: ['Lie on side, forearm down', 'Lift hips off ground', 'Hold steady'], tips: ['Stack feet or stagger', 'Keep body straight', 'Don\'t let hips drop'], level: 'beginner' },
-  { id: 'bicycle-crunch', name: 'Bicycle Crunch', muscleGroup: 'core', description: 'Alternating elbow-to-knee crunch for obliques and rectus abdominis.', animationSteps: ['Hands behind head', 'Twist elbow to opposite knee', 'Alternate sides'], tips: ['Don\'t pull on neck', 'Extend the straight leg fully', 'Control the rotation'], level: 'beginner' },
-  { id: 'v-up', name: 'V-Up', muscleGroup: 'core', description: 'Full body crunch bringing hands to toes simultaneously.', animationSteps: ['Lie flat, arms overhead', 'Fold body into V', 'Lower back down'], tips: ['Keep legs straight', 'Touch toes at top', 'Control the descent'], level: 'intermediate' },
-  { id: 'pallof-press', name: 'Pallof Press', muscleGroup: 'core', description: 'Anti-rotation cable exercise for core stability.', animationSteps: ['Cable at chest height', 'Press hands straight out', 'Hold and return'], tips: ['Resist the rotation', 'Core tight throughout', 'Slow controlled reps'], level: 'intermediate' },
-  { id: 'flutter-kick', name: 'Flutter Kicks', muscleGroup: 'core', description: 'Alternating leg kicks while lying down for lower ab activation.', animationSteps: ['Lie flat, hands under hips', 'Alternate kicking legs', 'Keep legs low'], tips: ['Lower back pressed down', 'Small quick kicks', 'Don\'t hold breath'], level: 'beginner' },
-  { id: 'dragon-flag', name: 'Dragon Flag', muscleGroup: 'core', description: 'Bruce Lee\'s legendary core exercise for extreme ab strength.', animationSteps: ['Lie on bench, grip behind head', 'Raise body straight up', 'Lower body as one unit'], tips: ['Keep body rigid', 'Extremely advanced', 'Work up to full version'], level: 'advanced' },
-  { id: 'toe-touch', name: 'Toe Touches', muscleGroup: 'core', description: 'Lying leg-up crunch reaching for toes.', animationSteps: ['Legs vertical, arms up', 'Crunch up to touch toes', 'Lower back down'], tips: ['Keep legs straight', 'Lift shoulders off ground', 'Controlled movement'], level: 'beginner' },
-  { id: 'bird-dog', name: 'Bird Dog', muscleGroup: 'core', description: 'Contralateral limb raise for core stability and coordination.', animationSteps: ['On all fours', 'Extend opposite arm and leg', 'Return and switch'], tips: ['Keep hips level', 'Slow controlled movements', 'Great for warm-up'], level: 'beginner' },
-  { id: 'woodchop', name: 'Cable Woodchop', muscleGroup: 'core', description: 'Rotational cable exercise for obliques and functional core strength.', animationSteps: ['Cable high, grab handle', 'Chop diagonally down', 'Return with control'], tips: ['Rotate from core', 'Feet planted', 'Both directions'], level: 'intermediate' },
-  { id: 'hollow-hold', name: 'Hollow Hold', muscleGroup: 'core', description: 'Gymnastic static hold for total anterior core activation.', animationSteps: ['Lie flat, arms overhead', 'Lift arms, head, and legs', 'Hold the position'], tips: ['Lower back pressed down', 'Create a banana shape', 'Build up time'], level: 'intermediate' },
-  { id: 'reverse-crunch', name: 'Reverse Crunch', muscleGroup: 'core', description: 'Lower ab focused crunch bringing knees to chest.', animationSteps: ['Lie flat, knees bent', 'Curl knees to chest', 'Lower with control'], tips: ['Lift hips off ground', 'Don\'t use momentum', 'Squeeze lower abs'], level: 'beginner' },
-  { id: 'l-sit', name: 'L-Sit', muscleGroup: 'core', description: 'Gymnastic hold with legs parallel to ground for extreme core and hip flexor strength.', animationSteps: ['Hands on parallettes', 'Lift body, legs straight out', 'Hold position'], tips: ['Incredibly challenging', 'Build up gradually', 'Straight legs'], level: 'advanced' },
-  { id: 'suitcase-carry', name: 'Suitcase Carry', muscleGroup: 'core', description: 'Single-arm farmer carry for anti-lateral flexion core strength.', animationSteps: ['Heavy dumbbell in one hand', 'Walk straight', 'Stay upright, no lean'], tips: ['Don\'t lean to either side', 'Core fights the offset', 'Switch sides'], level: 'intermediate' },
-
-  // ═══════════════════════════════
-  // WARM-UP (20)
-  // ═══════════════════════════════
-  { id: 'arm-circles', name: 'Arm Circles', muscleGroup: 'warmup', description: 'Dynamic warm-up rotating arms to loosen shoulders and improve mobility.', animationSteps: ['Arms out to sides', 'Circle forward', 'Circle backward', 'Increase range'], tips: ['Start with small circles', 'Gradually increase size', 'Keep core engaged'] },
-  { id: 'jumping-jacks', name: 'Jumping Jacks', muscleGroup: 'warmup', description: 'Full body warm-up to elevate heart rate and activate major muscle groups.', animationSteps: ['Stand feet together', 'Jump out, arms up', 'Jump back in', 'Repeat rhythm'], tips: ['Land softly on toes', 'Keep a steady pace', 'Breathe rhythmically'] },
-  { id: 'high-knees', name: 'High Knees', muscleGroup: 'warmup', description: 'Cardio warm-up driving knees high to activate hip flexors and core.', animationSteps: ['Left knee up', 'Return to stand', 'Right knee up', 'Return to stand'], tips: ['Drive knees to hip height', 'Pump arms', 'Stay on balls of feet'] },
-  { id: 'hip-circles', name: 'Hip Circles', muscleGroup: 'warmup', description: 'Mobility exercise rotating hips to warm up the lower body.', animationSteps: ['Circle hips left', 'Circle forward', 'Circle hips right', 'Circle back'], tips: ['Keep upper body still', 'Make wide circles', 'Go both directions'] },
-  { id: 'leg-swings', name: 'Leg Swings', muscleGroup: 'warmup', description: 'Dynamic stretching swinging legs to warm up hamstrings and hip flexors.', animationSteps: ['Swing leg forward', 'Return center', 'Swing leg back', 'Return center'], tips: ['Hold something for balance', 'Keep leg straight', 'Increase range gradually'] },
-  { id: 'butt-kicks', name: 'Butt Kicks', muscleGroup: 'warmup', description: 'Dynamic warm-up kicking heels to glutes to activate hamstrings.', animationSteps: ['Jog in place', 'Kick heel to glute', 'Alternate legs', 'Keep pace steady'], tips: ['Stay on balls of feet', 'Pump arms naturally', 'Keep torso upright'] },
-  { id: 'inchworm', name: 'Inchworm', muscleGroup: 'warmup', description: 'Full body warm-up walking hands out to plank and back.', animationSteps: ['Bend forward, touch floor', 'Walk hands to plank', 'Walk hands back', 'Stand up'], tips: ['Keep legs as straight as possible', 'Control the movement', 'Great full body primer'] },
-  { id: 'torso-twist', name: 'Torso Twist', muscleGroup: 'warmup', description: 'Standing rotation to warm up the spine and obliques.', animationSteps: ['Arms extended', 'Rotate left', 'Rotate right', 'Flow continuously'], tips: ['Keep hips still', 'Move from thoracic spine', 'Controlled pace'] },
-  { id: 'ankle-circles', name: 'Ankle Circles', muscleGroup: 'warmup', description: 'Ankle mobility exercise to prevent sprains and warm up lower legs.', animationSteps: ['Lift one foot', 'Circle clockwise', 'Circle counter-clockwise', 'Switch foot'], tips: ['Full range of motion', 'Both directions', 'Hold something for balance'] },
-  { id: 'shoulder-dislocate', name: 'Shoulder Dislocates', muscleGroup: 'warmup', description: 'Band or dowel pass-through for shoulder mobility and warm-up.', animationSteps: ['Hold band wide', 'Bring over head', 'Behind the back', 'Return over head'], tips: ['Go wide at first', 'Slowly narrow grip', 'Great for pressing days'] },
-  { id: 'world-greatest-stretch', name: 'World\'s Greatest Stretch', muscleGroup: 'warmup', description: 'Multi-joint mobility drill combining lunge, twist, and hamstring stretch.', animationSteps: ['Step into lunge', 'Rotate toward front leg', 'Reach to sky', 'Switch sides'], tips: ['Go through each position', 'Great full body opener', 'Hold each position 2 sec'] },
-  { id: 'band-pull-apart-warmup', name: 'Band Pull-Apart (Warm-Up)', muscleGroup: 'warmup', description: 'Light band pull-apart for rear delt and upper back activation.', animationSteps: ['Hold band at chest', 'Pull apart', 'Return slowly', 'Repeat'], tips: ['Light band', 'High reps', 'Activate rear delts'] },
-  { id: 'bodyweight-squat', name: 'Bodyweight Squat', muscleGroup: 'warmup', description: 'Air squat to warm up quads, glutes, and get blood flowing.', animationSteps: ['Stand shoulder width', 'Squat down deep', 'Stand back up', 'Repeat'], tips: ['Full depth', 'Arms forward for balance', 'Controlled pace'] },
-  { id: 'glute-activation', name: 'Glute Activation', muscleGroup: 'warmup', description: 'Banded clamshells or glute bridges to fire up the glutes.', animationSteps: ['Side-lying or on back', 'Activate glutes', 'Squeeze and hold', 'Repeat'], tips: ['Band above knees', 'Feel the glutes fire', 'Essential before leg day'] },
-  { id: 'scapular-push-up', name: 'Scapular Push-Up', muscleGroup: 'warmup', description: 'Push-up with only shoulder blade movement for serratus activation.', animationSteps: ['Push-up position', 'Let chest sink between shoulders', 'Push shoulder blades apart', 'Repeat'], tips: ['Arms stay straight', 'Only scapulae move', 'Great for pressing'] },
-  { id: 'cat-cow-warmup', name: 'Cat-Cow', muscleGroup: 'warmup', description: 'Spine mobility flow alternating between flexion and extension.', animationSteps: ['On all fours', 'Round spine up (cat)', 'Arch spine down (cow)', 'Flow between'], tips: ['Move with breath', 'Slow and controlled', 'Great for spinal health'] },
-  { id: 'neck-circles', name: 'Neck Circles', muscleGroup: 'warmup', description: 'Gentle neck rotations to relieve tension and warm up cervical spine.', animationSteps: ['Tilt head forward', 'Circle to the right', 'Continue full circle', 'Reverse direction'], tips: ['Go slowly', 'Don\'t force range', 'Both directions'] },
-  { id: 'lateral-shuffle', name: 'Lateral Shuffle', muscleGroup: 'warmup', description: 'Side-to-side shuffling for hip and knee warm-up.', animationSteps: ['Athletic stance', 'Shuffle right 5 steps', 'Shuffle left 5 steps', 'Stay low'], tips: ['Stay in athletic position', 'Quick feet', 'Don\'t cross feet'] },
-  { id: 'a-skip', name: 'A-Skip', muscleGroup: 'warmup', description: 'Skipping with high knees for hip flexor activation and coordination.', animationSteps: ['Skip forward', 'Drive knee high', 'Alternate legs', 'Arm swing'], tips: ['Stay on toes', 'Exaggerate knee drive', 'Great running warm-up'] },
-  { id: 'wall-slide', name: 'Wall Slide', muscleGroup: 'warmup', description: 'Arms sliding up a wall for shoulder mobility and scapular control.', animationSteps: ['Back to wall, arms up', 'Slide arms up', 'Slide arms down', 'Keep contact with wall'], tips: ['Keep back and arms on wall', 'Go as high as possible', 'Great for posture'] },
-
-  // ═══════════════════════════════
-  // STRETCHING (20)
-  // ═══════════════════════════════
-  { id: 'hamstring-stretch', name: 'Hamstring Stretch', muscleGroup: 'stretching', description: 'Static stretch to improve hamstring flexibility.', animationSteps: ['Place heel forward', 'Hinge hips slowly', 'Hold 20-30 sec', 'Switch side'], tips: ['Keep back neutral', 'Avoid bouncing', 'Breathe deeply'] },
-  { id: 'hip-flexor-stretch', name: 'Hip Flexor Stretch', muscleGroup: 'stretching', description: 'Lunge-based stretch that opens tight hip flexors.', animationSteps: ['Step into lunge', 'Tuck pelvis slightly', 'Shift forward gently', 'Hold and switch'], tips: ['Keep torso tall', 'Squeeze rear glute', 'Do both sides evenly'] },
-  { id: 'chest-opener-stretch', name: 'Chest Opener Stretch', muscleGroup: 'stretching', description: 'Upper-body stretch to open chest and improve shoulder posture.', animationSteps: ['Interlace hands behind back', 'Lift chest', 'Draw shoulders back', 'Hold with calm breaths'], tips: ['Do not overarch lower back', 'Keep neck relaxed', 'Stay controlled'] },
-  { id: 'cat-cow-stretch', name: 'Cat-Cow Stretch', muscleGroup: 'stretching', description: 'Dynamic spinal mobility sequence.', animationSteps: ['Start on all fours', 'Round spine (cat)', 'Extend spine (cow)', 'Flow slowly for reps'], tips: ['Move with breath', 'Keep wrists under shoulders', 'Avoid forcing range'] },
-  { id: 'quad-stretch', name: 'Quad Stretch', muscleGroup: 'stretching', description: 'Standing stretch pulling foot to glute to lengthen the quadriceps.', animationSteps: ['Stand on one leg', 'Pull foot to glute', 'Hold 20-30 sec', 'Switch side'], tips: ['Keep knees together', 'Stand tall', 'Hold onto something for balance'] },
-  { id: 'shoulder-stretch', name: 'Cross-Body Shoulder Stretch', muscleGroup: 'stretching', description: 'Cross-body arm pull to stretch the posterior shoulder.', animationSteps: ['Extend arm across chest', 'Pull with other hand', 'Hold 20-30 sec', 'Switch side'], tips: ['Don\'t shrug', 'Gentle pressure only', 'Breathe into the stretch'] },
-  { id: 'childs-pose', name: 'Child\'s Pose', muscleGroup: 'stretching', description: 'Restorative stretch for back, shoulders, and hips.', animationSteps: ['Kneel, knees apart', 'Sit back on heels', 'Reach arms forward', 'Relax and breathe'], tips: ['Widen knees for comfort', 'Forehead on mat', 'Breathe deeply'] },
-  { id: 'pigeon-pose', name: 'Pigeon Pose', muscleGroup: 'stretching', description: 'Deep hip opener stretching hip flexors, glutes, and piriformis.', animationSteps: ['Front leg bent, back leg extended', 'Lower hips to floor', 'Lean forward gently', 'Hold and switch'], tips: ['Keep hips square', 'Use a block for support', 'Don\'t force the stretch'] },
-  { id: 'figure-four-stretch', name: 'Figure Four Stretch', muscleGroup: 'stretching', description: 'Lying glute and piriformis stretch crossing ankle over knee.', animationSteps: ['Lie on back', 'Cross ankle over knee', 'Pull thigh toward chest', 'Hold and switch'], tips: ['Keep head on floor', 'Gentle pressure', 'Great for tight glutes'] },
-  { id: 'lat-stretch', name: 'Lat Stretch', muscleGroup: 'stretching', description: 'Side bend stretch targeting the latissimus dorsi.', animationSteps: ['Arm overhead', 'Lean to opposite side', 'Hold 20-30 sec', 'Switch sides'], tips: ['Don\'t rotate torso', 'Feel the lat stretch', 'Breathe deeply'] },
-  { id: 'tricep-stretch', name: 'Tricep Stretch', muscleGroup: 'stretching', description: 'Overhead arm pull to stretch the triceps and shoulder.', animationSteps: ['Reach hand behind head', 'Pull elbow with other hand', 'Hold 20-30 sec', 'Switch arms'], tips: ['Don\'t push too hard', 'Keep back straight', 'Both arms evenly'] },
-  { id: 'butterfly-stretch', name: 'Butterfly Stretch', muscleGroup: 'stretching', description: 'Seated inner thigh stretch with soles of feet together.', animationSteps: ['Sit, soles together', 'Knees out to sides', 'Lean forward gently', 'Hold 30 sec'], tips: ['Don\'t bounce knees', 'Sit up tall', 'Great for hip flexibility'] },
-  { id: 'cobra-stretch', name: 'Cobra Stretch', muscleGroup: 'stretching', description: 'Prone back extension stretch opening the chest and abdomen.', animationSteps: ['Lie face down', 'Push chest up with arms', 'Hold with straight arms', 'Lower slowly'], tips: ['Don\'t hyperextend neck', 'Hips stay on floor', 'Great after core work'] },
-  { id: 'standing-calf-stretch', name: 'Standing Calf Stretch', muscleGroup: 'stretching', description: 'Wall lean stretch for gastrocnemius and soleus.', animationSteps: ['Hands on wall', 'Step one foot back', 'Press heel into floor', 'Hold and switch'], tips: ['Keep back leg straight', 'Lean into wall', 'Both calves'] },
-  { id: 'doorway-chest-stretch', name: 'Doorway Chest Stretch', muscleGroup: 'stretching', description: 'Pec stretch using a doorframe for an effective open-chest position.', animationSteps: ['Arm on doorframe', 'Step through gently', 'Hold 20-30 sec', 'Switch sides'], tips: ['Arm at 90°', 'Don\'t overstretch', 'Great after bench'] },
-  { id: 'neck-stretch', name: 'Neck Side Stretch', muscleGroup: 'stretching', description: 'Gentle lateral neck stretch for neck and upper trapezius.', animationSteps: ['Tilt head to side', 'Gently pull with hand', 'Hold 20 sec', 'Switch sides'], tips: ['Very gentle', 'Don\'t force', 'Breathe and relax'] },
-  { id: 'spinal-twist', name: 'Supine Spinal Twist', muscleGroup: 'stretching', description: 'Lying twist for thoracic mobility and lower back relief.', animationSteps: ['Lie on back', 'Knees to one side', 'Arms out wide', 'Hold and switch'], tips: ['Keep shoulders down', 'Let gravity do the work', 'Great for recovery'] },
-  { id: 'standing-hamstring', name: 'Standing Forward Fold', muscleGroup: 'stretching', description: 'Standing forward bend for hamstrings and lower back.', animationSteps: ['Stand feet together', 'Fold forward at hips', 'Reach for toes', 'Hold 30 sec'], tips: ['Bend knees if needed', 'Let head hang', 'Breathe into it'] },
-  { id: 'wrist-stretch', name: 'Wrist Stretch', muscleGroup: 'stretching', description: 'Wrist flexion and extension stretches for forearm health.', animationSteps: ['Extend arm, palm up', 'Pull fingers back', 'Hold 15 sec', 'Flip and repeat'], tips: ['Essential for pressing', 'Both directions', 'Gentle pressure'] },
-  { id: 'scorpion-stretch', name: 'Scorpion Stretch', muscleGroup: 'stretching', description: 'Prone twisting stretch for hip flexors, obliques, and thoracic spine.', animationSteps: ['Lie face down, arms wide', 'Kick one heel toward opposite hand', 'Hold briefly', 'Switch sides'], tips: ['Don\'t force rotation', 'Keep opposite shoulder down', 'Great for mobility'] },
+  {
+    id: 'dead-bug',
+    name: 'Dead Bug',
+    muscleGroup: 'core',
+    level: 'beginner',
+    equipment: 'bodyweight',
+    primaryMuscles: ['Abs', 'Deep core'],
+    instructions: [
+      'Press low back gently into floor.',
+      'Extend opposite arm and leg slowly.',
+      'Return and alternate sides.',
+    ],
+  },
+  {
+    id: 'plank',
+    name: 'Plank',
+    muscleGroup: 'core',
+    level: 'beginner',
+    equipment: 'bodyweight',
+    primaryMuscles: ['Abs', 'Obliques', 'Glutes'],
+    instructions: [
+      'Keep body straight and glutes active.',
+      'Avoid sagging through lower back.',
+      'Breathe steadily while holding.',
+    ],
+  },
+  {
+    id: 'hanging-knee-raise',
+    name: 'Hanging Knee Raise',
+    muscleGroup: 'core',
+    level: 'intermediate',
+    equipment: 'bodyweight',
+    primaryMuscles: ['Lower abs', 'Hip flexors'],
+    instructions: [
+      'Hang with shoulders active.',
+      'Lift knees under control.',
+      'Avoid excessive swinging.',
+    ],
+  },
+  {
+    id: 'ab-wheel',
+    name: 'Ab Wheel Rollout',
+    muscleGroup: 'core',
+    level: 'advanced',
+    equipment: 'mixed',
+    primaryMuscles: ['Abs', 'Deep core', 'Lats'],
+    instructions: [
+      'Brace hard before rolling forward.',
+      'Go only as far as you can control.',
+      'Pull back without collapsing hips.',
+    ],
+  },
 ];
 
-export const muscleGroupColors: Record<MuscleGroup, string> = {
-  chest: 'hsl(145 72% 50%)',
-  back: 'hsl(200 72% 50%)',
-  shoulders: 'hsl(35 100% 55%)',
-  legs: 'hsl(280 60% 55%)',
-  arms: 'hsl(350 70% 55%)',
-  core: 'hsl(170 60% 45%)',
-  warmup: 'hsl(50 90% 55%)',
-  stretching: 'hsl(190 75% 55%)',
-};
+export function getExercisesByMuscleGroup(
+  muscleGroup: MuscleGroup,
+  level?: TrainingLevel
+): Exercise[] {
+  return exercises.filter((exercise) => {
+    if (exercise.muscleGroup !== muscleGroup) return false;
+    if (!level) return true;
 
-export const muscleGroupLabels: Record<MuscleGroup, string> = {
-  chest: 'Chest',
-  back: 'Back',
-  shoulders: 'Shoulders',
-  legs: 'Legs',
-  arms: 'Arms',
-  core: 'Core',
-  warmup: 'Warm-Up',
-  stretching: 'Stretching',
-};
-
-export const motivationalQuotes = [
-  { text: "The only bad workout is the one that didn't happen.", author: "Unknown" },
-  { text: "Strength does not come from physical capacity. It comes from an indomitable will.", author: "Mahatma Gandhi" },
-  { text: "The pain you feel today will be the strength you feel tomorrow.", author: "Arnold Schwarzenegger" },
-  { text: "Success isn't always about greatness. It's about consistency.", author: "Dwayne Johnson" },
-  { text: "Don't limit your challenges. Challenge your limits.", author: "Jerry Dunn" },
-  { text: "The body achieves what the mind believes.", author: "Napoleon Hill" },
-  { text: "No matter how slow you go, you are still lapping everybody on the couch.", author: "Unknown" },
-  { text: "What hurts today makes you stronger tomorrow.", author: "Jay Cutler" },
-  { text: "Discipline is choosing between what you want now and what you want most.", author: "Abraham Lincoln" },
-  { text: "Your body can stand almost anything. It's your mind that you have to convince.", author: "Unknown" },
-];
+    const order: TrainingLevel[] = ['beginner', 'intermediate', 'advanced'];
+    return order.indexOf(exercise.level) <= order.indexOf(level);
+  });
+}

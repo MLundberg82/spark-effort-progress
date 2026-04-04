@@ -1,116 +1,113 @@
-import { useState } from 'react';
-import { getRatTier, getLevelFromXP, getTotalXP, RatTier } from '@/lib/gamificationStore';
-import { Sparkles } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { getTierImagesForGender } from '@/lib/ratImages';
+import { ArrowLeft, Crown, Sparkles, Star, Trophy, Zap } from 'lucide-react';
 
-// Re-export for backward compat - now gender-aware
-export function getTierImages(): Record<RatTier, string> {
-  return getTierImagesForGender();
-}
+type Props = {
+  onBack: () => void;
+};
 
-// Keep legacy export name but make it a getter
-export const tierImages = new Proxy({} as Record<RatTier, string>, {
-  get(_target, prop: string) {
-    return getTierImagesForGender()[prop as RatTier];
-  },
-});
+type Milestone = {
+  level: number;
+  title: string;
+  vibe: string;
+  reward: string;
+};
 
-const tiers: { tier: RatTier; label: string; minLevel: number; description: string }[] = [
-  { tier: 'baby', label: 'Baby Rat', minLevel: 1, description: 'Just getting started. Every legend begins here.' },
-  { tier: 'rookie', label: 'Rookie Rat', minLevel: 5, description: 'Starting to find your rhythm.' },
-  { tier: 'regular', label: 'Gym Rat', minLevel: 15, description: 'A true gym regular.' },
-  { tier: 'strong', label: 'Strong Rat', minLevel: 25, description: 'Serious strength gains.' },
-  { tier: 'buff', label: 'Buff Rat', minLevel: 40, description: 'Absolutely shredded.' },
-  { tier: 'beast', label: 'Beast Rat', minLevel: 55, description: 'The weights fear you.' },
-  { tier: 'legend', label: 'Legend Rat', minLevel: 70, description: 'Your name echoes through gym halls.' },
-  { tier: 'mythic', label: 'Mythic Rat', minLevel: 90, description: 'A living myth. GymRat God.' },
+const milestones: Milestone[] = [
+  { level: 1, title: 'Rookie Rat', vibe: 'You started. That matters.', reward: 'Base form unlocked' },
+  { level: 5, title: 'Momentum Rat', vibe: 'Consistency starts showing.', reward: 'Minor glow tier' },
+  { level: 10, title: 'Iron Rat', vibe: 'People notice the grind now.', reward: 'Gallery milestone' },
+  { level: 15, title: 'Alpha Rat', vibe: 'You are no longer casual.', reward: 'Premium aura path' },
+  { level: 20, title: 'Steel Rat', vibe: 'Your identity is changing.', reward: 'Cosmetic milestone' },
+  { level: 25, title: 'Elite Rat', vibe: 'You train like this is who you are.', reward: 'Elite badge' },
+  { level: 30, title: 'Savage Rat', vibe: 'Serious discipline unlocked.', reward: 'Elite glow' },
+  { level: 35, title: 'Apex Rat', vibe: 'High effort becomes your normal.', reward: 'Rare cosmetic tier' },
+  { level: 40, title: 'Titan Rat', vibe: 'You feel stronger in real life.', reward: 'Titan identity' },
+  { level: 50, title: 'Legend Rat', vibe: 'Long-term progress is obvious.', reward: 'Legend status' },
+  { level: 60, title: 'Mythic Rat', vibe: 'Very few stay this consistent.', reward: 'Mythic visuals' },
+  { level: 70, title: 'Dominus Rat', vibe: 'You move like someone who built himself.', reward: 'Premium prestige' },
+  { level: 80, title: 'Ascended Rat', vibe: 'You train above average. Far above.', reward: 'Ascended aura' },
+  { level: 90, title: 'Immortal Rat', vibe: 'This is identity now, not motivation.', reward: 'Immortal status' },
+  { level: 100, title: 'GymRat King', vibe: 'Peak real-life leveling.', reward: 'Final prestige form' },
 ];
 
-const tierGlowClasses: Record<string, string> = {
-  baby: '',
-  rookie: '',
-  regular: 'shadow-glow',
-  strong: 'shadow-glow',
-  buff: 'shadow-glow',
-  beast: 'shadow-glow animate-pulse',
-  legend: 'shadow-glow animate-pulse',
-  mythic: 'shadow-glow animate-pulse',
-};
-
-const GymRatGallery = () => {
-  const [open, setOpen] = useState(false);
-
-  const totalXP = getTotalXP();
-  const { level } = getLevelFromXP(totalXP);
-  const currentTier = getRatTier(level);
-
-  const isUnlocked = (minLevel: number) => level >= minLevel;
-
+export default function GymRatGallery({ onBack }: Props) {
   return (
-    <>
-      <button
-        onClick={() => setOpen(true)}
-        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-secondary/60 text-secondary-foreground hover:bg-secondary transition-all shadow-elevated"
-      >
-        <Sparkles className="w-3 h-3 text-accent" />
-        Level Gallery
-      </button>
+    <div className="min-h-screen bg-[#07110d] text-white">
+      <div className="mx-auto flex min-h-screen w-full max-w-md flex-col px-5 pb-8 pt-6">
+        <button
+          onClick={onBack}
+          className="mb-4 inline-flex w-fit items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white/85"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back
+        </button>
 
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto bg-card border-border">
-          <DialogHeader>
-            <DialogTitle className="font-display text-foreground flex items-center gap-2">
-              <span className="text-2xl">🐀</span> Level Gallery
-            </DialogTitle>
-          </DialogHeader>
+        <div className="rounded-[32px] border border-white/10 bg-white/[0.04] p-5 shadow-[0_0_50px_rgba(170,255,140,0.08)]">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className="text-xs font-bold uppercase tracking-[0.22em] text-lime-300/75">
+                Gallery
+              </div>
+              <h1 className="mt-2 text-3xl font-black tracking-tight">Evolution path</h1>
+              <p className="mt-2 text-sm leading-6 text-white/65">
+                This is the roadmap of who you become by showing up.
+              </p>
+            </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            {tiers.map((t) => {
-              const unlocked = isUnlocked(t.minLevel);
-              const isCurrent = currentTier.tier === t.tier;
+            <div className="flex h-14 w-14 items-center justify-center rounded-[22px] bg-black/20 text-lime-200">
+              <Sparkles className="h-7 w-7" />
+            </div>
+          </div>
 
-              return (
-                <div
-                  key={t.tier}
-                  className={`relative rounded-2xl p-4 flex flex-col items-center gap-2 transition-all ${
-                    unlocked ? 'card-3d' : 'bg-secondary/30 border border-border/30'
-                  } ${isCurrent ? 'glow-border ring-1 ring-primary/30' : ''}`}
-                >
-                  {isCurrent && (
-                    <span className="absolute top-2 right-2 text-[8px] px-1.5 py-0.5 rounded-full gradient-primary text-primary-foreground font-bold uppercase">
-                      You
-                    </span>
-                  )}
+          <div className="mt-5 rounded-[24px] border border-lime-300/20 bg-gradient-to-r from-lime-300/10 via-white/[0.04] to-yellow-300/10 p-4">
+            <div className="flex items-center gap-2 text-sm font-black text-white">
+              <Zap className="h-4 w-4 text-lime-300" />
+              Leveling up in real life
+            </div>
+            <p className="mt-2 text-sm leading-6 text-white/68">
+              Each milestone should feel like identity progression, not just a number.
+            </p>
+          </div>
 
-                  <div className={`w-20 h-20 rounded-2xl flex items-center justify-center bg-secondary/40 ${
-                    unlocked ? tierGlowClasses[t.tier] : ''
-                  }`}>
-                    <img
-                      src={tierImages[t.tier]}
-                      alt={t.label}
-                      className={`w-18 h-18 object-contain ${
-                        unlocked ? 'drop-shadow-[0_0_12px_hsl(var(--primary)/0.4)]' : 'grayscale opacity-50'
-                      }`}
-                    />
+          <div className="mt-5 space-y-3">
+            {milestones.map((item, index) => (
+              <div
+                key={item.level}
+                className="rounded-[24px] border border-white/10 bg-black/20 p-4"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <div className="text-lg font-black text-white">Level {item.level}</div>
+                      {item.level >= 50 && (
+                        <span className="rounded-full border border-yellow-300/20 bg-yellow-300/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.18em] text-yellow-200">
+                          Prestige
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="mt-1 text-sm font-bold text-lime-200">{item.title}</div>
+                    <div className="mt-2 text-sm leading-6 text-white/65">{item.vibe}</div>
+                    <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs font-semibold text-white/75">
+                      {item.level >= 100 ? (
+                        <Crown className="h-3.5 w-3.5 text-yellow-300" />
+                      ) : item.level >= 50 ? (
+                        <Trophy className="h-3.5 w-3.5 text-lime-300" />
+                      ) : (
+                        <Star className="h-3.5 w-3.5 text-lime-300" />
+                      )}
+                      {item.reward}
+                    </div>
                   </div>
 
-                  <div className="text-center">
-                    <p className={`text-xs font-bold ${unlocked ? 'text-foreground' : 'text-muted-foreground'}`}>
-                      {t.label}
-                    </p>
-                    <p className="text-[10px] text-muted-foreground">
-                      {unlocked ? '✓ Unlocked' : `Lv. ${t.minLevel}`}
-                    </p>
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/5 text-sm font-black text-white/75">
+                    {index + 1}
                   </div>
                 </div>
-              );
-            })}
+              </div>
+            ))}
           </div>
-        </DialogContent>
-      </Dialog>
-    </>
+        </div>
+      </div>
+    </div>
   );
-};
-
-export default GymRatGallery;
+}

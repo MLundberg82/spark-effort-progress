@@ -1,21 +1,20 @@
 import { useMemo, useState } from 'react';
+import {
+  ChevronLeft,
+  ChevronRight,
+  Dumbbell,
+  Ruler,
+  Target,
+  Weight,
+  Zap,
+} from 'lucide-react';
+
 import type { TrainingLevel } from '@/lib/exerciseData';
 import {
-  setTrainingLevel,
   getPlansForLevel,
   setSelectedPlanIndex,
+  setTrainingLevel,
 } from '@/lib/trainingStore';
-import { useT } from '@/lib/i18n';
-import {
-  Dumbbell,
-  Target,
-  Zap,
-  ChevronRight,
-  ChevronLeft,
-  Calendar,
-  Ruler,
-  Weight,
-} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import logo from '../assets/logo.png';
@@ -47,27 +46,31 @@ type Props = {
   onComplete: () => void;
 };
 
-const genderOptions = [
-  { id: 'male' as const, label: 'Male' },
-  { id: 'female' as const, label: 'Female' },
-  { id: 'non-binary' as const, label: 'Non-binary' },
+const genderOptions: { id: UserProfile['gender']; label: string }[] = [
+  { id: 'male', label: 'Male' },
+  { id: 'female', label: 'Female' },
+  { id: 'non-binary', label: 'Non-binary' },
 ];
 
-const goalOptions = [
+const goalOptions: {
+  id: NonNullable<UserProfile['goal']>;
+  title: string;
+  description: string;
+}[] = [
   {
-    id: 'lose' as const,
+    id: 'lose',
     title: 'Lose weight',
-    description: 'Lower calories and keep protein high.',
+    description: 'Lower calories and keep protein high while staying consistent.',
   },
   {
-    id: 'maintain' as const,
+    id: 'maintain',
     title: 'Maintain',
-    description: 'Balanced calories to stay strong and consistent.',
+    description: 'Balanced calories for a strong and stable routine.',
   },
   {
-    id: 'gain' as const,
+    id: 'gain',
     title: 'Build muscle',
-    description: 'Small calorie surplus for growth and recovery.',
+    description: 'Small calorie surplus for growth, recovery and progression.',
   },
 ];
 
@@ -83,26 +86,25 @@ const levels: {
     title: 'Beginner',
     subtitle: '0–12 months',
     icon: Dumbbell,
-    details: 'Full body workouts 3x/week with focus on form and foundation.',
+    details: 'Simple structure, form focus and a strong foundation.',
   },
   {
     id: 'intermediate',
     title: 'Intermediate',
     subtitle: '1–3 years',
     icon: Target,
-    details: 'More volume, better progression and more structured split options.',
+    details: 'More volume, more progression and smarter split structure.',
   },
   {
     id: 'advanced',
     title: 'Advanced',
     subtitle: '3+ years',
     icon: Zap,
-    details: 'Higher volume and intensity with demanding split structures.',
+    details: 'High effort, higher demands and more serious programming.',
   },
 ];
 
 export default function TrainingLevelSelector({ onComplete }: Props) {
-  const t = useT();
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [profile, setProfile] = useState<UserProfile>({
     height: 0,
@@ -119,8 +121,7 @@ export default function TrainingLevelSelector({ onComplete }: Props) {
     [selectedLevel]
   );
 
-  const profileStepValid =
-    profile.age > 0 && profile.height > 0 && profile.weight > 0;
+  const profileStepValid = profile.age > 0 && profile.height > 0 && profile.weight > 0;
 
   const handleFinish = () => {
     if (!selectedLevel) return;
@@ -131,275 +132,310 @@ export default function TrainingLevelSelector({ onComplete }: Props) {
   };
 
   return (
-    <div className="min-h-screen bg-background px-4 py-6 text-foreground">
-      <div className="mx-auto w-full max-w-md">
-        <div className="mb-6 flex flex-col items-center text-center">
-          <img src={logo} alt="GymRat" className="mb-4 h-16 w-16 object-contain" />
-          <h1 className="text-3xl font-black tracking-tight">Gym Rat</h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Build your profile and choose the right training path.
-          </p>
-        </div>
-
-        <div className="mb-6 flex items-center justify-center gap-2">
-          {[1, 2, 3, 4].map((s) => (
-            <div
-              key={s}
-              className={`h-2.5 w-16 rounded-full transition ${
-                step >= s ? 'bg-primary' : 'bg-secondary'
-              }`}
+    <div className="min-h-screen bg-[#07110d] text-white">
+      <div className="mx-auto flex min-h-screen w-full max-w-md flex-col px-5 pb-8 pt-6">
+        <div className="rounded-[32px] border border-white/10 bg-white/[0.04] p-5 shadow-[0_0_50px_rgba(170,255,140,0.08)]">
+          <div className="flex flex-col items-center text-center">
+            <img
+              src={logo}
+              alt="GymRat"
+              className="h-20 w-20 rounded-[24px] object-contain drop-shadow-[0_0_30px_rgba(170,255,140,0.25)]"
             />
-          ))}
-        </div>
-
-        {step === 1 && (
-          <div className="space-y-4 rounded-3xl border border-border/40 bg-card/70 p-4 shadow-sm">
-            <div>
-              <h2 className="text-2xl font-bold">About you</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                This helps the app personalize your setup.
-              </p>
+            <div className="mt-3 text-xs font-bold uppercase tracking-[0.24em] text-lime-300/75">
+              GymRat
             </div>
-
-            <div>
-              <div className="mb-2 text-sm font-semibold">Gender</div>
-              <div className="grid grid-cols-3 gap-2">
-                {genderOptions.map((g) => (
-                  <button
-                    key={g.id}
-                    type="button"
-                    onClick={() => setProfile((p) => ({ ...p, gender: g.id }))}
-                    className={`rounded-2xl px-3 py-3 text-xs font-semibold transition ${
-                      profile.gender === g.id
-                        ? 'bg-primary text-primary-foreground'
-                        : 'bg-secondary/60 text-secondary-foreground'
-                    }`}
-                  >
-                    {g.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-3 gap-3">
-              <div>
-                <label className="mb-2 flex items-center gap-2 text-sm font-semibold">
-                  <Calendar className="h-4 w-4" />
-                  Age
-                </label>
-                <Input
-                  type="number"
-                  min={1}
-                  value={profile.age || ''}
-                  onChange={(e) =>
-                    setProfile((p) => ({ ...p, age: Number(e.target.value) || 0 }))
-                  }
-                  placeholder="Age"
-                />
-              </div>
-
-              <div>
-                <label className="mb-2 flex items-center gap-2 text-sm font-semibold">
-                  <Ruler className="h-4 w-4" />
-                  Height
-                </label>
-                <Input
-                  type="number"
-                  min={1}
-                  value={profile.height || ''}
-                  onChange={(e) =>
-                    setProfile((p) => ({ ...p, height: Number(e.target.value) || 0 }))
-                  }
-                  placeholder="cm"
-                />
-              </div>
-
-              <div>
-                <label className="mb-2 flex items-center gap-2 text-sm font-semibold">
-                  <Weight className="h-4 w-4" />
-                  Weight
-                </label>
-                <Input
-                  type="number"
-                  min={1}
-                  value={profile.weight || ''}
-                  onChange={(e) =>
-                    setProfile((p) => ({ ...p, weight: Number(e.target.value) || 0 }))
-                  }
-                  placeholder="kg"
-                />
-              </div>
-            </div>
-
-            <Button
-              type="button"
-              onClick={() => setStep(2)}
-              disabled={!profileStepValid}
-              className="w-full"
-            >
-              Next
-              <ChevronRight className="ml-2 h-4 w-4" />
-            </Button>
+            <h1 className="mt-2 text-3xl font-black tracking-tight">Set your path</h1>
+            <p className="mt-2 text-sm leading-6 text-white/65">
+              Build your profile and choose the right training path from the start.
+            </p>
           </div>
-        )}
 
-        {step === 2 && (
-          <div className="space-y-4 rounded-3xl border border-border/40 bg-card/70 p-4 shadow-sm">
-            <div>
-              <h2 className="text-2xl font-bold">What is your goal?</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Pick the result you want the app to optimize for.
+          <div className="mt-6 grid grid-cols-4 gap-2">
+            {[1, 2, 3, 4].map((s) => {
+              const active = step >= s;
+              return (
+                <div
+                  key={s}
+                  className={`h-2 rounded-full ${active ? 'bg-lime-300' : 'bg-white/10'}`}
+                />
+              );
+            })}
+          </div>
+
+          {step === 1 && (
+            <div className="mt-6">
+              <h2 className="text-xl font-black">About you</h2>
+              <p className="mt-2 text-sm text-white/60">
+                This helps the app personalize the setup and feel more relevant from day one.
               </p>
-            </div>
 
-            <div className="space-y-3">
-              {goalOptions.map((goal) => (
-                <button
-                  key={goal.id}
-                  type="button"
-                  onClick={() => setProfile((p) => ({ ...p, goal: goal.id }))}
-                  className={`w-full rounded-2xl border p-4 text-left transition ${
-                    profile.goal === goal.id
-                      ? 'border-primary bg-primary/10'
-                      : 'border-border/40 bg-secondary/20'
-                  }`}
-                >
-                  <div className="font-semibold">{goal.title}</div>
-                  <div className="mt-1 text-sm text-muted-foreground">
-                    {goal.description}
-                  </div>
-                </button>
-              ))}
-            </div>
+              <div className="mt-5">
+                <div className="mb-2 text-sm font-bold text-white/80">Gender</div>
+                <div className="grid grid-cols-3 gap-2">
+                  {genderOptions.map((g) => {
+                    const active = profile.gender === g.id;
+                    return (
+                      <button
+                        key={g.id}
+                        onClick={() => setProfile((p) => ({ ...p, gender: g.id }))}
+                        className={`rounded-2xl px-3 py-3 text-xs font-bold transition ${
+                          active
+                            ? 'bg-gradient-to-r from-lime-300 to-emerald-300 text-[#111]'
+                            : 'border border-white/10 bg-white/[0.04] text-white/80'
+                        }`}
+                      >
+                        {g.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
 
-            <div className="flex gap-3">
-              <Button type="button" variant="outline" onClick={() => setStep(1)} className="flex-1">
-                <ChevronLeft className="mr-2 h-4 w-4" />
-                Back
-              </Button>
+              <div className="mt-5 grid grid-cols-1 gap-3">
+                <div>
+                  <label className="mb-2 flex items-center gap-2 text-sm font-bold text-white/80">
+                    <Target className="h-4 w-4 text-lime-300" />
+                    Age
+                  </label>
+                  <Input
+                    type="number"
+                    value={profile.age || ''}
+                    onChange={(e) =>
+                      setProfile((p) => ({ ...p, age: Number(e.target.value) || 0 }))
+                    }
+                    placeholder="Age"
+                    className="h-12 rounded-2xl border-white/10 bg-white/[0.04] text-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 flex items-center gap-2 text-sm font-bold text-white/80">
+                    <Ruler className="h-4 w-4 text-lime-300" />
+                    Height
+                  </label>
+                  <Input
+                    type="number"
+                    value={profile.height || ''}
+                    onChange={(e) =>
+                      setProfile((p) => ({ ...p, height: Number(e.target.value) || 0 }))
+                    }
+                    placeholder="cm"
+                    className="h-12 rounded-2xl border-white/10 bg-white/[0.04] text-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 flex items-center gap-2 text-sm font-bold text-white/80">
+                    <Weight className="h-4 w-4 text-lime-300" />
+                    Weight
+                  </label>
+                  <Input
+                    type="number"
+                    value={profile.weight || ''}
+                    onChange={(e) =>
+                      setProfile((p) => ({ ...p, weight: Number(e.target.value) || 0 }))
+                    }
+                    placeholder="kg"
+                    className="h-12 rounded-2xl border-white/10 bg-white/[0.04] text-white"
+                  />
+                </div>
+              </div>
+
               <Button
-                type="button"
-                onClick={() => setStep(3)}
-                disabled={!profile.goal}
-                className="flex-1"
+                onClick={() => setStep(2)}
+                disabled={!profileStepValid}
+                className="mt-6 h-12 w-full rounded-2xl bg-gradient-to-r from-lime-300 to-emerald-300 font-black text-[#111]"
               >
                 Next
                 <ChevronRight className="ml-2 h-4 w-4" />
               </Button>
             </div>
-          </div>
-        )}
+          )}
 
-        {step === 3 && (
-          <div className="space-y-4 rounded-3xl border border-border/40 bg-card/70 p-4 shadow-sm">
-            <div>
-              <h2 className="text-2xl font-bold">Choose your level</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Pick the training level that best matches your experience.
+          {step === 2 && (
+            <div className="mt-6">
+              <h2 className="text-xl font-black">What is your goal?</h2>
+              <p className="mt-2 text-sm text-white/60">
+                Pick the result you want the app to support the most.
               </p>
-            </div>
 
-            <div className="space-y-3">
-              {levels.map(({ id, title, subtitle, icon: Icon, details }) => (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => {
-                    setSelectedLevel(id);
-                    setSelectedPlan(0);
-                  }}
-                  className={`w-full rounded-2xl border p-4 text-left transition ${
-                    selectedLevel === id
-                      ? 'border-primary bg-primary/10'
-                      : 'border-border/40 bg-secondary/20'
-                  }`}
+              <div className="mt-5 space-y-3">
+                {goalOptions.map((goal) => {
+                  const active = profile.goal === goal.id;
+
+                  return (
+                    <button
+                      key={goal.id}
+                      onClick={() => setProfile((p) => ({ ...p, goal: goal.id }))}
+                      className={`w-full rounded-2xl border p-4 text-left transition ${
+                        active
+                          ? 'border-lime-300/40 bg-lime-300/10'
+                          : 'border-white/10 bg-white/[0.04]'
+                      }`}
+                    >
+                      <div className="text-sm font-black text-white">{goal.title}</div>
+                      <div className="mt-1 text-sm leading-6 text-white/60">
+                        {goal.description}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="mt-6 flex gap-3">
+                <Button
+                  variant="outline"
+                  onClick={() => setStep(1)}
+                  className="h-12 flex-1 rounded-2xl border-white/10 bg-white/[0.04] text-white"
                 >
-                  <div className="flex items-start gap-3">
-                    <div className="rounded-2xl bg-secondary/60 p-2">
-                      <Icon className="h-5 w-5" />
-                    </div>
-                    <div className="min-w-0">
-                      <div className="font-semibold">{title}</div>
-                      <div className="text-sm text-muted-foreground">{subtitle}</div>
-                      <div className="mt-2 text-sm text-muted-foreground">{details}</div>
-                    </div>
-                  </div>
-                </button>
-              ))}
-            </div>
+                  <ChevronLeft className="mr-2 h-4 w-4" />
+                  Back
+                </Button>
 
-            <div className="flex gap-3">
-              <Button type="button" variant="outline" onClick={() => setStep(2)} className="flex-1">
-                <ChevronLeft className="mr-2 h-4 w-4" />
-                Back
-              </Button>
-              <Button
-                type="button"
-                onClick={() => setStep(4)}
-                disabled={!selectedLevel}
-                className="flex-1"
-              >
-                Next
-                <ChevronRight className="ml-2 h-4 w-4" />
-              </Button>
+                <Button
+                  onClick={() => setStep(3)}
+                  disabled={!profile.goal}
+                  className="h-12 flex-1 rounded-2xl bg-gradient-to-r from-lime-300 to-emerald-300 font-black text-[#111]"
+                >
+                  Next
+                  <ChevronRight className="ml-2 h-4 w-4" />
+                </Button>
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {step === 4 && selectedLevel && (
-          <div className="space-y-4 rounded-3xl border border-border/40 bg-card/70 p-4 shadow-sm">
-            <div>
-              <h2 className="text-2xl font-bold">Training plan</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
+          {step === 3 && (
+            <div className="mt-6">
+              <h2 className="text-xl font-black">Choose your level</h2>
+              <p className="mt-2 text-sm text-white/60">
+                Pick the training level that best matches your current experience.
+              </p>
+
+              <div className="mt-5 space-y-3">
+                {levels.map(({ id, title, subtitle, icon: Icon, details }) => {
+                  const active = selectedLevel === id;
+
+                  return (
+                    <button
+                      key={id}
+                      onClick={() => {
+                        setSelectedLevel(id);
+                        setSelectedPlan(0);
+                      }}
+                      className={`w-full rounded-2xl border p-4 text-left transition ${
+                        active
+                          ? 'border-lime-300/40 bg-lime-300/10'
+                          : 'border-white/10 bg-white/[0.04]'
+                      }`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/8">
+                          <Icon className="h-5 w-5 text-lime-300" />
+                        </div>
+
+                        <div>
+                          <div className="text-sm font-black text-white">{title}</div>
+                          <div className="mt-1 text-xs font-bold uppercase tracking-[0.15em] text-white/45">
+                            {subtitle}
+                          </div>
+                          <div className="mt-2 text-sm leading-6 text-white/60">
+                            {details}
+                          </div>
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="mt-6 flex gap-3">
+                <Button
+                  variant="outline"
+                  onClick={() => setStep(2)}
+                  className="h-12 flex-1 rounded-2xl border-white/10 bg-white/[0.04] text-white"
+                >
+                  <ChevronLeft className="mr-2 h-4 w-4" />
+                  Back
+                </Button>
+
+                <Button
+                  onClick={() => setStep(4)}
+                  disabled={!selectedLevel}
+                  className="h-12 flex-1 rounded-2xl bg-gradient-to-r from-lime-300 to-emerald-300 font-black text-[#111]"
+                >
+                  Next
+                  <ChevronRight className="ml-2 h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {step === 4 && selectedLevel && (
+            <div className="mt-6">
+              <h2 className="text-xl font-black">Training plan</h2>
+              <p className="mt-2 text-sm text-white/60">
                 Pick the split you want to start with.
               </p>
-            </div>
 
-            <div className="space-y-3">
-              {plans.map((plan, idx) => (
-                <button
-                  key={`${plan.name}-${idx}`}
-                  type="button"
-                  onClick={() => setSelectedPlan(idx)}
-                  className={`w-full rounded-2xl border p-4 text-left transition ${
-                    selectedPlan === idx
-                      ? 'border-primary bg-primary/10'
-                      : 'border-border/40 bg-secondary/20'
-                  }`}
+              <div className="mt-5 space-y-3">
+                {plans.map((plan, idx) => {
+                  const active = selectedPlan === idx;
+
+                  return (
+                    <button
+                      key={`${plan.name}-${idx}`}
+                      onClick={() => setSelectedPlan(idx)}
+                      className={`w-full rounded-2xl border p-4 text-left transition ${
+                        active
+                          ? 'border-lime-300/40 bg-lime-300/10'
+                          : 'border-white/10 bg-white/[0.04]'
+                      }`}
+                    >
+                      <div className="text-sm font-black text-white">{plan.name}</div>
+                      <div className="mt-2 text-sm leading-6 text-white/60">
+                        {plan.description}
+                      </div>
+
+                      {'days' in plan && Array.isArray(plan.days) && plan.days.length > 0 && (
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {plan.days.map((day: { label: string }, i: number) => (
+                            <span
+                              key={`${day.label}-${i}`}
+                              className="rounded-full border border-white/10 bg-black/20 px-3 py-1 text-xs font-semibold text-white/75"
+                            >
+                              {day.label}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="mt-6 flex gap-3">
+                <Button
+                  variant="outline"
+                  onClick={() => setStep(3)}
+                  className="h-12 flex-1 rounded-2xl border-white/10 bg-white/[0.04] text-white"
                 >
-                  <div className="font-semibold">{plan.name}</div>
-                  <div className="mt-1 text-sm text-muted-foreground">
-                    {plan.description}
-                  </div>
+                  <ChevronLeft className="mr-2 h-4 w-4" />
+                  Back
+                </Button>
 
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {plan.days.map((day, i) => (
-                      <span
-                        key={`${day.label}-${i}`}
-                        className="rounded-full bg-secondary px-3 py-1 text-xs font-medium text-secondary-foreground"
-                      >
-                        {day.label}
-                      </span>
-                    ))}
-                  </div>
-                </button>
-              ))}
+                <Button
+                  onClick={handleFinish}
+                  className="h-12 flex-1 rounded-2xl bg-gradient-to-r from-lime-300 via-emerald-300 to-yellow-300 font-black text-[#111]"
+                >
+                  Start training
+                </Button>
+              </div>
             </div>
+          )}
 
-            <div className="flex gap-3">
-              <Button type="button" variant="outline" onClick={() => setStep(3)} className="flex-1">
-                <ChevronLeft className="mr-2 h-4 w-4" />
-                Back
-              </Button>
-              <Button type="button" onClick={handleFinish} className="flex-1">
-                Start training
-              </Button>
-            </div>
-          </div>
-        )}
-
-        <div className="mt-4 text-center text-xs text-muted-foreground">
-          {typeof t === 'function' ? t('settings' as never) : 'You can change this later in settings.'}
+          <p className="mt-6 text-center text-xs leading-5 text-white/45">
+            You can change this later in settings.
+          </p>
         </div>
       </div>
     </div>
