@@ -1,9 +1,8 @@
-import { useEffect, useState } from 'react';
-import { Images, Menu, Play, ShoppingBag } from 'lucide-react';
+import { Menu, Play, ShoppingBag, Images } from 'lucide-react';
 import type { AppStats } from '@/lib/appStore';
 import EquippedRatPreview from '@/components/EquippedRatPreview';
 import XPProgressBar from '@/components/XPProgressBar';
-import { getLanguage, t, type AppLanguage } from '@/lib/languageStore';
+import { useAppLanguage } from '@/lib/languageStore';
 
 type HomeScreenProps = {
   stats: AppStats;
@@ -13,30 +12,39 @@ type HomeScreenProps = {
   onOpenShop: () => void;
 };
 
-function ActionButton({
+function getCopy(language: string) {
+  if (language === 'sv') {
+    return {
+      shop: 'Shop',
+      gallery: 'Level Gallery',
+      start: 'Starta Pass',
+    };
+  }
+
+  return {
+    shop: 'Shop',
+    gallery: 'Level Gallery',
+    start: 'Start Workout',
+  };
+}
+
+function SecondaryButton({
   icon: Icon,
   label,
   onClick,
-  primary = false,
 }: {
-  icon: typeof Play;
+  icon: typeof ShoppingBag;
   label: string;
   onClick: () => void;
-  primary?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={[
-        'group flex h-16 flex-col items-center justify-center rounded-[22px] border text-white transition-all duration-200 active:scale-[0.98]',
-        primary
-          ? 'border-lime-400/30 bg-[linear-gradient(180deg,rgba(132,255,88,0.24),rgba(132,255,88,0.12))] shadow-[0_0_24px_rgba(132,255,88,0.12)] hover:border-lime-300/50 hover:bg-[linear-gradient(180deg,rgba(132,255,88,0.3),rgba(132,255,88,0.16))]'
-          : 'border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/8',
-      ].join(' ')}
+      className="group flex h-14 flex-col items-center justify-center rounded-[20px] border border-white/10 bg-white/5 text-white transition-all duration-200 hover:border-white/20 hover:bg-white/8 active:scale-[0.98]"
     >
       <Icon className="mb-1 h-4 w-4 transition-transform duration-200 group-hover:scale-110" />
-      <span className="px-1 text-center text-[10px] font-black uppercase tracking-[0.18em]">
+      <span className="px-1 text-center text-[10px] font-black uppercase tracking-[0.16em]">
         {label}
       </span>
     </button>
@@ -50,30 +58,19 @@ export default function HomeScreen({
   onOpenGallery,
   onOpenShop,
 }: HomeScreenProps) {
-  const [language, setLanguage] = useState<AppLanguage>(getLanguage());
-
-  useEffect(() => {
-    const syncLanguage = () => setLanguage(getLanguage());
-
-    window.addEventListener('gymrat-language-updated', syncLanguage);
-    window.addEventListener('storage', syncLanguage);
-
-    return () => {
-      window.removeEventListener('gymrat-language-updated', syncLanguage);
-      window.removeEventListener('storage', syncLanguage);
-    };
-  }, []);
+  const language = useAppLanguage();
+  const copy = getCopy(language);
 
   return (
     <div className="relative h-[100dvh] w-full overflow-hidden bg-black text-white">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.05),transparent_38%)]" />
-      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_bottom,rgba(0,0,0,0.02),rgba(0,0,0,0.4)_58%,rgba(0,0,0,0.84))]" />
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_bottom,rgba(0,0,0,0.02),rgba(0,0,0,0.42)_58%,rgba(0,0,0,0.88))]" />
 
       <button
         type="button"
         onClick={onOpenMenu}
         aria-label="Open menu"
-        className="absolute right-4 top-4 z-[80] flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-black/55 text-white backdrop-blur-md transition-all duration-200 hover:scale-[1.03] hover:border-white/20 hover:bg-black/70 active:scale-[0.98]"
+        className="absolute right-4 top-4 z-[90] flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-black/55 text-white backdrop-blur-md transition-all duration-200 hover:scale-[1.03] hover:border-white/20 hover:bg-black/72 active:scale-[0.98]"
       >
         <Menu className="h-5 w-5" />
       </button>
@@ -91,24 +88,29 @@ export default function HomeScreen({
               nextLevelXP={stats.nextLevelXP}
             />
 
-            <div className="mt-3 grid grid-cols-3 gap-2">
-              <ActionButton
-                icon={Play}
-                label={t('home.startWorkout', language)}
-                onClick={onStartWorkout}
-                primary
-              />
-              <ActionButton
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <SecondaryButton
                 icon={ShoppingBag}
-                label={t('home.shop', language)}
+                label={copy.shop}
                 onClick={onOpenShop}
               />
-              <ActionButton
+              <SecondaryButton
                 icon={Images}
-                label={t('home.levelGallery', language)}
+                label={copy.gallery}
                 onClick={onOpenGallery}
               />
             </div>
+
+            <button
+              type="button"
+              onClick={onStartWorkout}
+              className="mt-2 flex h-16 w-full items-center justify-center gap-2 rounded-[24px] border border-lime-400/30 bg-[linear-gradient(180deg,rgba(132,255,88,0.24),rgba(132,255,88,0.12))] text-white shadow-[0_0_24px_rgba(132,255,88,0.12)] transition-all duration-200 hover:border-lime-300/50 hover:bg-[linear-gradient(180deg,rgba(132,255,88,0.30),rgba(132,255,88,0.16))] active:scale-[0.98]"
+            >
+              <Play className="h-4 w-4" />
+              <span className="text-[11px] font-black uppercase tracking-[0.18em]">
+                {copy.start}
+              </span>
+            </button>
           </div>
         </div>
       </div>

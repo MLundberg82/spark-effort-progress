@@ -72,7 +72,6 @@ export default function EquippedRatPreview({
   const layers = layerOrder
     .map((slot) => {
       const itemId = equipped[slot];
-
       return {
         slot,
         itemId,

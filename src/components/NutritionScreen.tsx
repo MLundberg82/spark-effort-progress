@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Crown, Flame, Target, Zap } from 'lucide-react';
+import { ArrowLeft, Crown, Target } from 'lucide-react';
 import { getNutritionOverview, getTodayNutrition, saveTodayNutrition } from '@/lib/nutritionStore';
+import { useAppLanguage } from '@/lib/languageStore';
 
 type NutritionScreenProps = {
   onBack: () => void;
@@ -31,6 +32,7 @@ export default function NutritionScreen({
   onBack,
   onOpenPaywall,
 }: NutritionScreenProps) {
+  const language = useAppLanguage();
   const [refreshKey, setRefreshKey] = useState(0);
   const [draft, setDraft] = useState(getTodayNutrition());
 
@@ -65,7 +67,7 @@ export default function NutritionScreen({
             className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-semibold"
           >
             <ArrowLeft className="h-4 w-4" />
-            Back
+            {language === 'sv' ? 'Tillbaka' : 'Back'}
           </button>
 
           <button
@@ -80,43 +82,48 @@ export default function NutritionScreen({
 
         <div className="rounded-[34px] border border-white/10 bg-white/[0.04] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.42)]">
           <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">
-            Nutrition system
+            Nutrition
           </p>
-          <h1 className="mt-3 text-3xl font-black sm:text-4xl">Fuel the progress</h1>
+          <h1 className="mt-3 text-3xl font-black sm:text-4xl">
+            {language === 'sv'
+              ? 'Beräkna och följ upp dina makros'
+              : 'Calculate and track your macros'}
+          </h1>
           <p className="mt-3 max-w-3xl text-sm text-zinc-300 sm:text-base">
-            Nutrition is part of the deeper progression layer. Keep the free app clean, then unlock food tracking,
-            macro goals and consistency tools when you want more.
+            {language === 'sv'
+              ? 'Beräkna och följ upp dina makros för att nå dina mål.'
+              : 'Calculate and track your macros to reach your goals.'}
           </p>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-3">
           <MacroCard
-            label="Calories target"
+            label={language === 'sv' ? 'Kalorimål' : 'Calories target'}
             value={`${overview.targets.calories}`}
-            hint="Estimated from your current profile and goal."
+            hint={language === 'sv' ? 'Baserat på din profil och ditt mål.' : 'Estimated from your profile and goal.'}
           />
           <MacroCard
-            label="Protein target"
+            label={language === 'sv' ? 'Proteinamål' : 'Protein target'}
             value={`${overview.targets.protein} g`}
-            hint="High-protein anchor for better recovery and body comp."
+            hint={language === 'sv' ? 'Protein som stark bas för återhämtning.' : 'Protein as a strong base for recovery.'}
           />
           <MacroCard
-            label="Water target"
+            label={language === 'sv' ? 'Vattenmål' : 'Water target'}
             value={`${overview.targets.waterMl} ml`}
-            hint="Simple hydration baseline to support training quality."
+            hint={language === 'sv' ? 'En enkel hydreringsnivå för bättre träning.' : 'Simple hydration baseline for better sessions.'}
           />
         </div>
 
         <div className="rounded-[30px] border border-white/10 bg-white/[0.04] p-5 shadow-[0_18px_50px_rgba(0,0,0,0.3)]">
           <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.2em] text-zinc-500">
             <Target className="h-4 w-4 text-emerald-300" />
-            Today
+            {language === 'sv' ? 'Idag' : 'Today'}
           </div>
 
           <div className="mt-5 grid gap-4 sm:grid-cols-2">
             <div>
               <label className="text-xs uppercase tracking-[0.18em] text-zinc-400">
-                Calories
+                {language === 'sv' ? 'Kalorier' : 'Calories'}
               </label>
               <input
                 type="number"
@@ -128,7 +135,7 @@ export default function NutritionScreen({
 
             <div>
               <label className="text-xs uppercase tracking-[0.18em] text-zinc-400">
-                Protein (g)
+                {language === 'sv' ? 'Protein (g)' : 'Protein (g)'}
               </label>
               <input
                 type="number"
@@ -140,7 +147,7 @@ export default function NutritionScreen({
 
             <div>
               <label className="text-xs uppercase tracking-[0.18em] text-zinc-400">
-                Carbs (g)
+                {language === 'sv' ? 'Kolhydrater (g)' : 'Carbs (g)'}
               </label>
               <input
                 type="number"
@@ -152,7 +159,7 @@ export default function NutritionScreen({
 
             <div>
               <label className="text-xs uppercase tracking-[0.18em] text-zinc-400">
-                Fat (g)
+                {language === 'sv' ? 'Fett (g)' : 'Fat (g)'}
               </label>
               <input
                 type="number"
@@ -164,7 +171,7 @@ export default function NutritionScreen({
 
             <div className="sm:col-span-2">
               <label className="text-xs uppercase tracking-[0.18em] text-zinc-400">
-                Water (ml)
+                {language === 'sv' ? 'Vatten (ml)' : 'Water (ml)'}
               </label>
               <input
                 type="number"
@@ -174,24 +181,6 @@ export default function NutritionScreen({
               />
             </div>
           </div>
-        </div>
-
-        <div className="grid gap-3 sm:grid-cols-3">
-          <MacroCard
-            label="Goal based"
-            value="Smart"
-            hint="Targets adapt to your selected goal."
-          />
-          <MacroCard
-            label="Daily streak"
-            value="Ready"
-            hint="Consistency should feel connected to the app."
-          />
-          <MacroCard
-            label="Macro focus"
-            value="Protein"
-            hint="Protein stays the strongest anchor for most users."
-          />
         </div>
       </div>
     </div>

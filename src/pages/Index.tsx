@@ -58,6 +58,7 @@ import {
   maybeOpenNutritionPaywall,
   openManualPaywall,
 } from '../lib/paywallTriggers';
+import { ensureLanguageInitialized } from '../lib/languageStore';
 
 type FinishedWorkout = {
   workoutName: string;
@@ -66,6 +67,8 @@ type FinishedWorkout = {
   volume: number;
   earnedXP: number;
 };
+
+type ViewKey = AppPage | 'workoutStart';
 
 function OnboardingGate({ onComplete }: { onComplete: () => void }) {
   const existing = getProfile();
@@ -77,7 +80,7 @@ function OnboardingGate({ onComplete }: { onComplete: () => void }) {
   const [gender, setGender] = useState<UserGender>(existing?.gender ?? 'male');
   const [goal, setGoal] = useState<TrainingGoal>(existing?.goal ?? 'maintain');
   const [trainingLevel, setTrainingLevelValue] = useState<TrainingLevel>(
-    existing?.trainingLevel ?? 'beginner'
+    existing?.trainingLevel ?? 'beginner',
   );
 
   const canStepOneContinue = age >= 13 && height >= 120 && weight >= 35;
@@ -425,15 +428,16 @@ export default function Index() {
   const [showSplash, setShowSplash] = useState(true);
   const [page, setPage] = useState<AppPage>(() => getCurrentPage());
   const [profileReady, setProfileReady] = useState(
-    isOnboardingComplete() && Boolean(getProfile())
+    isOnboardingComplete() && Boolean(getProfile()),
   );
   const [menuOpenLocal, setMenuOpenLocal] = useState(getUIState().menuOpen);
   const [paywallOpenLocal, setPaywallOpenLocal] = useState(getUIState().paywallOpen);
-  const [finishedWorkout, setFinishedWorkout] = useState<FinishedWorkout | null>(
-    null
-  );
+  const [finishedWorkout, setFinishedWorkout] = useState<FinishedWorkout | null>(null);
   const [premium, setPremium] = useState(checkPremium().isActive);
   const [showWorkoutStart, setShowWorkoutStart] = useState(false);
+  const [viewStack, setViewStack] = useState<ViewKey[]>([]);
+
+  const currentView: ViewKey = showWorkoutStart ? 'workoutStart' : page;
 
   const stats = useMemo(
     () => getAppStats(),
@@ -445,10 +449,11 @@ export default function Index() {
       profileReady,
       premium,
       showWorkoutStart,
-    ]
+    ],
   );
 
   useEffect(() => {
+    ensureLanguageInitialized();
     const timer = window.setTimeout(() => setShowSplash(false), 1400);
     return () => window.clearTimeout(timer);
   }, []);
@@ -483,14 +488,54 @@ export default function Index() {
     setPage(nextPage);
   };
 
+  const setView = (nextView: ViewKey) => {
+    if (nextView === 'workoutStart') {
+      setShowWorkoutStart(true);
+      return;
+    }
+
+    setShowWorkoutStart(false);
+    changePage(nextView);
+  };
+
+  const pushView = (nextView: ViewKey) => {
+    setViewStack((prev) => [...prev, currentView]);
+    setView(nextView);
+  };
+
+  const goHomeAndReset = () => {
+    setShowWorkoutStart(false);
+    setViewStack([]);
+    changePage('home');
+  };
+
+  const goBack = () => {
+    setViewStack((prev) => {
+      if (prev.length === 0) {
+        goHomeAndReset();
+        return prev;
+      }
+
+      const nextStack = [...prev];
+      const previousView = nextStack.pop() ?? 'home';
+      setView(previousView);
+      return nextStack;
+    });
+  };
+
   const openMenu = () => {
     setMenuOpen(true);
     setMenuOpenLocal(true);
   };
 
-  const closeMenu = () => {
+  const closeMenuOnly = () => {
     setMenuOpen(false);
     setMenuOpenLocal(false);
+  };
+
+  const closeMenuToHome = () => {
+    closeMenuOnly();
+    goHomeAndReset();
   };
 
   const openPaywall = () => {
@@ -511,7 +556,7 @@ export default function Index() {
   }) => {
     const earnedXP = Math.max(
       50,
-      result.exercisesCompleted * 20 + Math.floor(result.volume / 100)
+      result.exercisesCompleted * 20 + Math.floor(result.volume / 100),
     );
 
     addWorkoutHistory({
@@ -532,6 +577,7 @@ export default function Index() {
 
     setWorkoutSummary(summary);
     setFinishedWorkout(summary);
+    setShowWorkoutStart(false);
     changePage('complete');
   };
 
@@ -542,7 +588,7 @@ export default function Index() {
       setTrainingLevel(profile.trainingLevel);
     }
 
-    setShowWorkoutStart(true);
+    pushView('workoutStart');
   };
 
   const startPresetWorkout = (planIndex: number) => {
@@ -568,8 +614,7 @@ export default function Index() {
       isCustom: false,
     });
 
-    setShowWorkoutStart(false);
-    changePage('workout');
+    pushView('workout');
   };
 
   const startCustomWorkout = () => {
@@ -587,15 +632,14 @@ export default function Index() {
       isCustom: true,
     });
 
-    setShowWorkoutStart(false);
-    changePage('workout');
+    pushView('workout');
   };
 
   const historyHandler = () => {
     maybeOpenHistoryPaywall({
       isPremium: premium,
       openPaywall,
-      onAllowed: () => changePage('history'),
+      onAllowed: () => pushView('history'),
     });
   };
 
@@ -603,7 +647,7 @@ export default function Index() {
     maybeOpenNutritionPaywall({
       isPremium: premium,
       openPaywall,
-      onAllowed: () => changePage('nutrition'),
+      onAllowed: () => pushView('nutrition'),
     });
   };
 
@@ -616,7 +660,7 @@ export default function Index() {
       <OnboardingGate
         onComplete={() => {
           setProfileReady(true);
-          changePage('home');
+          goHomeAndReset();
         }}
       />
     );
@@ -629,15 +673,15 @@ export default function Index() {
           stats={stats}
           onOpenMenu={openMenu}
           onStartWorkout={openWorkoutStart}
-          onOpenGallery={() => changePage('gallery')}
-          onOpenShop={() => changePage('shop')}
+          onOpenGallery={() => pushView('gallery')}
+          onOpenShop={() => pushView('shop')}
         />
       )}
 
       {showWorkoutStart && (
         <WorkoutStartScreen
           isPremium={premium}
-          onBack={() => setShowWorkoutStart(false)}
+          onBack={goBack}
           onStartPreset={startPresetWorkout}
           onStartCustom={startCustomWorkout}
           onOpenPremium={() => {
@@ -648,7 +692,7 @@ export default function Index() {
 
       {!showWorkoutStart && page === 'workout' && (
         <WorkoutFlow
-          onBack={() => changePage('home')}
+          onBack={goBack}
           onComplete={handleWorkoutFinish}
         />
       )}
@@ -659,7 +703,7 @@ export default function Index() {
           onContinue={() => {
             setWorkoutSummary(null);
             setFinishedWorkout(null);
-            changePage('home');
+            goHomeAndReset();
           }}
           onOpenPaywall={() => {
             openManualPaywall(openPaywall);
@@ -668,27 +712,27 @@ export default function Index() {
       )}
 
       {!showWorkoutStart && page === 'history' && (
-        <HistoryScreen onBack={() => changePage('home')} />
+        <HistoryScreen onBack={goBack} />
       )}
 
       {!showWorkoutStart && page === 'nutrition' && (
         <NutritionScreen
-          onBack={() => changePage('home')}
+          onBack={goBack}
           onOpenPaywall={nutritionHandler}
         />
       )}
 
       {!showWorkoutStart && page === 'daily' && (
-        <DailyCheckInScreen onBack={() => changePage('home')} />
+        <DailyCheckInScreen onBack={goBack} />
       )}
 
       {!showWorkoutStart && page === 'gallery' && (
-        <GymRatGallery onBack={() => changePage('home')} />
+        <GymRatGallery onBack={goBack} />
       )}
 
       {!showWorkoutStart && page === 'shop' && (
         <RatShop
-          onBack={() => changePage('home')}
+          onBack={goBack}
           onOpenPremium={() => openManualPaywall(openPaywall)}
         />
       )}
@@ -696,41 +740,41 @@ export default function Index() {
       {!showWorkoutStart &&
         page === 'settings' &&
         (typeof SettingsScreen === 'function' ? (
-          <SettingsScreen onBack={() => changePage('home')} />
+          <SettingsScreen onBack={goBack} />
         ) : (
-          <SettingsFallback onBack={() => changePage('home')} />
+          <SettingsFallback onBack={goBack} />
         ))}
 
       {!showWorkoutStart && menuOpenLocal && (
         <AppMenu
           isPremium={premium}
-          onClose={closeMenu}
+          onClose={closeMenuToHome}
           onOpenDaily={() => {
-            closeMenu();
-            changePage('daily');
+            closeMenuOnly();
+            pushView('daily');
           }}
           onOpenHistory={() => {
-            closeMenu();
+            closeMenuOnly();
             historyHandler();
           }}
           onOpenNutrition={() => {
-            closeMenu();
+            closeMenuOnly();
             nutritionHandler();
           }}
           onOpenGallery={() => {
-            closeMenu();
-            changePage('gallery');
+            closeMenuOnly();
+            pushView('gallery');
           }}
           onOpenShop={() => {
-            closeMenu();
-            changePage('shop');
+            closeMenuOnly();
+            pushView('shop');
           }}
           onOpenSettings={() => {
-            closeMenu();
-            changePage('settings');
+            closeMenuOnly();
+            pushView('settings');
           }}
           onOpenPremium={() => {
-            closeMenu();
+            closeMenuOnly();
             openManualPaywall(openPaywall);
           }}
         />

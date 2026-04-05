@@ -1,7 +1,6 @@
-import { useEffect, useState } from 'react';
-import { getLanguage, t, type AppLanguage } from '@/lib/languageStore';
+import { t, useAppLanguage } from '@/lib/languageStore';
 
-type Props = {
+type XPProgressBarProps = {
   level: number;
   currentXP: number;
   nextLevelXP: number;
@@ -15,21 +14,8 @@ export default function XPProgressBar({
   level,
   currentXP,
   nextLevelXP,
-}: Props) {
-  const [language, setLanguage] = useState<AppLanguage>(getLanguage());
-
-  useEffect(() => {
-    const syncLanguage = () => setLanguage(getLanguage());
-
-    window.addEventListener('gymrat-language-updated', syncLanguage);
-    window.addEventListener('storage', syncLanguage);
-
-    return () => {
-      window.removeEventListener('gymrat-language-updated', syncLanguage);
-      window.removeEventListener('storage', syncLanguage);
-    };
-  }, []);
-
+}: XPProgressBarProps) {
+  const language = useAppLanguage();
   const safeNext = Math.max(1, nextLevelXP);
   const progressPercent = clamp((currentXP / safeNext) * 100, 0, 100);
   const xpLeft = Math.max(0, safeNext - currentXP);

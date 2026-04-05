@@ -1,5 +1,6 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import {
+  Bug,
   Crown,
   Flame,
   History,
@@ -9,9 +10,8 @@ import {
   ShoppingBag,
   UtensilsCrossed,
   X,
-  Bug,
 } from 'lucide-react';
-import { getLanguage, t, type AppLanguage } from '@/lib/languageStore';
+import { t, useAppLanguage } from '@/lib/languageStore';
 
 type AppMenuProps = {
   isPremium: boolean;
@@ -79,19 +79,7 @@ export default function AppMenu({
   onOpenSettings,
   onOpenPremium,
 }: AppMenuProps) {
-  const [language, setLanguage] = useState<AppLanguage>(getLanguage());
-
-  useEffect(() => {
-    const syncLanguage = () => setLanguage(getLanguage());
-
-    window.addEventListener('gymrat-language-updated', syncLanguage);
-    window.addEventListener('storage', syncLanguage);
-
-    return () => {
-      window.removeEventListener('gymrat-language-updated', syncLanguage);
-      window.removeEventListener('storage', syncLanguage);
-    };
-  }, []);
+  const language = useAppLanguage();
 
   const handle = (fn: () => void) => {
     onClose();

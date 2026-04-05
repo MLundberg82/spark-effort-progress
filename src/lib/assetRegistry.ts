@@ -174,7 +174,6 @@ export function getItemImage(id: string, variant?: RatVariant) {
   if (eyesMap[id]) return eyesMap[id];
   if (neckMap[id]) return neckMap[id];
   if (auraMap[id]) return auraMap[id];
-
   if (bodyMap[id]) return bodyMap[id];
 
   if (variant) {
