@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import {
   Bug,
   Crown,
@@ -11,7 +11,7 @@ import {
   UtensilsCrossed,
   X,
 } from 'lucide-react';
-import { t, useAppLanguage } from '@/lib/languageStore';
+import { getLanguage, t, type AppLanguage } from '@/lib/languageStore';
 
 type AppMenuProps = {
   isPremium: boolean;
@@ -42,25 +42,25 @@ function MenuButton({
     <button
       type="button"
       onClick={onClick}
-      className="flex w-full items-center justify-between rounded-[22px] border border-white/10 bg-white/[0.05] px-4 py-4 text-left text-white transition-all duration-200 hover:border-white/20 hover:bg-white/[0.08] active:scale-[0.99]"
+      className="flex w-full items-center justify-between gap-3 rounded-[24px] border border-white/10 bg-white/[0.045] px-4 py-4 text-left transition hover:border-white/20 hover:bg-white/[0.08] active:scale-[0.995]"
     >
-      <div className="flex items-center gap-3">
-        <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-black/30 text-white/90">
+      <div className="flex min-w-0 items-start gap-3">
+        <div className="mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-black/20 text-white/90">
           {icon}
         </div>
 
-        <div>
-          <div className="text-[11px] font-black uppercase tracking-[0.18em] text-white">
+        <div className="min-w-0">
+          <div className="text-[12px] font-black uppercase tracking-[0.14em] text-white">
             {label}
           </div>
           {subtitle ? (
-            <div className="mt-1 text-xs text-white/45">{subtitle}</div>
+            <div className="mt-1 text-sm leading-5 text-white/50">{subtitle}</div>
           ) : null}
         </div>
       </div>
 
       {badge ? (
-        <div className="rounded-full border border-lime-400/25 bg-lime-400/10 px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.18em] text-lime-300">
+        <div className="shrink-0 rounded-full border border-lime-300/20 bg-lime-300/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-lime-300">
           {badge}
         </div>
       ) : null}
@@ -79,130 +79,155 @@ export default function AppMenu({
   onOpenSettings,
   onOpenPremium,
 }: AppMenuProps) {
-  const language = useAppLanguage();
+  const [language, setLanguage] = useState<AppLanguage>(getLanguage());
+
+  useEffect(() => {
+    const syncLanguage = () => setLanguage(getLanguage());
+
+    window.addEventListener('gymrat-language-updated', syncLanguage);
+    window.addEventListener('storage', syncLanguage);
+
+    return () => {
+      window.removeEventListener('gymrat-language-updated', syncLanguage);
+      window.removeEventListener('storage', syncLanguage);
+    };
+  }, []);
 
   const handle = (fn: () => void) => {
     onClose();
-    window.setTimeout(fn, 150);
+    window.setTimeout(fn, 120);
   };
 
   return (
     <div
-      className="fixed inset-0 z-[120] bg-black/60 backdrop-blur-[2px] animate-in fade-in duration-200"
+      className="fixed inset-0 z-50 bg-black/55 backdrop-blur-[2px]"
       onClick={onClose}
+      aria-hidden="true"
     >
-      <div
-        className="absolute right-0 top-0 h-full w-[80%] max-w-[420px] border-l border-white/10 bg-[linear-gradient(180deg,#111111_0%,#090909_100%)] p-4 shadow-[-20px_0_60px_rgba(0,0,0,0.45)] animate-in slide-in-from-right duration-300"
+      <aside
+        className="absolute right-0 top-0 flex h-[100dvh] w-[80%] max-w-[420px] flex-col border-l border-white/10 bg-[linear-gradient(180deg,#0b0b0d_0%,#101113_100%)] shadow-[-20px_0_60px_rgba(0,0,0,0.45)]"
         onClick={(event) => event.stopPropagation()}
+        aria-label="App menu"
       >
-        <div className="mb-4 flex items-start justify-between">
-          <div>
-            <div className="text-[10px] font-black uppercase tracking-[0.24em] text-white/45">
-              {t('menu.title', language)}
-            </div>
-            <h2 className="mt-1 text-2xl font-black uppercase tracking-[0.03em] text-white">
-              GymRat
-            </h2>
-            <p className="mt-1 text-sm text-white/45">
-              {t('menu.subtitle', language)}
-            </p>
-          </div>
-
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close menu"
-            className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.05] text-white transition hover:border-white/20 hover:bg-white/[0.10] active:scale-[0.98]"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-
-        <div className="mb-4 rounded-[24px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.03))] p-4">
-          <div className="flex items-center justify-between">
+        <div className="border-b border-white/10 px-5 pb-5 pt-5">
+          <div className="flex items-start justify-between gap-4">
             <div>
-              <div className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40">
-                {t('menu.status', language)}
+              <div className="text-[10px] font-black uppercase tracking-[0.22em] text-lime-300">
+                {t('menu.title', language)}
               </div>
-              <div className="mt-1 text-sm font-semibold text-white">
-                {isPremium
-                  ? t('menu.premiumActive', language)
-                  : t('menu.baseMode', language)}
+              <div className="mt-2 text-3xl font-black leading-none text-white">
+                GymRat
+              </div>
+              <div className="mt-2 max-w-[240px] text-sm text-white/55">
+                {t('menu.subtitle', language)}
               </div>
             </div>
 
-            <div
-              className={[
-                'rounded-full px-3 py-1 text-[9px] font-black uppercase tracking-[0.18em]',
-                isPremium
-                  ? 'border border-lime-400/25 bg-lime-400/10 text-lime-300'
-                  : 'border border-amber-400/20 bg-amber-400/10 text-amber-300',
-              ].join(' ')}
+            <button
+              type="button"
+              onClick={onClose}
+              className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.05] text-white transition hover:border-white/20 hover:bg-white/[0.08] active:scale-[0.98]"
+              aria-label="Close menu"
             >
-              {isPremium
-                ? t('menu.unlocked', language)
-                : t('menu.upgrade', language)}
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+
+          <div className="mt-5 rounded-[24px] border border-white/10 bg-white/[0.04] p-4">
+            <div className="text-[10px] font-black uppercase tracking-[0.18em] text-white/42">
+              {t('menu.status', language)}
+            </div>
+
+            <div className="mt-2 flex items-center justify-between gap-3">
+              <div>
+                <div className="text-lg font-black text-white">
+                  {isPremium
+                    ? t('menu.premiumActive', language)
+                    : t('menu.baseMode', language)}
+                </div>
+                <div className="mt-1 text-sm text-white/50">
+                  {isPremium
+                    ? t('menu.unlocked', language)
+                    : t('menu.upgrade', language)}
+                </div>
+              </div>
+
+              <div
+                className={`rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] ${
+                  isPremium
+                    ? 'border border-lime-300/20 bg-lime-300/10 text-lime-300'
+                    : 'border border-white/10 bg-white/[0.05] text-white/70'
+                }`}
+              >
+                {isPremium ? 'Premium' : 'Base'}
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="space-y-2">
-          <MenuButton
-            label={t('menu.daily', language)}
-            subtitle={t('menu.dailySub', language)}
-            icon={<Flame className="h-4 w-4" />}
-            onClick={() => handle(onOpenDaily)}
-          />
+        <div className="flex-1 overflow-y-auto px-5 py-5">
+          <div className="space-y-3">
+            <MenuButton
+              label={t('menu.daily', language)}
+              subtitle="Streak, XP and recommended next pass"
+              icon={<Flame className="h-5 w-5 text-orange-300" />}
+              onClick={() => handle(onOpenDaily)}
+            />
 
-          <MenuButton
-            label={t('menu.history', language)}
-            subtitle={t('menu.historySub', language)}
-            icon={<History className="h-4 w-4" />}
-            onClick={() => handle(onOpenHistory)}
-          />
+            <MenuButton
+              label={t('menu.history', language)}
+              subtitle="See progression with real workout data"
+              icon={<History className="h-5 w-5 text-lime-300" />}
+              badge={!isPremium ? 'Premium' : undefined}
+              onClick={() => handle(onOpenHistory)}
+            />
 
-          <MenuButton
-            label={t('menu.nutrition', language)}
-            subtitle={t('menu.nutritionSub', language)}
-            badge={!isPremium ? t('common.premium', language) : undefined}
-            icon={<UtensilsCrossed className="h-4 w-4" />}
-            onClick={() => handle(onOpenNutrition)}
-          />
+            <MenuButton
+              label={t('menu.nutrition', language)}
+              subtitle="Macros and targets tied to your goal"
+              icon={<UtensilsCrossed className="h-5 w-5 text-sky-300" />}
+              badge={!isPremium ? 'Premium' : undefined}
+              onClick={() => handle(onOpenNutrition)}
+            />
 
-          <MenuButton
-            label={t('menu.gallery', language)}
-            subtitle={t('menu.gallerySub', language)}
-            icon={<Images className="h-4 w-4" />}
-            onClick={() => handle(onOpenGallery)}
-          />
+            <MenuButton
+              label={t('menu.gallery', language)}
+              subtitle="See your forms and future unlock feel"
+              icon={<Images className="h-5 w-5 text-violet-300" />}
+              onClick={() => handle(onOpenGallery)}
+            />
 
-          <MenuButton
-            label={t('menu.shop', language)}
-            subtitle={t('menu.shopSub', language)}
-            icon={<ShoppingBag className="h-4 w-4" />}
-            onClick={() => handle(onOpenShop)}
-          />
+            <MenuButton
+              label={t('menu.shop', language)}
+              subtitle="Cosmetics, glow and identity"
+              icon={<ShoppingBag className="h-5 w-5 text-amber-300" />}
+              onClick={() => handle(onOpenShop)}
+            />
 
-          <MenuButton
-            label={isPremium ? t('menu.premiumActive', language) : t('menu.premium', language)}
-            subtitle={t('menu.premiumSub', language)}
-            badge={isPremium ? t('menu.active', language) : t('menu.boost', language)}
-            icon={<Crown className="h-4 w-4" />}
-            onClick={() => handle(onOpenPremium)}
-          />
+            <MenuButton
+              label={t('menu.premium', language)}
+              subtitle="Unlock the heavier version of GymRat"
+              icon={<Crown className="h-5 w-5 text-yellow-300" />}
+              badge={isPremium ? 'Active' : 'Upgrade'}
+              onClick={() => handle(onOpenPremium)}
+            />
 
-          <MenuButton
-            label={t('menu.settings', language)}
-            subtitle={t('menu.settingsSub', language)}
-            icon={<Settings className="h-4 w-4" />}
-            onClick={() => handle(onOpenSettings)}
-          />
+            <MenuButton
+              label={t('menu.settings', language)}
+              subtitle="Profile, goal, language and support"
+              icon={<Settings className="h-5 w-5 text-white/85" />}
+              onClick={() => handle(onOpenSettings)}
+            />
+          </div>
+        </div>
 
-          <div className="mt-4 grid grid-cols-2 gap-2">
+        <div className="border-t border-white/10 px-5 py-4">
+          <div className="grid grid-cols-2 gap-3">
             <button
               type="button"
               onClick={() => {
-                window.location.href = 'mailto:hello@getgymrat.com?subject=GymRat%20Contact';
+                window.location.href =
+                  'mailto:hello@getgymrat.com?subject=GymRat%20Contact';
               }}
               className="flex items-center justify-center gap-2 rounded-[18px] border border-white/10 bg-white/[0.04] px-3 py-3 text-[10px] font-black uppercase tracking-[0.16em] text-white/80 transition hover:border-white/20 hover:bg-white/[0.08]"
             >
@@ -223,7 +248,7 @@ export default function AppMenu({
             </button>
           </div>
         </div>
-      </div>
+      </aside>
     </div>
   );
 }

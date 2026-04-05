@@ -1,372 +1,687 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, BarChart3, Clock3, Dumbbell, Flame } from 'lucide-react';
-import { getWorkoutHistory, type WorkoutHistoryEntry } from '@/lib/historyStore';
-import { useAppLanguage } from '@/lib/languageStore';
+import {
+  ArrowLeft,
+  CalendarDays,
+  ChevronDown,
+  Dumbbell,
+  Flame,
+  Scale,
+  Trophy,
+} from 'lucide-react';
+import {
+  getExerciseHistory,
+  getExerciseNameOptions,
+  getWorkoutHistory,
+  getWorkoutNameOptions,
+  type WorkoutHistoryEntry,
+} from '@/lib/historyStore';
 
 type HistoryScreenProps = {
   onBack: () => void;
 };
 
-type PeriodKey = 'day' | 'week' | 'month' | 'year';
+type RangeKey = 'day' | 'week' | 'month' | 'year';
 
 function startOfDay(date: Date) {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const next = new Date(date);
+  next.setHours(0, 0, 0, 0);
+  return next;
 }
 
-function isWithinPeriod(dateString: string, period: PeriodKey) {
+function getRangeStart(range: RangeKey) {
   const now = new Date();
-  const date = new Date(dateString);
-  const diff = startOfDay(now).getTime() - startOfDay(date).getTime();
-  const days = diff / 86400000;
+  const base = startOfDay(now);
 
-  if (period === 'day') return days <= 1;
-  if (period === 'week') return days <= 7;
-  if (period === 'month') return days <= 31;
-  return days <= 365;
+  if (range === 'day') {
+    return base;
+  }
+
+  if (range === 'week') {
+    const next = new Date(base);
+    next.setDate(next.getDate() - 6);
+    return next;
+  }
+
+  if (range === 'month') {
+    const next = new Date(base);
+    next.setDate(next.getDate() - 29);
+    return next;
+  }
+
+  const next = new Date(base);
+  next.setFullYear(next.getFullYear() - 1);
+  next.setDate(next.getDate() + 1);
+  return next;
 }
 
-function aggregateSeries(entries: WorkoutHistoryEntry[], period: PeriodKey) {
-  const filtered = entries.filter((entry) => isWithinPeriod(entry.completedAt, period));
+function formatRangeLabel(range: RangeKey) {
+  if (range === 'day') return 'Today';
+  if (range === 'week') return 'Last 7 days';
+  if (range === 'month') return 'Last 30 days';
+  return 'Last 12 months';
+}
 
-  const buckets =
-    period === 'day'
-      ? 7
-      : period === 'week'
-        ? 7
-        : period === 'month'
-          ? 6
-          : 12;
+function aggregateByRange(workouts: WorkoutHistoryEntry[], range: RangeKey) {
+  const from = getRangeStart(range).getTime();
 
-  const labels =
-    period === 'day'
-      ? ['D-6', 'D-5', 'D-4', 'D-3', 'D-2', 'D-1', 'Today']
-      : period === 'week'
-        ? ['W-6', 'W-5', 'W-4', 'W-3', 'W-2', 'W-1', 'This']
-        : period === 'month'
-          ? ['M-5', 'M-4', 'M-3', 'M-2', 'M-1', 'This']
-          : ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
-  const values = new Array(buckets).fill(0);
-
-  filtered.forEach((entry) => {
-    const date = new Date(entry.completedAt);
-
-    if (period === 'year') {
-      values[date.getMonth()] += entry.volume;
-      return;
-    }
-
-    const now = new Date();
-    const diffDays = Math.floor(
-      (startOfDay(now).getTime() - startOfDay(date).getTime()) / 86400000,
+  if (range === 'day') {
+    const filtered = workouts.filter(
+      (entry) => new Date(entry.completedAt).getTime() >= from,
     );
 
-    if (period === 'day') {
-      const index = Math.max(0, 6 - diffDays);
-      if (index >= 0 && index < values.length) values[index] += 1;
-      return;
-    }
+    return [
+      {
+        label: 'Today',
+        workouts: filtered.length,
+        volume: filtered.reduce((sum, entry) => sum + entry.volume, 0),
+      },
+    ];
+  }
 
-    if (period === 'week') {
-      const weekIndex = Math.max(0, 6 - Math.floor(diffDays / 7));
-      if (weekIndex >= 0 && weekIndex < values.length) values[weekIndex] += entry.volume;
-      return;
-    }
+  if (range === 'week') {
+    const labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const buckets = labels.map((label) => ({
+      label,
+      workouts: 0,
+      volume: 0,
+    }));
 
-    const monthIndex = Math.max(0, 5 - Math.floor(diffDays / 30));
-    if (monthIndex >= 0 && monthIndex < values.length) values[monthIndex] += entry.volume;
+    workouts.forEach((entry) => {
+      const date = new Date(entry.completedAt);
+      const time = date.getTime();
+      if (time < from) return;
+
+      const jsDay = date.getDay();
+      const index = jsDay === 0 ? 6 : jsDay - 1;
+
+      buckets[index].workouts += 1;
+      buckets[index].volume += entry.volume;
+    });
+
+    return buckets;
+  }
+
+  if (range === 'month') {
+    const buckets = Array.from({ length: 4 }, (_, index) => ({
+      label: `W${index + 1}`,
+      workouts: 0,
+      volume: 0,
+    }));
+
+    workouts.forEach((entry) => {
+      const time = new Date(entry.completedAt).getTime();
+      if (time < from) return;
+
+      const diffDays = Math.floor((Date.now() - time) / (1000 * 60 * 60 * 24));
+      const weekIndex = Math.min(3, Math.max(0, 3 - Math.floor(diffDays / 7)));
+
+      buckets[weekIndex].workouts += 1;
+      buckets[weekIndex].volume += entry.volume;
+    });
+
+    return buckets;
+  }
+
+  const monthNames = ['May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr'];
+  const buckets = monthNames.map((label) => ({
+    label,
+    workouts: 0,
+    volume: 0,
+  }));
+
+  workouts.forEach((entry) => {
+    const date = new Date(entry.completedAt);
+    const time = date.getTime();
+    if (time < from) return;
+
+    const bucketIndex = monthNames.indexOf(
+      date.toLocaleString(undefined, { month: 'short' }),
+    );
+
+    if (bucketIndex >= 0) {
+      buckets[bucketIndex].workouts += 1;
+      buckets[bucketIndex].volume += entry.volume;
+    }
   });
 
-  return labels.map((label, index) => ({
-    label,
-    value: values[index] ?? 0,
-  }));
+  return buckets;
 }
 
-function extractExerciseNames(entries: WorkoutHistoryEntry[]) {
-  const names = new Set<string>();
-
-  entries.forEach((entry) => {
-    const maybeDetails = (entry as WorkoutHistoryEntry & {
-      details?: Array<{ exercise?: string }>;
-    }).details;
-
-    if (Array.isArray(maybeDetails)) {
-      maybeDetails.forEach((detail) => {
-        if (detail.exercise) names.add(detail.exercise);
-      });
-    }
-  });
-
-  return Array.from(names).sort();
+function formatDate(value: string) {
+  const date = new Date(value);
+  return `${date.toLocaleDateString()} · ${date.toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+  })}`;
 }
 
 function Chart({
-  title,
   data,
-  suffix = '',
+  mode,
 }: {
-  title: string;
-  data: { label: string; value: number }[];
-  suffix?: string;
+  data: Array<{ label: string; workouts: number; volume: number }>;
+  mode: 'workouts' | 'volume';
 }) {
-  const maxValue = Math.max(1, ...data.map((item) => item.value));
+  const maxValue = Math.max(
+    1,
+    ...data.map((item) => (mode === 'workouts' ? item.workouts : item.volume)),
+  );
 
   return (
-    <div className="rounded-[26px] border border-white/10 bg-white/[0.04] p-4">
-      <div className="mb-4 text-[11px] font-black uppercase tracking-[0.18em] text-white/45">
-        {title}
-      </div>
+    <div className="rounded-[28px] border border-white/10 bg-black/20 p-4">
+      <div className="flex h-44 items-end gap-3">
+        {data.map((item) => {
+          const value = mode === 'workouts' ? item.workouts : item.volume;
+          const height = Math.max(8, Math.round((value / maxValue) * 100));
 
-      <div className="flex h-48 items-end gap-2">
-        {data.map((item) => (
-          <div key={item.label} className="flex flex-1 flex-col items-center gap-2">
-            <div className="flex h-full w-full items-end">
-              <div
-                className="w-full rounded-t-2xl bg-[linear-gradient(180deg,rgba(132,255,88,0.9),rgba(132,255,88,0.22))]"
-                style={{
-                  height: `${Math.max(8, (item.value / maxValue) * 100)}%`,
-                }}
-                title={`${item.value}${suffix}`}
-              />
+          return (
+            <div key={item.label} className="flex flex-1 flex-col items-center gap-2">
+              <div className="text-[10px] font-bold text-white/45">
+                {mode === 'workouts' ? value : `${value}`}
+              </div>
+              <div className="flex h-32 w-full items-end">
+                <div
+                  className="w-full rounded-t-2xl bg-lime-300 transition-all"
+                  style={{ height: `${height}%` }}
+                />
+              </div>
+              <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-white/45">
+                {item.label}
+              </div>
             </div>
-            <div className="text-[10px] font-bold uppercase tracking-[0.08em] text-white/40">
-              {item.label}
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
 }
 
+function SummaryCard({
+  label,
+  value,
+  sublabel,
+  icon,
+}: {
+  label: string;
+  value: string | number;
+  sublabel?: string;
+  icon: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-[24px] border border-white/10 bg-white/[0.045] p-4 shadow-[0_12px_34px_rgba(0,0,0,0.24)]">
+      <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.18em] text-white/45">
+        <span className="text-lime-300">{icon}</span>
+        {label}
+      </div>
+      <div className="mt-3 text-2xl font-black text-white">{value}</div>
+      {sublabel ? <div className="mt-1 text-sm text-white/55">{sublabel}</div> : null}
+    </div>
+  );
+}
+
 export default function HistoryScreen({ onBack }: HistoryScreenProps) {
-  const language = useAppLanguage();
-  const [refreshKey, setRefreshKey] = useState(0);
-  const [period, setPeriod] = useState<PeriodKey>('week');
-  const [selectedWorkout, setSelectedWorkout] = useState('all');
-  const [selectedExercise, setSelectedExercise] = useState('all');
+  const [workouts, setWorkouts] = useState(() => getWorkoutHistory());
+  const [range, setRange] = useState<RangeKey>('week');
+  const [selectionType, setSelectionType] = useState<'workout' | 'exercise'>('exercise');
+  const [selectedWorkoutName, setSelectedWorkoutName] = useState('');
+  const [selectedExerciseName, setSelectedExerciseName] = useState('');
 
   useEffect(() => {
-    const sync = () => setRefreshKey((value) => value + 1);
-    window.addEventListener('history-updated', sync);
-    return () => window.removeEventListener('history-updated', sync);
+    const refresh = () => {
+      setWorkouts(getWorkoutHistory());
+    };
+
+    window.addEventListener('history-updated', refresh);
+    window.addEventListener('storage', refresh);
+
+    return () => {
+      window.removeEventListener('history-updated', refresh);
+      window.removeEventListener('storage', refresh);
+    };
   }, []);
 
-  const workouts = useMemo(() => getWorkoutHistory(), [refreshKey]);
+  const workoutOptions = useMemo(() => getWorkoutNameOptions(), [workouts]);
+  const exerciseOptions = useMemo(() => getExerciseNameOptions(), [workouts]);
 
-  const totalWorkouts = workouts.length;
-  const totalMinutes = workouts.reduce((sum, item) => sum + item.durationMinutes, 0);
-  const totalVolume = workouts.reduce((sum, item) => sum + item.volume, 0);
+  useEffect(() => {
+    if (!selectedWorkoutName && workoutOptions.length > 0) {
+      setSelectedWorkoutName(workoutOptions[0]);
+    }
+  }, [selectedWorkoutName, workoutOptions]);
 
-  const workoutOptions = useMemo(() => {
-    return Array.from(new Set(workouts.map((entry) => entry.workoutName))).sort();
-  }, [workouts]);
+  useEffect(() => {
+    if (!selectedExerciseName && exerciseOptions.length > 0) {
+      setSelectedExerciseName(exerciseOptions[0]);
+    }
+  }, [selectedExerciseName, exerciseOptions]);
 
-  const exerciseOptions = useMemo(() => extractExerciseNames(workouts), [workouts]);
+  const totalMinutes = workouts.reduce((sum, workout) => sum + workout.durationMinutes, 0);
+  const totalVolume = workouts.reduce((sum, workout) => sum + workout.volume, 0);
+  const averageMinutes = workouts.length > 0 ? Math.round(totalMinutes / workouts.length) : 0;
+  const averageVolume = workouts.length > 0 ? Math.round(totalVolume / workouts.length) : 0;
 
-  const filteredWorkouts = useMemo(() => {
-    return workouts.filter((entry) => {
-      if (selectedWorkout !== 'all' && entry.workoutName !== selectedWorkout) {
-        return false;
-      }
+  const chartData = useMemo(() => aggregateByRange(workouts, range), [workouts, range]);
 
-      if (selectedExercise !== 'all') {
-        const maybeDetails = (entry as WorkoutHistoryEntry & {
-          details?: Array<{ exercise?: string }>;
-        }).details;
+  const filteredWorkoutSessions = useMemo(() => {
+    if (!selectedWorkoutName) return [];
+    return workouts.filter((entry) => entry.workoutName === selectedWorkoutName);
+  }, [workouts, selectedWorkoutName]);
 
-        if (!Array.isArray(maybeDetails)) return false;
+  const selectedExerciseHistory = useMemo(() => {
+    if (!selectedExerciseName) return [];
+    return getExerciseHistory(selectedExerciseName);
+  }, [selectedExerciseName, workouts]);
 
-        return maybeDetails.some((detail) => detail.exercise === selectedExercise);
-      }
+  const selectedExerciseBest = useMemo(() => {
+    if (selectedExerciseHistory.length === 0) return null;
 
-      return true;
-    });
-  }, [workouts, selectedWorkout, selectedExercise]);
+    return selectedExerciseHistory.reduce((best, entry) => {
+      if (!best) return entry;
+      if (entry.weight > best.weight) return entry;
+      if (entry.weight === best.weight && entry.volume > best.volume) return entry;
+      return best;
+    }, selectedExerciseHistory[0]);
+  }, [selectedExerciseHistory]);
 
-  const countSeries = useMemo(
-    () => aggregateSeries(filteredWorkouts, period),
-    [filteredWorkouts, period],
-  );
+  const selectedWorkoutSummary = useMemo(() => {
+    if (filteredWorkoutSessions.length === 0) return null;
 
-  const volumeSeries = useMemo(() => {
-    return aggregateSeries(
-      filteredWorkouts.map((entry) => ({ ...entry, volume: entry.volume })),
-      period,
-    );
-  }, [filteredWorkouts, period]);
+    return {
+      sessions: filteredWorkoutSessions.length,
+      totalVolume: filteredWorkoutSessions.reduce((sum, entry) => sum + entry.volume, 0),
+      avgDuration: Math.round(
+        filteredWorkoutSessions.reduce((sum, entry) => sum + entry.durationMinutes, 0) /
+          filteredWorkoutSessions.length,
+      ),
+      latest: filteredWorkoutSessions[0],
+    };
+  }, [filteredWorkoutSessions]);
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(74,222,128,0.16),_transparent_30%),linear-gradient(180deg,_#09090b_0%,_#111113_100%)] px-4 py-5 text-white">
-      <div className="mx-auto flex w-full max-w-5xl flex-col gap-4">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(132,204,22,0.12),transparent_30%),linear-gradient(180deg,#09090b_0%,#101113_60%,#0b0b0d_100%)] px-4 pb-10 pt-5 text-white">
+      <div className="mx-auto max-w-5xl">
         <button
-          type="button"
           onClick={onBack}
-          className="inline-flex w-fit items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-semibold"
+          className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3 text-sm font-bold text-white/85 transition hover:bg-white/[0.08]"
+          type="button"
         >
           <ArrowLeft className="h-4 w-4" />
-          {language === 'sv' ? 'Tillbaka' : 'Back'}
+          Back
         </button>
 
-        <div className="rounded-[34px] border border-white/10 bg-white/[0.04] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.42)]">
-          <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">
-            {language === 'sv' ? 'Historik' : 'History'}
+        <div className="mt-5 rounded-[34px] border border-white/10 bg-white/[0.04] p-6 shadow-[0_28px_100px_rgba(0,0,0,0.36)] backdrop-blur">
+          <div className="text-[11px] font-black uppercase tracking-[0.22em] text-lime-300">
+            History
+          </div>
+          <h1 className="mt-2 text-4xl font-black leading-none">Your momentum</h1>
+          <p className="mt-3 max-w-2xl text-sm text-white/62">
+            Clean summary on top. Then real progression views by timeframe, workout and exercise.
           </p>
-          <h1 className="mt-3 text-3xl font-black sm:text-4xl">
-            {language === 'sv' ? 'Följ din progression' : 'Track your progression'}
-          </h1>
-        </div>
 
-        <div className="grid gap-3 sm:grid-cols-3">
-          <div className="rounded-[24px] border border-white/10 bg-white/[0.04] p-4">
-            <div className="flex items-center gap-2 text-white/45">
-              <Dumbbell className="h-4 w-4 text-lime-300" />
-              <span className="text-[10px] font-black uppercase tracking-[0.18em]">
-                Workouts
-              </span>
-            </div>
-            <div className="mt-2 text-3xl font-black text-white">{totalWorkouts}</div>
-          </div>
-
-          <div className="rounded-[24px] border border-white/10 bg-white/[0.04] p-4">
-            <div className="flex items-center gap-2 text-white/45">
-              <Clock3 className="h-4 w-4 text-lime-300" />
-              <span className="text-[10px] font-black uppercase tracking-[0.18em]">
-                {language === 'sv' ? 'Tid' : 'Time'}
-              </span>
-            </div>
-            <div className="mt-2 text-3xl font-black text-white">{totalMinutes} min</div>
-          </div>
-
-          <div className="rounded-[24px] border border-white/10 bg-white/[0.04] p-4">
-            <div className="flex items-center gap-2 text-white/45">
-              <Flame className="h-4 w-4 text-lime-300" />
-              <span className="text-[10px] font-black uppercase tracking-[0.18em]">
-                Volume
-              </span>
-            </div>
-            <div className="mt-2 text-3xl font-black text-white">{totalVolume}</div>
+          <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <SummaryCard
+              label="Workouts"
+              value={workouts.length}
+              sublabel="Logged sessions"
+              icon={<Trophy className="h-4 w-4" />}
+            />
+            <SummaryCard
+              label="Avg time"
+              value={`${averageMinutes} min`}
+              sublabel="Per session"
+              icon={<CalendarDays className="h-4 w-4" />}
+            />
+            <SummaryCard
+              label="Total time"
+              value={`${totalMinutes} min`}
+              sublabel="All sessions"
+              icon={<Flame className="h-4 w-4" />}
+            />
+            <SummaryCard
+              label="Volume"
+              value={`${totalVolume} kg`}
+              sublabel={`Avg ${averageVolume} kg`}
+              icon={<Scale className="h-4 w-4" />}
+            />
           </div>
         </div>
 
-        <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-4">
-          <div className="mb-3 flex items-center gap-2 text-white/45">
-            <BarChart3 className="h-4 w-4 text-lime-300" />
-            <span className="text-[10px] font-black uppercase tracking-[0.18em]">
-              {language === 'sv' ? 'Filter' : 'Filters'}
-            </span>
-          </div>
+        <div className="mt-4 rounded-[30px] border border-white/10 bg-white/[0.04] p-5 shadow-[0_18px_60px_rgba(0,0,0,0.24)]">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div>
+              <div className="text-[11px] font-black uppercase tracking-[0.18em] text-white/50">
+                Progress chart
+              </div>
+              <div className="mt-1 text-2xl font-black text-white">
+                {formatRangeLabel(range)}
+              </div>
+            </div>
 
-          <div className="grid gap-3 md:grid-cols-3">
-            <div className="grid grid-cols-4 gap-2">
-              {(['day', 'week', 'month', 'year'] as const).map((key) => (
+            <div className="flex flex-wrap gap-2">
+              {(['day', 'week', 'month', 'year'] as RangeKey[]).map((entry) => (
                 <button
-                  key={key}
-                  type="button"
-                  onClick={() => setPeriod(key)}
-                  className={`rounded-2xl px-3 py-2 text-xs font-black uppercase tracking-[0.14em] transition ${
-                    period === key
-                      ? 'border border-lime-400/30 bg-lime-400/12 text-white'
-                      : 'border border-white/10 bg-white/[0.04] text-white/65'
+                  key={entry}
+                  onClick={() => setRange(entry)}
+                  className={`rounded-2xl px-4 py-2 text-sm font-bold uppercase tracking-[0.12em] transition ${
+                    range === entry
+                      ? 'bg-lime-300 text-black'
+                      : 'border border-white/10 bg-black/20 text-white/75'
                   }`}
+                  type="button"
                 >
-                  {language === 'sv'
-                    ? key === 'day'
-                      ? 'Dag'
-                      : key === 'week'
-                        ? 'Vecka'
-                        : key === 'month'
-                          ? 'Månad'
-                          : 'År'
-                    : key}
+                  {entry}
                 </button>
               ))}
             </div>
+          </div>
 
-            <select
-              value={selectedWorkout}
-              onChange={(event) => setSelectedWorkout(event.target.value)}
-              className="rounded-2xl border border-white/10 bg-zinc-950 px-4 py-3 text-white outline-none"
-            >
-              <option value="all">
-                {language === 'sv' ? 'Välj pass' : 'Select workout'}
-              </option>
-              {workoutOptions.map((name) => (
-                <option key={name} value={name}>
-                  {name}
-                </option>
-              ))}
-            </select>
+          <div className="mt-5 grid gap-4 xl:grid-cols-2">
+            <div>
+              <div className="mb-2 text-xs font-bold uppercase tracking-[0.14em] text-white/45">
+                Workout count
+              </div>
+              <Chart data={chartData} mode="workouts" />
+            </div>
 
-            <select
-              value={selectedExercise}
-              onChange={(event) => setSelectedExercise(event.target.value)}
-              className="rounded-2xl border border-white/10 bg-zinc-950 px-4 py-3 text-white outline-none"
-            >
-              <option value="all">
-                {language === 'sv' ? 'Välj övning' : 'Select exercise'}
-              </option>
-              {exerciseOptions.map((name) => (
-                <option key={name} value={name}>
-                  {name}
-                </option>
-              ))}
-            </select>
+            <div>
+              <div className="mb-2 text-xs font-bold uppercase tracking-[0.14em] text-white/45">
+                Volume
+              </div>
+              <Chart data={chartData} mode="volume" />
+            </div>
           </div>
         </div>
 
-        <div className="grid gap-4 lg:grid-cols-2">
-          <Chart
-            title={language === 'sv' ? 'Pass över tid' : 'Workouts over time'}
-            data={countSeries}
-          />
-          <Chart
-            title={language === 'sv' ? 'Volym över tid' : 'Volume over time'}
-            data={volumeSeries}
-            suffix=" kg"
-          />
-        </div>
+        <div className="mt-4 rounded-[30px] border border-white/10 bg-white/[0.04] p-5 shadow-[0_18px_60px_rgba(0,0,0,0.24)]">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <div className="text-[11px] font-black uppercase tracking-[0.18em] text-white/50">
+                Deep dive
+              </div>
+              <div className="mt-1 text-2xl font-black text-white">
+                Track by workout or exercise
+              </div>
+            </div>
 
-        <div className="rounded-[26px] border border-white/10 bg-white/[0.04] p-4">
-          <div className="text-[11px] font-black uppercase tracking-[0.18em] text-white/45">
-            {language === 'sv' ? 'Vald vy' : 'Selected view'}
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => setSelectionType('exercise')}
+                className={`rounded-2xl px-4 py-2 text-sm font-bold uppercase tracking-[0.12em] transition ${
+                  selectionType === 'exercise'
+                    ? 'bg-lime-300 text-black'
+                    : 'border border-white/10 bg-black/20 text-white/75'
+                }`}
+                type="button"
+              >
+                Exercise
+              </button>
+              <button
+                onClick={() => setSelectionType('workout')}
+                className={`rounded-2xl px-4 py-2 text-sm font-bold uppercase tracking-[0.12em] transition ${
+                  selectionType === 'workout'
+                    ? 'bg-lime-300 text-black'
+                    : 'border border-white/10 bg-black/20 text-white/75'
+                }`}
+                type="button"
+              >
+                Workout
+              </button>
+            </div>
           </div>
 
-          {selectedExercise !== 'all' && exerciseOptions.length === 0 ? (
-            <p className="mt-3 text-sm text-white/55">
-              {language === 'sv'
-                ? 'Övningsgrafen blir riktig när per-övning-data sparas i historiken.'
-                : 'Exercise-specific graphs become real once per-exercise data is saved to history.'}
-            </p>
-          ) : filteredWorkouts.length === 0 ? (
-            <p className="mt-3 text-sm text-white/55">
-              {language === 'sv'
-                ? 'Ingen data för det filtret än.'
-                : 'No data for that filter yet.'}
-            </p>
-          ) : (
-            <div className="mt-3 space-y-2">
-              {filteredWorkouts.slice(0, 6).map((workout) => (
-                <div
-                  key={workout.id}
-                  className="flex items-center justify-between rounded-2xl border border-white/10 bg-black/20 px-4 py-3"
+          {selectionType === 'exercise' ? (
+            <div className="mt-5">
+              <label className="text-[11px] font-black uppercase tracking-[0.16em] text-white/45">
+                Select exercise
+              </label>
+              <div className="relative mt-2">
+                <select
+                  value={selectedExerciseName}
+                  onChange={(e) => setSelectedExerciseName(e.target.value)}
+                  className="w-full appearance-none rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-white outline-none transition focus:border-lime-300"
                 >
-                  <div>
-                    <div className="font-bold text-white">{workout.workoutName}</div>
-                    <div className="text-sm text-white/50">
-                      {new Date(workout.completedAt).toLocaleDateString()}
+                  {exerciseOptions.map((exercise) => (
+                    <option key={exercise} value={exercise}>
+                      {exercise}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/45" />
+              </div>
+
+              {selectedExerciseHistory.length === 0 ? (
+                <div className="mt-4 rounded-[24px] border border-dashed border-white/10 bg-black/20 p-6 text-sm text-white/55">
+                  No exercise data yet. Finish a workout with saved exercise rows and it shows up here.
+                </div>
+              ) : (
+                <>
+                  <div className="mt-4 grid gap-3 md:grid-cols-3">
+                    <SummaryCard
+                      label="Entries"
+                      value={selectedExerciseHistory.length}
+                      sublabel="Tracked sets in history"
+                      icon={<Dumbbell className="h-4 w-4" />}
+                    />
+                    <SummaryCard
+                      label="Best weight"
+                      value={`${selectedExerciseBest?.weight ?? 0} kg`}
+                      sublabel={
+                        selectedExerciseBest
+                          ? `${selectedExerciseBest.reps} reps`
+                          : undefined
+                      }
+                      icon={<Trophy className="h-4 w-4" />}
+                    />
+                    <SummaryCard
+                      label="Best volume"
+                      value={`${
+                        Math.max(...selectedExerciseHistory.map((entry) => entry.volume))
+                      } kg`}
+                      sublabel="Single logged exercise entry"
+                      icon={<Flame className="h-4 w-4" />}
+                    />
+                  </div>
+
+                  <div className="mt-4 rounded-[26px] border border-white/10 bg-black/20 p-4">
+                    <div className="text-xs font-bold uppercase tracking-[0.14em] text-white/45">
+                      Exercise progression
+                    </div>
+
+                    <div className="mt-4 space-y-3">
+                      {selectedExerciseHistory
+                        .slice()
+                        .reverse()
+                        .map((entry, index) => {
+                          const maxVolume = Math.max(
+                            1,
+                            ...selectedExerciseHistory.map((item) => item.volume),
+                          );
+                          const width = Math.max(
+                            8,
+                            Math.round((entry.volume / maxVolume) * 100),
+                          );
+
+                          return (
+                            <div
+                              key={`${entry.completedAt}-${index}`}
+                              className="rounded-[22px] border border-white/10 bg-white/[0.03] p-4"
+                            >
+                              <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                                <div>
+                                  <div className="font-bold text-white">
+                                    {entry.workoutName}
+                                  </div>
+                                  <div className="mt-1 text-sm text-white/55">
+                                    {formatDate(entry.completedAt)}
+                                  </div>
+                                </div>
+                                <div className="text-sm text-white/65">
+                                  {entry.sets} sets · {entry.reps} reps · {entry.weight} kg
+                                </div>
+                              </div>
+
+                              <div className="mt-3 h-3 overflow-hidden rounded-full bg-white/10">
+                                <div
+                                  className="h-full rounded-full bg-lime-300"
+                                  style={{ width: `${width}%` }}
+                                />
+                              </div>
+
+                              <div className="mt-2 text-sm font-semibold text-white">
+                                Volume: {entry.volume} kg
+                              </div>
+                            </div>
+                          );
+                        })}
                     </div>
                   </div>
-                  <div className="text-right text-sm text-white/65">
-                    <div>{workout.durationMinutes} min</div>
-                    <div>{workout.volume} kg</div>
-                  </div>
+                </>
+              )}
+            </div>
+          ) : (
+            <div className="mt-5">
+              <label className="text-[11px] font-black uppercase tracking-[0.16em] text-white/45">
+                Select workout
+              </label>
+              <div className="relative mt-2">
+                <select
+                  value={selectedWorkoutName}
+                  onChange={(e) => setSelectedWorkoutName(e.target.value)}
+                  className="w-full appearance-none rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-white outline-none transition focus:border-lime-300"
+                >
+                  {workoutOptions.map((workoutName) => (
+                    <option key={workoutName} value={workoutName}>
+                      {workoutName}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/45" />
+              </div>
+
+              {!selectedWorkoutSummary ? (
+                <div className="mt-4 rounded-[24px] border border-dashed border-white/10 bg-black/20 p-6 text-sm text-white/55">
+                  No workout data yet.
                 </div>
-              ))}
+              ) : (
+                <>
+                  <div className="mt-4 grid gap-3 md:grid-cols-4">
+                    <SummaryCard
+                      label="Sessions"
+                      value={selectedWorkoutSummary.sessions}
+                      sublabel="Times completed"
+                      icon={<Trophy className="h-4 w-4" />}
+                    />
+                    <SummaryCard
+                      label="Avg time"
+                      value={`${selectedWorkoutSummary.avgDuration} min`}
+                      sublabel="Per completion"
+                      icon={<CalendarDays className="h-4 w-4" />}
+                    />
+                    <SummaryCard
+                      label="Total volume"
+                      value={`${selectedWorkoutSummary.totalVolume} kg`}
+                      sublabel="Across all completions"
+                      icon={<Flame className="h-4 w-4" />}
+                    />
+                    <SummaryCard
+                      label="Latest"
+                      value={selectedWorkoutSummary.latest.focusArea}
+                      sublabel={formatDate(selectedWorkoutSummary.latest.completedAt)}
+                      icon={<Dumbbell className="h-4 w-4" />}
+                    />
+                  </div>
+
+                  <div className="mt-4 space-y-3">
+                    {filteredWorkoutSessions.map((session) => (
+                      <div
+                        key={session.id}
+                        className="rounded-[24px] border border-white/10 bg-black/20 p-4"
+                      >
+                        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                          <div>
+                            <div className="text-lg font-bold text-white">
+                              {session.workoutName}
+                            </div>
+                            <div className="mt-1 text-sm text-white/55">
+                              {formatDate(session.completedAt)}
+                            </div>
+                          </div>
+
+                          <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm font-semibold text-white/75">
+                            Focus: {session.focusArea}
+                          </div>
+                        </div>
+
+                        <div className="mt-4 grid gap-3 md:grid-cols-3">
+                          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3">
+                            <div className="text-xs uppercase tracking-[0.14em] text-white/45">
+                              Duration
+                            </div>
+                            <div className="mt-1 text-lg font-black text-white">
+                              {session.durationMinutes} min
+                            </div>
+                          </div>
+                          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3">
+                            <div className="text-xs uppercase tracking-[0.14em] text-white/45">
+                              Exercises
+                            </div>
+                            <div className="mt-1 text-lg font-black text-white">
+                              {session.exercisesCompleted}
+                            </div>
+                          </div>
+                          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3">
+                            <div className="text-xs uppercase tracking-[0.14em] text-white/45">
+                              Volume
+                            </div>
+                            <div className="mt-1 text-lg font-black text-white">
+                              {session.volume} kg
+                            </div>
+                          </div>
+                        </div>
+
+                        {session.details.length > 0 ? (
+                          <div className="mt-4 rounded-[22px] border border-white/10 bg-white/[0.03] p-4">
+                            <div className="text-xs font-bold uppercase tracking-[0.14em] text-white/45">
+                              Exercise details
+                            </div>
+
+                            <div className="mt-3 space-y-2">
+                              {session.details.map((detail, index) => (
+                                <div
+                                  key={`${session.id}-${detail.exercise}-${index}`}
+                                  className="flex flex-col gap-2 rounded-2xl border border-white/10 bg-black/20 px-4 py-3 md:flex-row md:items-center md:justify-between"
+                                >
+                                  <div className="font-semibold text-white">
+                                    {detail.exercise}
+                                  </div>
+                                  <div className="text-sm text-white/65">
+                                    {detail.sets} sets · {detail.reps} reps · {detail.weight} kg
+                                  </div>
+                                  <div className="text-sm font-bold text-white">
+                                    {detail.volume} kg
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ) : null}
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
           )}
         </div>
+
+        {workouts.length === 0 ? (
+          <div className="mt-4 rounded-[28px] border border-dashed border-white/10 bg-white/[0.03] p-6 text-center">
+            <div className="text-lg font-bold text-white">No workouts yet</div>
+            <div className="mt-2 text-sm text-white/55">
+              Finish your first real session and history will start filling with progression data.
+            </div>
+          </div>
+        ) : null}
       </div>
     </div>
   );

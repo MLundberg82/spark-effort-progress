@@ -1,13 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import {
-  ArrowLeft,
-  Dumbbell,
-  Flame,
-  Target,
-  User,
-  Weight,
-} from 'lucide-react';
-
+import { ArrowLeft, Dumbbell, Flame, Target, User, Weight } from 'lucide-react';
 import SplashScreen from '../components/SplashScreen';
 import HomeScreen from '../components/HomeScreen';
 import WorkoutFlow from '../components/WorkoutFlow';
@@ -21,7 +13,6 @@ import PremiumPaywall from '../components/PremiumPaywall';
 import DailyCheckInScreen from '../components/DailyCheckInScreen';
 import GymRatGallery from '../components/GymRatGallery';
 import RatShop from '../components/RatShop';
-
 import {
   completeOnboarding,
   getProfile,
@@ -32,7 +23,6 @@ import {
   type UserGender,
   type UserProfile,
 } from '../lib/profileStore';
-
 import {
   addXP,
   getAppStats,
@@ -44,8 +34,11 @@ import {
   setWorkoutSummary,
   type AppPage,
 } from '../lib/appStore';
-
-import { addWorkoutHistory } from '../lib/historyStore';
+import {
+  addWorkoutHistory,
+  type FocusArea,
+  type WorkoutExerciseDetail,
+} from '../lib/historyStore';
 import { clearWorkoutDraft, saveWorkoutDraft } from '../lib/workoutStore';
 import { checkPremium, subscribePremium } from '../lib/premiumStore';
 import {
@@ -58,7 +51,6 @@ import {
   maybeOpenNutritionPaywall,
   openManualPaywall,
 } from '../lib/paywallTriggers';
-import { ensureLanguageInitialized } from '../lib/languageStore';
 
 type FinishedWorkout = {
   workoutName: string;
@@ -66,9 +58,9 @@ type FinishedWorkout = {
   exercisesCompleted: number;
   volume: number;
   earnedXP: number;
+  focusArea: FocusArea;
+  details: WorkoutExerciseDetail[];
 };
-
-type ViewKey = AppPage | 'workoutStart';
 
 function OnboardingGate({ onComplete }: { onComplete: () => void }) {
   const existing = getProfile();
@@ -102,250 +94,224 @@ function OnboardingGate({ onComplete }: { onComplete: () => void }) {
   };
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(74,222,128,0.16),_transparent_30%),linear-gradient(180deg,_#09090b_0%,_#111113_100%)] px-4 pb-8 pt-6 text-white">
-      <div className="mx-auto max-w-[430px]">
-        <div className="overflow-hidden rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.02))] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.45)]">
-          <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-400/15 text-emerald-300">
-              <Dumbbell className="h-6 w-6" />
-            </div>
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(132,204,22,0.12),transparent_32%),linear-gradient(180deg,#0b0b0d_0%,#111214_100%)] px-4 py-8 text-white">
+      <div className="mx-auto max-w-xl rounded-[32px] border border-white/10 bg-white/[0.04] p-6 shadow-[0_30px_90px_rgba(0,0,0,0.4)] backdrop-blur">
+        <div className="text-[11px] font-black uppercase tracking-[0.22em] text-lime-300">
+          First launch setup
+        </div>
+        <h1 className="mt-2 text-4xl font-black">GymRat</h1>
+        <p className="mt-3 text-sm text-white/65">
+          Quick setup once. Then straight into the app with a premium feel from start.
+        </p>
 
-            <div>
-              <p className="text-xs uppercase tracking-[0.24em] text-zinc-400">
-                First launch setup
-              </p>
-              <h1 className="text-3xl font-black">GymRat</h1>
-            </div>
-          </div>
+        <div className="mt-6 flex gap-2">
+          {[1, 2, 3].map((entry) => (
+            <div
+              key={entry}
+              className={`h-2 flex-1 rounded-full ${
+                step >= entry ? 'bg-emerald-400' : 'bg-white/10'
+              }`}
+            />
+          ))}
+        </div>
 
-          <p className="mt-4 text-sm text-zinc-300">
-            Quick setup once. Then straight into the app with a premium feel from
-            start.
-          </p>
+        {step === 1 && (
+          <div className="mt-6">
+            <h2 className="text-xl font-bold">Base profile</h2>
 
-          <div className="mt-5 flex gap-2">
-            {[1, 2, 3].map((entry) => (
-              <div
-                key={entry}
-                className={`h-2 flex-1 rounded-full ${
-                  step >= entry ? 'bg-emerald-400' : 'bg-white/10'
-                }`}
-              />
-            ))}
-          </div>
-
-          {step === 1 && (
-            <div className="mt-6">
-              <h2 className="text-xl font-black">Base profile</h2>
-
-              <div className="mt-4 grid gap-4">
-                <div>
-                  <label className="text-xs uppercase tracking-[0.18em] text-zinc-400">
-                    Age
-                  </label>
-                  <input
-                    type="number"
-                    value={age}
-                    onChange={(e) => setAge(Number(e.target.value))}
-                    className="mt-2 w-full rounded-2xl border border-white/10 bg-zinc-900 px-4 py-3 text-white outline-none transition focus:border-emerald-400"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs uppercase tracking-[0.18em] text-zinc-400">
-                    Height (cm)
-                  </label>
-                  <input
-                    type="number"
-                    value={height}
-                    onChange={(e) => setHeight(Number(e.target.value))}
-                    className="mt-2 w-full rounded-2xl border border-white/10 bg-zinc-900 px-4 py-3 text-white outline-none transition focus:border-emerald-400"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs uppercase tracking-[0.18em] text-zinc-400">
-                    Weight (kg)
-                  </label>
-                  <input
-                    type="number"
-                    value={weight}
-                    onChange={(e) => setWeight(Number(e.target.value))}
-                    className="mt-2 w-full rounded-2xl border border-white/10 bg-zinc-900 px-4 py-3 text-white outline-none transition focus:border-emerald-400"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs uppercase tracking-[0.18em] text-zinc-400">
-                    Gender
-                  </label>
-
-                  <div className="mt-2 grid grid-cols-3 gap-2">
-                    {(['male', 'female', 'non-binary'] as const).map((option) => (
-                      <button
-                        key={option}
-                        type="button"
-                        onClick={() => setGender(option)}
-                        className={`rounded-2xl px-3 py-3 text-sm capitalize transition ${
-                          gender === option
-                            ? 'bg-emerald-400 font-semibold text-black'
-                            : 'border border-white/10 bg-white/[0.04] text-white'
-                        }`}
-                      >
-                        {option}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+            <div className="mt-4 grid gap-4 sm:grid-cols-3">
+              <div>
+                <label className="text-xs uppercase tracking-[0.16em] text-white/45">Age</label>
+                <input
+                  type="number"
+                  value={age}
+                  onChange={(e) => setAge(Number(e.target.value))}
+                  className="mt-2 w-full rounded-2xl border border-white/10 bg-zinc-900 px-4 py-3 text-white outline-none transition focus:border-emerald-400"
+                />
               </div>
 
+              <div>
+                <label className="text-xs uppercase tracking-[0.16em] text-white/45">
+                  Height (cm)
+                </label>
+                <input
+                  type="number"
+                  value={height}
+                  onChange={(e) => setHeight(Number(e.target.value))}
+                  className="mt-2 w-full rounded-2xl border border-white/10 bg-zinc-900 px-4 py-3 text-white outline-none transition focus:border-emerald-400"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs uppercase tracking-[0.16em] text-white/45">
+                  Weight (kg)
+                </label>
+                <input
+                  type="number"
+                  value={weight}
+                  onChange={(e) => setWeight(Number(e.target.value))}
+                  className="mt-2 w-full rounded-2xl border border-white/10 bg-zinc-900 px-4 py-3 text-white outline-none transition focus:border-emerald-400"
+                />
+              </div>
+            </div>
+
+            <div className="mt-5">
+              <label className="text-xs uppercase tracking-[0.16em] text-white/45">Gender</label>
+              <div className="mt-2 grid grid-cols-3 gap-2">
+                {(['male', 'female', 'non-binary'] as const).map((option) => (
+                  <button
+                    key={option}
+                    onClick={() => setGender(option)}
+                    className={`rounded-2xl px-3 py-3 text-sm capitalize transition ${
+                      gender === option
+                        ? 'bg-emerald-400 font-semibold text-black'
+                        : 'border border-white/10 bg-white/[0.04] text-white'
+                    }`}
+                    type="button"
+                  >
+                    {option}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <button
+              onClick={() => setStep(2)}
+              disabled={!canStepOneContinue}
+              className="mt-6 w-full rounded-2xl bg-emerald-400 px-4 py-3 font-black uppercase tracking-[0.14em] text-black transition disabled:cursor-not-allowed disabled:opacity-50"
+              type="button"
+            >
+              Continue
+            </button>
+          </div>
+        )}
+
+        {step === 2 && (
+          <div className="mt-6">
+            <h2 className="text-xl font-bold">Training goal</h2>
+
+            <div className="mt-4 space-y-3">
+              {[
+                {
+                  key: 'lose' as const,
+                  title: 'Lose',
+                  desc: 'Cut body fat and stay high-protein in nutrition.',
+                  icon: <Flame className="h-5 w-5 text-orange-300" />,
+                },
+                {
+                  key: 'maintain' as const,
+                  title: 'Maintain',
+                  desc: 'Stay steady, recover well and keep momentum.',
+                  icon: <Target className="h-5 w-5 text-lime-300" />,
+                },
+                {
+                  key: 'build' as const,
+                  title: 'Build',
+                  desc: 'Push progression and support muscle growth.',
+                  icon: <Dumbbell className="h-5 w-5 text-sky-300" />,
+                },
+              ].map((option) => (
+                <button
+                  key={option.key}
+                  onClick={() => setGoal(option.key)}
+                  className={`w-full rounded-2xl border px-4 py-4 text-left transition ${
+                    goal === option.key
+                      ? 'border-emerald-400/20 bg-emerald-400/10'
+                      : 'border-white/10 bg-white/[0.04]'
+                  }`}
+                  type="button"
+                >
+                  <div className="flex items-start gap-3">
+                    {option.icon}
+                    <div>
+                      <div className="font-bold">{option.title}</div>
+                      <div className="mt-1 text-sm text-white/60">{option.desc}</div>
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+
+            <div className="mt-6 flex gap-3">
               <button
+                onClick={() => setStep(1)}
+                className="flex-1 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 font-semibold"
                 type="button"
-                onClick={() => setStep(2)}
-                disabled={!canStepOneContinue}
-                className="mt-6 w-full rounded-2xl bg-emerald-400 px-4 py-3 font-black uppercase tracking-[0.14em] text-black transition disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Back
+              </button>
+              <button
+                onClick={() => setStep(3)}
+                className="flex-1 rounded-2xl bg-emerald-400 px-4 py-3 font-black uppercase tracking-[0.14em] text-black"
+                type="button"
               >
                 Continue
               </button>
             </div>
-          )}
+          </div>
+        )}
 
-          {step === 2 && (
-            <div className="mt-6">
-              <h2 className="text-xl font-black">Training goal</h2>
+        {step === 3 && (
+          <div className="mt-6">
+            <h2 className="text-xl font-bold">Training level</h2>
 
-              <div className="mt-4 grid gap-3">
-                {[
-                  {
-                    key: 'lose' as const,
-                    title: 'Lose',
-                    desc: 'Cut body fat and stay high-protein in nutrition.',
-                    icon: <Flame className="h-5 w-5 text-orange-300" />,
-                  },
-                  {
-                    key: 'maintain' as const,
-                    title: 'Maintain',
-                    desc: 'Stay steady, recover well and keep momentum.',
-                    icon: <Target className="h-5 w-5 text-emerald-300" />,
-                  },
-                  {
-                    key: 'build' as const,
-                    title: 'Build',
-                    desc: 'Push progression and support muscle growth.',
-                    icon: <Weight className="h-5 w-5 text-yellow-300" />,
-                  },
-                ].map((option) => (
-                  <button
-                    key={option.key}
-                    type="button"
-                    onClick={() => setGoal(option.key)}
-                    className={`w-full rounded-2xl border px-4 py-4 text-left transition ${
-                      goal === option.key
-                        ? 'border-emerald-400/20 bg-emerald-400/10'
-                        : 'border-white/10 bg-white/[0.04]'
-                    }`}
-                  >
-                    <div className="flex items-start gap-3">
-                      <div className="mt-1">{option.icon}</div>
-                      <div className="text-left">
-                        <div className="font-bold text-white">{option.title}</div>
-                        <div className="mt-1 text-sm text-zinc-300">
-                          {option.desc}
-                        </div>
-                      </div>
-                    </div>
-                  </button>
-                ))}
-              </div>
-
-              <div className="mt-6 flex gap-3">
+            <div className="mt-4 space-y-3">
+              {[
+                {
+                  key: 'beginner' as const,
+                  label: 'Beginner',
+                  desc: 'Simple and direct start with lower friction.',
+                },
+                {
+                  key: 'intermediate' as const,
+                  label: 'Intermediate',
+                  desc: 'You already train and want momentum + progression.',
+                },
+                {
+                  key: 'advanced' as const,
+                  label: 'Advanced',
+                  desc: 'Serious training base with stronger identity vibe.',
+                },
+              ].map((option) => (
                 <button
+                  key={option.key}
+                  onClick={() => setTrainingLevelValue(option.key)}
+                  className={`w-full rounded-2xl border px-4 py-4 text-left transition ${
+                    trainingLevel === option.key
+                      ? 'border-emerald-400/20 bg-emerald-400/10'
+                      : 'border-white/10 bg-white/[0.04]'
+                  }`}
                   type="button"
-                  onClick={() => setStep(1)}
-                  className="flex-1 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 font-semibold"
                 >
-                  Back
+                  <div className="font-bold">{option.label}</div>
+                  <div className="mt-1 text-sm text-white/60">{option.desc}</div>
                 </button>
-
-                <button
-                  type="button"
-                  onClick={() => setStep(3)}
-                  className="flex-1 rounded-2xl bg-emerald-400 px-4 py-3 font-black uppercase tracking-[0.14em] text-black"
-                >
-                  Continue
-                </button>
-              </div>
+              ))}
             </div>
-          )}
 
-          {step === 3 && (
-            <div className="mt-6">
-              <h2 className="text-xl font-black">Training level</h2>
-
-              <div className="mt-4 grid gap-3">
-                {[
-                  {
-                    key: 'beginner' as const,
-                    label: 'Beginner',
-                    desc: 'Simple and direct start with lower friction.',
-                  },
-                  {
-                    key: 'intermediate' as const,
-                    label: 'Intermediate',
-                    desc: 'You already train and want momentum + progression.',
-                  },
-                  {
-                    key: 'advanced' as const,
-                    label: 'Advanced',
-                    desc: 'Serious training base with stronger identity vibe.',
-                  },
-                ].map((option) => (
-                  <button
-                    key={option.key}
-                    type="button"
-                    onClick={() => setTrainingLevelValue(option.key)}
-                    className={`w-full rounded-2xl border px-4 py-4 text-left transition ${
-                      trainingLevel === option.key
-                        ? 'border-emerald-400/20 bg-emerald-400/10'
-                        : 'border-white/10 bg-white/[0.04]'
-                    }`}
-                  >
-                    <div className="font-bold text-white">{option.label}</div>
-                    <div className="mt-1 text-sm text-zinc-300">{option.desc}</div>
-                  </button>
-                ))}
-              </div>
-
-              <div className="mt-5 rounded-2xl border border-white/10 bg-black/20 p-4">
-                <div className="text-xs uppercase tracking-[0.18em] text-zinc-400">
-                  Nutrition will auto-follow your goal
-                </div>
-                <p className="mt-2 text-sm text-zinc-300">
-                  Goal + body data carry into nutrition automatically, so the app
-                  feels connected from day one.
-                </p>
-              </div>
-
-              <div className="mt-6 flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => setStep(2)}
-                  className="flex-1 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 font-semibold"
-                >
-                  Back
-                </button>
-
-                <button
-                  type="button"
-                  onClick={finish}
-                  className="flex-1 rounded-2xl bg-emerald-400 px-4 py-3 font-black uppercase tracking-[0.14em] text-black"
-                >
-                  Start app
-                </button>
-              </div>
+            <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-sm text-white/65">
+              Nutrition will auto-follow your goal. Goal + body data carry into nutrition
+              automatically, so the app feels connected from day one.
             </div>
-          )}
-        </div>
+
+            <div className="mt-6 flex gap-3">
+              <button
+                onClick={() => setStep(2)}
+                className="flex-1 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 font-semibold"
+                type="button"
+              >
+                Back
+              </button>
+              <button
+                onClick={finish}
+                className="flex-1 rounded-2xl bg-emerald-400 px-4 py-3 font-black uppercase tracking-[0.14em] text-black"
+                type="button"
+              >
+                Start app
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -355,68 +321,48 @@ function SettingsFallback({ onBack }: { onBack: () => void }) {
   const profile = getProfile();
 
   return (
-    <div className="min-h-screen bg-[linear-gradient(180deg,_#09090b_0%,_#111113_100%)] px-4 py-6 text-white">
+    <div className="min-h-screen bg-[#0b0b0d] px-4 py-5 text-white">
       <div className="mx-auto max-w-2xl">
         <button
-          type="button"
           onClick={onBack}
-          className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-semibold"
+          className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-bold"
+          type="button"
         >
           <ArrowLeft className="h-4 w-4" />
           Back
         </button>
 
-        <div className="mt-4 rounded-[32px] border border-white/10 bg-white/[0.04] p-6 shadow-[0_20px_60px_rgba(0,0,0,0.35)]">
-          <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/[0.06]">
-              <User className="h-6 w-6 text-zinc-200" />
-            </div>
-            <div>
-              <p className="text-xs uppercase tracking-[0.24em] text-zinc-400">
-                Settings
-              </p>
-              <h1 className="text-3xl font-black">Profile & control</h1>
-            </div>
+        <div className="mt-6 rounded-[28px] border border-white/10 bg-white/[0.04] p-6">
+          <div className="text-[11px] font-black uppercase tracking-[0.2em] text-white/50">
+            Settings
           </div>
+          <h1 className="mt-2 text-3xl font-black">Profile & control</h1>
 
           <div className="mt-6 grid gap-3 sm:grid-cols-2">
             <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-              <p className="text-xs uppercase tracking-[0.18em] text-zinc-500">
-                Gender
-              </p>
-              <p className="mt-2 font-semibold text-white">
-                {profile?.gender ?? '-'}
-              </p>
+              <div className="text-xs uppercase tracking-[0.16em] text-white/45">Gender</div>
+              <div className="mt-2 text-lg font-bold">{profile?.gender ?? '-'}</div>
             </div>
             <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-              <p className="text-xs uppercase tracking-[0.18em] text-zinc-500">
-                Goal
-              </p>
-              <p className="mt-2 font-semibold text-white">
-                {profile?.goal ?? '-'}
-              </p>
+              <div className="text-xs uppercase tracking-[0.16em] text-white/45">Goal</div>
+              <div className="mt-2 text-lg font-bold">{profile?.goal ?? '-'}</div>
             </div>
             <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-              <p className="text-xs uppercase tracking-[0.18em] text-zinc-500">
+              <div className="text-xs uppercase tracking-[0.16em] text-white/45">
                 Training level
-              </p>
-              <p className="mt-2 font-semibold text-white">
-                {profile?.trainingLevel ?? '-'}
-              </p>
+              </div>
+              <div className="mt-2 text-lg font-bold">{profile?.trainingLevel ?? '-'}</div>
             </div>
             <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-              <p className="text-xs uppercase tracking-[0.18em] text-zinc-500">
-                Weight
-              </p>
-              <p className="mt-2 font-semibold text-white">
+              <div className="text-xs uppercase tracking-[0.16em] text-white/45">Weight</div>
+              <div className="mt-2 text-lg font-bold">
                 {profile?.weight ? `${profile.weight} kg` : '-'}
-              </p>
+              </div>
             </div>
           </div>
 
-          <p className="mt-6 text-sm text-zinc-400">
-            Full settings screen can be polished later. This fallback keeps the app
-            runnable now.
+          <p className="mt-5 text-sm text-white/60">
+            Full settings screen can be polished later. This fallback keeps the app runnable now.
           </p>
         </div>
       </div>
@@ -435,9 +381,6 @@ export default function Index() {
   const [finishedWorkout, setFinishedWorkout] = useState<FinishedWorkout | null>(null);
   const [premium, setPremium] = useState(checkPremium().isActive);
   const [showWorkoutStart, setShowWorkoutStart] = useState(false);
-  const [viewStack, setViewStack] = useState<ViewKey[]>([]);
-
-  const currentView: ViewKey = showWorkoutStart ? 'workoutStart' : page;
 
   const stats = useMemo(
     () => getAppStats(),
@@ -453,7 +396,6 @@ export default function Index() {
   );
 
   useEffect(() => {
-    ensureLanguageInitialized();
     const timer = window.setTimeout(() => setShowSplash(false), 1400);
     return () => window.clearTimeout(timer);
   }, []);
@@ -488,54 +430,14 @@ export default function Index() {
     setPage(nextPage);
   };
 
-  const setView = (nextView: ViewKey) => {
-    if (nextView === 'workoutStart') {
-      setShowWorkoutStart(true);
-      return;
-    }
-
-    setShowWorkoutStart(false);
-    changePage(nextView);
-  };
-
-  const pushView = (nextView: ViewKey) => {
-    setViewStack((prev) => [...prev, currentView]);
-    setView(nextView);
-  };
-
-  const goHomeAndReset = () => {
-    setShowWorkoutStart(false);
-    setViewStack([]);
-    changePage('home');
-  };
-
-  const goBack = () => {
-    setViewStack((prev) => {
-      if (prev.length === 0) {
-        goHomeAndReset();
-        return prev;
-      }
-
-      const nextStack = [...prev];
-      const previousView = nextStack.pop() ?? 'home';
-      setView(previousView);
-      return nextStack;
-    });
-  };
-
   const openMenu = () => {
     setMenuOpen(true);
     setMenuOpenLocal(true);
   };
 
-  const closeMenuOnly = () => {
+  const closeMenu = () => {
     setMenuOpen(false);
     setMenuOpenLocal(false);
-  };
-
-  const closeMenuToHome = () => {
-    closeMenuOnly();
-    goHomeAndReset();
   };
 
   const openPaywall = () => {
@@ -553,6 +455,8 @@ export default function Index() {
     durationMinutes: number;
     exercisesCompleted: number;
     volume: number;
+    focusArea: FocusArea;
+    details: WorkoutExerciseDetail[];
   }) => {
     const earnedXP = Math.max(
       50,
@@ -565,6 +469,8 @@ export default function Index() {
       exercisesCompleted: result.exercisesCompleted,
       volume: result.volume,
       completedAt: new Date().toISOString(),
+      focusArea: result.focusArea,
+      details: result.details,
     });
 
     addXP(earnedXP);
@@ -577,18 +483,15 @@ export default function Index() {
 
     setWorkoutSummary(summary);
     setFinishedWorkout(summary);
-    setShowWorkoutStart(false);
     changePage('complete');
   };
 
   const openWorkoutStart = () => {
     const profile = getProfile();
-
     if (profile?.trainingLevel) {
       setTrainingLevel(profile.trainingLevel);
     }
-
-    pushView('workoutStart');
+    setShowWorkoutStart(true);
   };
 
   const startPresetWorkout = (planIndex: number) => {
@@ -609,12 +512,11 @@ export default function Index() {
       workoutName: defaultDay?.label
         ? `${selectedPlan.name} • ${defaultDay.label}`
         : selectedPlan?.name ?? 'Workout',
-      planName: selectedPlan?.name ?? 'Workout Plan',
-      dayLabel: defaultDay?.label ?? 'Day 1',
-      isCustom: false,
+      notes: JSON.stringify([]),
     });
 
-    pushView('workout');
+    setShowWorkoutStart(false);
+    changePage('workout');
   };
 
   const startCustomWorkout = () => {
@@ -627,19 +529,18 @@ export default function Index() {
     saveWorkoutDraft({
       startedAt: new Date().toISOString(),
       workoutName: 'Custom Workout',
-      planName: 'Custom Workout',
-      dayLabel: 'Custom',
-      isCustom: true,
+      notes: JSON.stringify([]),
     });
 
-    pushView('workout');
+    setShowWorkoutStart(false);
+    changePage('workout');
   };
 
   const historyHandler = () => {
     maybeOpenHistoryPaywall({
       isPremium: premium,
       openPaywall,
-      onAllowed: () => pushView('history'),
+      onAllowed: () => changePage('history'),
     });
   };
 
@@ -647,7 +548,7 @@ export default function Index() {
     maybeOpenNutritionPaywall({
       isPremium: premium,
       openPaywall,
-      onAllowed: () => pushView('nutrition'),
+      onAllowed: () => changePage('nutrition'),
     });
   };
 
@@ -660,7 +561,7 @@ export default function Index() {
       <OnboardingGate
         onComplete={() => {
           setProfileReady(true);
-          goHomeAndReset();
+          changePage('home');
         }}
       />
     );
@@ -673,15 +574,15 @@ export default function Index() {
           stats={stats}
           onOpenMenu={openMenu}
           onStartWorkout={openWorkoutStart}
-          onOpenGallery={() => pushView('gallery')}
-          onOpenShop={() => pushView('shop')}
+          onOpenGallery={() => changePage('gallery')}
+          onOpenShop={() => changePage('shop')}
         />
       )}
 
       {showWorkoutStart && (
         <WorkoutStartScreen
           isPremium={premium}
-          onBack={goBack}
+          onBack={() => setShowWorkoutStart(false)}
           onStartPreset={startPresetWorkout}
           onStartCustom={startCustomWorkout}
           onOpenPremium={() => {
@@ -692,7 +593,7 @@ export default function Index() {
 
       {!showWorkoutStart && page === 'workout' && (
         <WorkoutFlow
-          onBack={goBack}
+          onBack={() => changePage('home')}
           onComplete={handleWorkoutFinish}
         />
       )}
@@ -703,7 +604,7 @@ export default function Index() {
           onContinue={() => {
             setWorkoutSummary(null);
             setFinishedWorkout(null);
-            goHomeAndReset();
+            changePage('home');
           }}
           onOpenPaywall={() => {
             openManualPaywall(openPaywall);
@@ -712,27 +613,27 @@ export default function Index() {
       )}
 
       {!showWorkoutStart && page === 'history' && (
-        <HistoryScreen onBack={goBack} />
+        <HistoryScreen onBack={() => changePage('home')} />
       )}
 
       {!showWorkoutStart && page === 'nutrition' && (
         <NutritionScreen
-          onBack={goBack}
+          onBack={() => changePage('home')}
           onOpenPaywall={nutritionHandler}
         />
       )}
 
       {!showWorkoutStart && page === 'daily' && (
-        <DailyCheckInScreen onBack={goBack} />
+        <DailyCheckInScreen onBack={() => changePage('home')} />
       )}
 
       {!showWorkoutStart && page === 'gallery' && (
-        <GymRatGallery onBack={goBack} />
+        <GymRatGallery onBack={() => changePage('home')} />
       )}
 
       {!showWorkoutStart && page === 'shop' && (
         <RatShop
-          onBack={goBack}
+          onBack={() => changePage('home')}
           onOpenPremium={() => openManualPaywall(openPaywall)}
         />
       )}
@@ -740,48 +641,51 @@ export default function Index() {
       {!showWorkoutStart &&
         page === 'settings' &&
         (typeof SettingsScreen === 'function' ? (
-          <SettingsScreen onBack={goBack} />
+          <SettingsScreen onBack={() => changePage('home')} />
         ) : (
-          <SettingsFallback onBack={goBack} />
+          <SettingsFallback onBack={() => changePage('home')} />
         ))}
 
       {!showWorkoutStart && menuOpenLocal && (
         <AppMenu
           isPremium={premium}
-          onClose={closeMenuToHome}
+          onClose={() => {
+            closeMenu();
+            changePage('home');
+          }}
           onOpenDaily={() => {
-            closeMenuOnly();
-            pushView('daily');
+            closeMenu();
+            changePage('daily');
           }}
           onOpenHistory={() => {
-            closeMenuOnly();
+            closeMenu();
             historyHandler();
           }}
           onOpenNutrition={() => {
-            closeMenuOnly();
+            closeMenu();
             nutritionHandler();
           }}
           onOpenGallery={() => {
-            closeMenuOnly();
-            pushView('gallery');
+            closeMenu();
+            changePage('gallery');
           }}
           onOpenShop={() => {
-            closeMenuOnly();
-            pushView('shop');
+            closeMenu();
+            changePage('shop');
           }}
           onOpenSettings={() => {
-            closeMenuOnly();
-            pushView('settings');
+            closeMenu();
+            changePage('settings');
           }}
           onOpenPremium={() => {
-            closeMenuOnly();
+            closeMenu();
             openManualPaywall(openPaywall);
           }}
         />
       )}
 
       {!showWorkoutStart && paywallOpenLocal && (
-        <PremiumPaywall onClose={closePaywall} />
+        <PremiumPaywall open={paywallOpenLocal} onClose={closePaywall} />
       )}
     </>
   );

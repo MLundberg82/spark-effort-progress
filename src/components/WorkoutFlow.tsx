@@ -8,13 +8,15 @@ import {
   Timer,
   Trash2,
 } from 'lucide-react';
-import { saveWorkoutDraft, clearWorkoutDraft, getWorkoutDraft } from '@/lib/workoutStore';
 import {
-  getExercisesForWorkoutDay,
-  getRecommendedPlan,
-  getTrainingLevel,
-} from '@/lib/trainingStore';
-import type { ExerciseDefinition } from '@/lib/exerciseData';
+  clearWorkoutDraft,
+  getWorkoutDraft,
+  saveWorkoutDraft,
+} from '@/lib/workoutStore';
+import type {
+  FocusArea,
+  WorkoutExerciseDetail,
+} from '@/lib/historyStore';
 
 type WorkoutRow = {
   id: string;
@@ -24,14 +26,67 @@ type WorkoutRow = {
   weight: number;
 };
 
+type WorkoutCompleteResult = {
+  workoutName: string;
+  durationMinutes: number;
+  exercisesCompleted: number;
+  volume: number;
+  focusArea: FocusArea;
+  details: WorkoutExerciseDetail[];
+};
+
 type WorkoutFlowProps = {
   onBack: () => void;
-  onComplete: (result: {
-    workoutName: string;
-    durationMinutes: number;
-    exercisesCompleted: number;
-    volume: number;
-  }) => void;
+  onComplete: (result: WorkoutCompleteResult) => void;
+};
+
+const EXERCISE_OPTIONS = [
+  'Bench Press',
+  'Incline Dumbbell Press',
+  'Chest Fly',
+  'Lat Pulldown',
+  'Barbell Row',
+  'Seated Cable Row',
+  'Shoulder Press',
+  'Lateral Raise',
+  'Rear Delt Fly',
+  'Barbell Curl',
+  'Hammer Curl',
+  'Triceps Pushdown',
+  'Overhead Extension',
+  'Squat',
+  'Leg Press',
+  'Romanian Deadlift',
+  'Leg Curl',
+  'Leg Extension',
+  'Calf Raise',
+  'Crunch',
+  'Plank',
+] as const;
+
+const EXERCISE_FOCUS: Record<string, FocusArea> = {
+  'Bench Press': 'chest',
+  'Incline Dumbbell Press': 'chest',
+  'Chest Fly': 'chest',
+
+  'Lat Pulldown': 'back',
+  'Barbell Row': 'back',
+  'Seated Cable Row': 'back',
+  'Romanian Deadlift': 'back',
+
+  'Shoulder Press': 'arms',
+  'Lateral Raise': 'arms',
+  'Rear Delt Fly': 'arms',
+  'Barbell Curl': 'arms',
+  'Hammer Curl': 'arms',
+  'Triceps Pushdown': 'arms',
+  'Overhead Extension': 'arms',
+
+  'Squat': 'legs',
+  'Leg Press': 'legs',
+  'Leg Curl': 'legs',
+  'Leg Extension': 'legs',
+  'Calf Raise': 'legs',
 };
 
 function createId() {
@@ -40,6 +95,17 @@ function createId() {
   }
 
   return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+}
+
+function createRow(overrides?: Partial<WorkoutRow>): WorkoutRow {
+  return {
+    id: createId(),
+    exercise: EXERCISE_OPTIONS[0],
+    sets: 3,
+    reps: 10,
+    weight: 40,
+    ...overrides,
+  };
 }
 
 function clampNumber(value: number, min: number, max: number) {
@@ -59,64 +125,81 @@ function formatMinutes(totalSeconds: number) {
   return `${minutes} min`;
 }
 
-function parseRepValue(raw: string) {
-  const match = raw.match(/\d+/);
-  if (!match) return 10;
-  return clampNumber(Number(match[0]), 1, 50);
+function parseDraftRows(raw: string | undefined): WorkoutRow[] | null {
+  if (!raw) return null;
+
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return null;
+
+    const next = parsed
+      .map((entry) => {
+        if (!entry || typeof entry !== 'object') return null;
+
+        const value = entry as Partial<WorkoutRow>;
+        const exercise =
+          typeof value.exercise === 'string' && value.exercise.trim().length > 0
+            ? value.exercise.trim()
+            : EXERCISE_OPTIONS[0];
+
+        return createRow({
+          exercise,
+          sets: clampNumber(Number(value.sets), 1, 20),
+          reps: clampNumber(Number(value.reps), 1, 50),
+          weight: clampNumber(Number(value.weight), 0, 500),
+        });
+      })
+      .filter((row): row is WorkoutRow => row !== null);
+
+    return next.length > 0 ? next : null;
+  } catch {
+    return null;
+  }
 }
 
-function toWorkoutRow(exercise: ExerciseDefinition): WorkoutRow {
-  return {
-    id: createId(),
-    exercise: exercise.name,
-    sets: clampNumber(exercise.defaultSets, 1, 20),
-    reps: parseRepValue(exercise.defaultReps),
-    weight: clampNumber(exercise.defaultWeight ?? 0, 0, 500),
+function inferFocusArea(workoutName: string, details: WorkoutExerciseDetail[]): FocusArea {
+  const score: Record<FocusArea, number> = {
+    chest: 0,
+    back: 0,
+    arms: 0,
+    legs: 0,
   };
-}
 
-function createFallbackRow(overrides?: Partial<WorkoutRow>): WorkoutRow {
-  return {
-    id: createId(),
-    exercise: 'Bench Press',
-    sets: 4,
-    reps: 8,
-    weight: 40,
-    ...overrides,
-  };
-}
+  for (const detail of details) {
+    const mapped = EXERCISE_FOCUS[detail.exercise];
+    if (!mapped) continue;
 
-function buildPresetRows() {
-  const level = getTrainingLevel();
-  const plan = getRecommendedPlan(level);
-  const primaryDay = plan.days[0];
-
-  if (!primaryDay) {
-    return {
-      workoutName: plan.name,
-      subtitle: 'Preset session',
-      rows: [
-        createFallbackRow(),
-        createFallbackRow({ exercise: 'Lat Pulldown', weight: 35 }),
-        createFallbackRow({ exercise: 'Shoulder Press', weight: 20 }),
-      ],
-    };
+    score[mapped] += Math.max(1, detail.sets) * Math.max(1, detail.reps);
   }
 
-  const dayExercises = getExercisesForWorkoutDay(level, primaryDay.muscleGroups).slice(0, 6);
+  const ranked = (Object.keys(score) as FocusArea[])
+    .map((area) => ({ area, value: score[area] }))
+    .sort((a, b) => b.value - a.value);
 
-  return {
-    workoutName: `${plan.name} • ${primaryDay.label}`,
-    subtitle: `${plan.name} / ${primaryDay.label}`,
-    rows:
-      dayExercises.length > 0
-        ? dayExercises.map(toWorkoutRow)
-        : [
-            createFallbackRow(),
-            createFallbackRow({ exercise: 'Lat Pulldown', weight: 35 }),
-            createFallbackRow({ exercise: 'Shoulder Press', weight: 20 }),
-          ],
-  };
+  if (ranked[0]?.value > 0) {
+    return ranked[0].area;
+  }
+
+  const lower = workoutName.toLowerCase();
+
+  if (lower.includes('pull') || lower.includes('back') || lower.includes('row')) {
+    return 'back';
+  }
+
+  if (lower.includes('leg') || lower.includes('lower') || lower.includes('squat')) {
+    return 'legs';
+  }
+
+  if (
+    lower.includes('arm') ||
+    lower.includes('shoulder') ||
+    lower.includes('bicep') ||
+    lower.includes('tricep')
+  ) {
+    return 'arms';
+  }
+
+  return 'chest';
 }
 
 function SummaryCard({
@@ -131,97 +214,38 @@ function SummaryCard({
   accent?: string;
 }) {
   return (
-    <div className="rounded-[22px] border border-white/10 bg-white/[0.04] p-4">
-      <div className="mb-2 flex items-center gap-2 text-zinc-400">
-        <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-black/20">
-          {icon}
-        </div>
-        <span className="text-[10px] font-black uppercase tracking-[0.18em]">
-          {label}
-        </span>
+    <div className="rounded-[24px] border border-white/10 bg-white/[0.05] p-4 shadow-[0_12px_40px_rgba(0,0,0,0.2)] backdrop-blur">
+      <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.18em] text-white/55">
+        <span className={accent}>{icon}</span>
+        {label}
       </div>
-
-      <div className={`text-xl font-black text-white ${accent ?? ''}`}>{value}</div>
+      <div className="mt-3 text-2xl font-black text-white">{value}</div>
     </div>
   );
 }
 
 export default function WorkoutFlow({ onBack, onComplete }: WorkoutFlowProps) {
-  const initialDraft = useMemo(() => getWorkoutDraft(), []);
-  const preset = useMemo(() => buildPresetRows(), []);
+  const draft = getWorkoutDraft();
+  const parsedDraftRows = parseDraftRows(draft?.notes);
 
   const [workoutName, setWorkoutName] = useState(
-    initialDraft?.workoutName?.trim()
-      ? initialDraft.workoutName
-      : preset.workoutName
+    draft?.workoutName?.trim() || 'Push Session',
   );
+  const [rows, setRows] = useState<WorkoutRow[]>(
+    parsedDraftRows ?? [
+      createRow(),
+      createRow({ exercise: 'Incline Dumbbell Press', weight: 26 }),
+      createRow({ exercise: 'Shoulder Press', weight: 22 }),
+    ],
+  );
+  const [elapsedSeconds, setElapsedSeconds] = useState(() => {
+    if (!draft?.startedAt) return 0;
 
-  const [rows, setRows] = useState<WorkoutRow[]>(() => {
-    if (initialDraft?.notes) {
-      try {
-        const parsed = JSON.parse(initialDraft.notes) as WorkoutRow[];
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed.map((row) => ({
-            id: typeof row.id === 'string' ? row.id : createId(),
-            exercise: typeof row.exercise === 'string' ? row.exercise : 'Exercise',
-            sets: clampNumber(Number(row.sets), 1, 20),
-            reps: clampNumber(Number(row.reps), 1, 50),
-            weight: clampNumber(Number(row.weight), 0, 500),
-          }));
-        }
-      } catch {
-        // ignore broken draft
-      }
-    }
+    const startedAt = new Date(draft.startedAt).getTime();
+    if (!Number.isFinite(startedAt)) return 0;
 
-    return initialDraft?.isCustom
-      ? [
-          createFallbackRow(),
-          createFallbackRow({ exercise: 'Incline Dumbbell Press', weight: 24 }),
-          createFallbackRow({ exercise: 'Shoulder Press', weight: 20 }),
-        ]
-      : preset.rows;
+    return Math.max(0, Math.floor((Date.now() - startedAt) / 1000));
   });
-
-  const initialElapsed = useMemo(() => {
-    if (!initialDraft?.startedAt) return 0;
-
-    const started = new Date(initialDraft.startedAt).getTime();
-    if (!Number.isFinite(started)) return 0;
-
-    const seconds = Math.floor((Date.now() - started) / 1000);
-    return Math.max(0, seconds);
-  }, [initialDraft]);
-
-  const [elapsedSeconds, setElapsedSeconds] = useState(initialElapsed);
-
-  const exerciseOptions = useMemo(() => {
-    const names = new Set<string>();
-
-    preset.rows.forEach((row) => names.add(row.exercise));
-
-    rows.forEach((row) => {
-      if (row.exercise.trim()) names.add(row.exercise.trim());
-    });
-
-    [
-      'Bench Press',
-      'Incline Dumbbell Press',
-      'Lat Pulldown',
-      'Barbell Row',
-      'Shoulder Press',
-      'Lateral Raise',
-      'Biceps Curl',
-      'Triceps Pushdown',
-      'Squat',
-      'Leg Press',
-      'Romanian Deadlift',
-      'Plank',
-      'Cable Crunch',
-    ].forEach((name) => names.add(name));
-
-    return Array.from(names);
-  }, [preset.rows, rows]);
 
   useEffect(() => {
     const interval = window.setInterval(() => {
@@ -236,19 +260,28 @@ export default function WorkoutFlow({ onBack, onComplete }: WorkoutFlowProps) {
       startedAt: new Date(Date.now() - elapsedSeconds * 1000).toISOString(),
       workoutName,
       notes: JSON.stringify(rows),
-      planName: initialDraft?.planName ?? preset.subtitle,
-      dayLabel: initialDraft?.dayLabel,
-      isCustom: initialDraft?.isCustom ?? false,
     });
-  }, [elapsedSeconds, workoutName, rows, initialDraft, preset.subtitle]);
+  }, [elapsedSeconds, workoutName, rows]);
+
+  const details = useMemo<WorkoutExerciseDetail[]>(() => {
+    return rows
+      .filter((row) => row.exercise.trim() && row.sets > 0 && row.reps > 0)
+      .map((row) => ({
+        exercise: row.exercise.trim(),
+        sets: row.sets,
+        reps: row.reps,
+        weight: row.weight,
+        volume: row.sets * row.reps * row.weight,
+      }));
+  }, [rows]);
 
   const volume = useMemo(() => {
-    return rows.reduce((sum, row) => sum + row.sets * row.reps * row.weight, 0);
-  }, [rows]);
+    return details.reduce((sum, detail) => sum + detail.volume, 0);
+  }, [details]);
 
   const progressPercent = useMemo(() => {
     const completed = rows.filter(
-      (row) => row.exercise.trim() && row.sets > 0 && row.reps > 0
+      (row) => row.exercise.trim() && row.sets > 0 && row.reps > 0,
     ).length;
 
     return rows.length === 0
@@ -260,12 +293,12 @@ export default function WorkoutFlow({ onBack, onComplete }: WorkoutFlowProps) {
 
   const updateRow = (id: string, patch: Partial<WorkoutRow>) => {
     setRows((current) =>
-      current.map((row) => (row.id === id ? { ...row, ...patch } : row))
+      current.map((row) => (row.id === id ? { ...row, ...patch } : row)),
     );
   };
 
   const addRow = () => {
-    setRows((current) => [...current, createFallbackRow({ exercise: 'Bench Press' })]);
+    setRows((current) => [...current, createRow()]);
   };
 
   const removeRow = (id: string) => {
@@ -276,58 +309,70 @@ export default function WorkoutFlow({ onBack, onComplete }: WorkoutFlowProps) {
   };
 
   const handleComplete = () => {
-    const cleanedRows = rows.filter(
-      (row) => row.exercise.trim() && row.sets > 0 && row.reps > 0
-    );
-
-    const cleanedVolume = cleanedRows.reduce(
-      (sum, row) => sum + row.sets * row.reps * row.weight,
-      0
-    );
+    const cleanedDetails = details;
+    const cleanedVolume = cleanedDetails.reduce((sum, detail) => sum + detail.volume, 0);
+    const focusArea = inferFocusArea(workoutName.trim(), cleanedDetails);
 
     clearWorkoutDraft();
 
     onComplete({
       workoutName: workoutName.trim() || 'Workout',
       durationMinutes,
-      exercisesCompleted: cleanedRows.length,
+      exercisesCompleted: cleanedDetails.length,
       volume: cleanedVolume,
+      focusArea,
+      details: cleanedDetails,
     });
   };
 
   return (
-    <div className="min-h-[100dvh] bg-[linear-gradient(180deg,#060606_0%,#0d0d0d_100%)] px-4 pb-8 pt-6 text-white">
-      <div className="mx-auto max-w-md">
-        <button
-          type="button"
-          onClick={onBack}
-          className="mb-4 inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-4 text-[11px] font-black uppercase tracking-[0.18em] text-white transition hover:border-white/20 hover:bg-white/[0.08] active:scale-[0.98]"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back
-        </button>
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(132,204,22,0.12),transparent_32%),linear-gradient(180deg,#0b0b0d_0%,#111214_100%)] px-4 pb-10 pt-5 text-white">
+      <div className="mx-auto max-w-3xl">
+        <div className="flex items-center justify-between">
+          <button
+            onClick={onBack}
+            className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-bold text-white/85 transition hover:bg-white/[0.08]"
+            type="button"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back
+          </button>
 
-        <div className="rounded-[30px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.03))] p-5 shadow-[0_24px_70px_rgba(0,0,0,0.35)]">
-          <div className="text-[10px] font-black uppercase tracking-[0.22em] text-zinc-500">
-            Workout live
+          <div className="rounded-full border border-lime-400/20 bg-lime-400/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.24em] text-lime-300">
+            Workout Live
+          </div>
+        </div>
+
+        <div className="mt-6 rounded-[32px] border border-white/10 bg-white/[0.04] p-6 shadow-[0_20px_80px_rgba(0,0,0,0.35)] backdrop-blur">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <div className="text-[11px] font-black uppercase tracking-[0.2em] text-white/50">
+                Train clean. Level up.
+              </div>
+              <h1 className="mt-2 text-3xl font-black leading-none sm:text-4xl">
+                Workout Flow
+              </h1>
+              <p className="mt-3 max-w-xl text-sm text-white/65">
+                Fast workout logging with a heavy premium feel. Real data in, real
+                progression out.
+              </p>
+            </div>
+
+            <div className="hidden rounded-[24px] border border-white/10 bg-black/20 px-4 py-3 sm:block">
+              <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.18em] text-white/50">
+                <Timer className="h-4 w-4 text-lime-300" />
+                Duration
+              </div>
+              <div className="mt-2 text-xl font-black">{formatMinutes(elapsedSeconds)}</div>
+            </div>
           </div>
 
-          <h1 className="mt-2 text-3xl font-black uppercase tracking-[0.02em] text-white">
-            {initialDraft?.isCustom ? 'Custom Session' : 'Preset Session'}
-          </h1>
-
-          <p className="mt-2 text-sm text-zinc-400">
-            {initialDraft?.isCustom
-              ? 'Build it your way. Fast input, heavy feel.'
-              : `Loaded from ${initialDraft?.planName ?? preset.subtitle}.`}
-          </p>
-
-          <div className="mt-5 grid grid-cols-3 gap-3">
+          <div className="mt-6 grid gap-3 sm:grid-cols-3">
             <SummaryCard
               icon={<Check className="h-4 w-4" />}
               label="Progress"
               value={`${progressPercent}%`}
-              accent="text-lime-300"
+              accent="text-emerald-300"
             />
             <SummaryCard
               icon={<Dumbbell className="h-4 w-4" />}
@@ -335,62 +380,59 @@ export default function WorkoutFlow({ onBack, onComplete }: WorkoutFlowProps) {
               value={rows.length}
             />
             <SummaryCard
-              icon={<Timer className="h-4 w-4" />}
-              label="Duration"
-              value={formatMinutes(elapsedSeconds)}
+              icon={<Flame className="h-4 w-4" />}
+              label="Volume"
+              value={`${volume} kg`}
+              accent="text-amber-300"
             />
           </div>
 
-          <div className="mt-5">
-            <label className="text-[10px] font-black uppercase tracking-[0.18em] text-zinc-500">
+          <div className="mt-6">
+            <label className="text-[11px] font-black uppercase tracking-[0.18em] text-white/50">
               Workout name
             </label>
             <input
               value={workoutName}
               onChange={(e) => setWorkoutName(e.target.value)}
-              className="mt-2 w-full rounded-2xl border border-white/10 bg-zinc-900 px-4 py-3 text-white outline-none transition focus:border-lime-400"
-              placeholder="Workout name"
+              className="mt-2 w-full rounded-2xl border border-white/10 bg-zinc-900 px-4 py-3 text-white outline-none transition focus:border-emerald-400"
+              placeholder="Push Session"
             />
           </div>
-        </div>
 
-        <div className="mt-4 space-y-3">
-          {rows.map((row, index) => (
-            <div
-              key={row.id}
-              className="rounded-[26px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.025))] p-4"
-            >
-              <div className="mb-4 flex items-center justify-between">
-                <div>
-                  <div className="text-[10px] font-black uppercase tracking-[0.18em] text-zinc-500">
-                    Exercise {index + 1}
+          <div className="mt-6 space-y-4">
+            {rows.map((row, index) => (
+              <div
+                key={row.id}
+                className="rounded-[28px] border border-white/10 bg-black/20 p-4 shadow-[0_14px_40px_rgba(0,0,0,0.22)]"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-[11px] font-black uppercase tracking-[0.18em] text-white/45">
+                      Exercise {index + 1}
+                    </div>
+                    <div className="mt-1 text-lg font-bold text-white">Log your work</div>
                   </div>
-                  <div className="mt-1 text-sm font-semibold text-white/70">
-                    Log your work
-                  </div>
+
+                  <button
+                    onClick={() => removeRow(row.id)}
+                    className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-zinc-300 transition hover:bg-white/[0.08]"
+                    aria-label="Remove exercise"
+                    type="button"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
                 </div>
 
-                <button
-                  onClick={() => removeRow(row.id)}
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-zinc-300 transition hover:bg-white/[0.08]"
-                  aria-label="Remove exercise"
-                  type="button"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </div>
-
-              <div className="grid gap-3">
-                <div>
-                  <label className="text-[10px] font-black uppercase tracking-[0.16em] text-zinc-500">
+                <div className="mt-4">
+                  <label className="text-[11px] font-black uppercase tracking-[0.16em] text-white/45">
                     Exercise
                   </label>
                   <select
                     value={row.exercise}
                     onChange={(e) => updateRow(row.id, { exercise: e.target.value })}
-                    className="mt-2 w-full rounded-2xl border border-white/10 bg-zinc-900 px-4 py-3 text-white outline-none transition focus:border-lime-400"
+                    className="mt-2 w-full rounded-2xl border border-white/10 bg-zinc-900 px-4 py-3 text-white outline-none transition focus:border-emerald-400"
                   >
-                    {exerciseOptions.map((option) => (
+                    {EXERCISE_OPTIONS.map((option) => (
                       <option key={option} value={option}>
                         {option}
                       </option>
@@ -398,93 +440,118 @@ export default function WorkoutFlow({ onBack, onComplete }: WorkoutFlowProps) {
                   </select>
                 </div>
 
-                <div className="grid grid-cols-3 gap-3">
+                <div className="mt-4 grid gap-3 sm:grid-cols-3">
                   <div>
-                    <label className="text-[10px] font-black uppercase tracking-[0.16em] text-zinc-500">
+                    <label className="text-[11px] font-black uppercase tracking-[0.16em] text-white/45">
                       Sets
                     </label>
                     <input
                       type="number"
+                      min={1}
+                      max={20}
                       value={row.sets}
                       onChange={(e) =>
                         updateRow(row.id, {
                           sets: clampNumber(Number(e.target.value), 1, 20),
                         })
                       }
-                      className="mt-2 w-full rounded-2xl border border-white/10 bg-zinc-900 px-4 py-3 text-white outline-none transition focus:border-lime-400"
+                      className="mt-2 w-full rounded-2xl border border-white/10 bg-zinc-900 px-4 py-3 text-white outline-none transition focus:border-emerald-400"
                     />
                   </div>
 
                   <div>
-                    <label className="text-[10px] font-black uppercase tracking-[0.16em] text-zinc-500">
+                    <label className="text-[11px] font-black uppercase tracking-[0.16em] text-white/45">
                       Reps
                     </label>
                     <input
                       type="number"
+                      min={1}
+                      max={50}
                       value={row.reps}
                       onChange={(e) =>
                         updateRow(row.id, {
                           reps: clampNumber(Number(e.target.value), 1, 50),
                         })
                       }
-                      className="mt-2 w-full rounded-2xl border border-white/10 bg-zinc-900 px-4 py-3 text-white outline-none transition focus:border-lime-400"
+                      className="mt-2 w-full rounded-2xl border border-white/10 bg-zinc-900 px-4 py-3 text-white outline-none transition focus:border-emerald-400"
                     />
                   </div>
 
                   <div>
-                    <label className="text-[10px] font-black uppercase tracking-[0.16em] text-zinc-500">
+                    <label className="text-[11px] font-black uppercase tracking-[0.16em] text-white/45">
                       Weight
                     </label>
                     <input
                       type="number"
+                      min={0}
+                      max={500}
                       value={row.weight}
                       onChange={(e) =>
                         updateRow(row.id, {
                           weight: clampNumber(Number(e.target.value), 0, 500),
                         })
                       }
-                      className="mt-2 w-full rounded-2xl border border-white/10 bg-zinc-900 px-4 py-3 text-white outline-none transition focus:border-lime-400"
+                      className="mt-2 w-full rounded-2xl border border-white/10 bg-zinc-900 px-4 py-3 text-white outline-none transition focus:border-emerald-400"
                     />
                   </div>
                 </div>
+
+                <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white/70">
+                  Current exercise volume:{' '}
+                  <span className="font-bold text-white">
+                    {row.sets * row.reps * row.weight} kg
+                  </span>
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
-
-        <button
-          type="button"
-          onClick={addRow}
-          className="mt-4 flex h-14 w-full items-center justify-center gap-2 rounded-[22px] border border-white/10 bg-white/[0.05] text-[11px] font-black uppercase tracking-[0.18em] text-white transition hover:border-white/20 hover:bg-white/[0.08] active:scale-[0.99]"
-        >
-          <Plus className="h-4 w-4" />
-          Add exercise
-        </button>
-
-        <div className="mt-4 rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.025))] p-5">
-          <div className="mb-4 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">
-            Session summary
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <SummaryCard
-              icon={<Flame className="h-4 w-4" />}
-              label="Estimated volume"
-              value={`${volume} kg`}
-            />
-            <SummaryCard
-              icon={<Timer className="h-4 w-4" />}
-              label="Duration"
-              value={`${durationMinutes} min`}
-            />
+            ))}
           </div>
 
           <button
+            onClick={addRow}
+            className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-[22px] border border-dashed border-white/15 bg-white/[0.03] px-4 py-4 text-sm font-black uppercase tracking-[0.16em] text-white/80 transition hover:border-white/25 hover:bg-white/[0.06]"
             type="button"
-            onClick={handleComplete}
-            className="mt-4 flex h-16 w-full items-center justify-center gap-2 rounded-[24px] border border-lime-400/25 bg-[linear-gradient(180deg,rgba(124,255,107,0.22),rgba(124,255,107,0.12))] text-sm font-black uppercase tracking-[0.18em] text-white transition hover:border-lime-300/45 hover:bg-[linear-gradient(180deg,rgba(124,255,107,0.3),rgba(124,255,107,0.16))] active:scale-[0.99]"
           >
-            <Check className="h-4 w-4" />
+            <Plus className="h-4 w-4" />
+            Add exercise
+          </button>
+
+          <div className="mt-6 rounded-[28px] border border-lime-400/10 bg-lime-400/[0.04] p-5">
+            <div className="text-[11px] font-black uppercase tracking-[0.18em] text-lime-300/80">
+              Session summary
+            </div>
+
+            <div className="mt-4 grid gap-4 sm:grid-cols-3">
+              <div>
+                <div className="text-xs uppercase tracking-[0.16em] text-white/45">
+                  Estimated volume
+                </div>
+                <div className="mt-1 text-2xl font-black text-white">{volume} kg</div>
+              </div>
+
+              <div>
+                <div className="text-xs uppercase tracking-[0.16em] text-white/45">
+                  Duration
+                </div>
+                <div className="mt-1 text-2xl font-black text-white">
+                  {durationMinutes} min
+                </div>
+              </div>
+
+              <div>
+                <div className="text-xs uppercase tracking-[0.16em] text-white/45">
+                  Logged exercises
+                </div>
+                <div className="mt-1 text-2xl font-black text-white">{details.length}</div>
+              </div>
+            </div>
+          </div>
+
+          <button
+            onClick={handleComplete}
+            className="mt-6 inline-flex min-h-[58px] w-full items-center justify-center gap-2 rounded-[24px] bg-lime-400 px-5 py-4 text-sm font-black uppercase tracking-[0.16em] text-black transition hover:brightness-105 active:scale-[0.995]"
+            type="button"
+          >
+            <Check className="h-5 w-5" />
             Finish workout
           </button>
         </div>

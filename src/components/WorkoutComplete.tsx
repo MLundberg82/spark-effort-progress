@@ -1,9 +1,23 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { ArrowRight, Crown, Dumbbell, Flame, Sparkles, Trophy, Zap } from 'lucide-react';
-import { getCurrentLevelXP, getLevelFromXP, getNextLevelXP } from '@/lib/gamificationStore';
-import { getProfile } from '@/lib/profileStore';
-import { getRatImageForLevel } from '@/lib/assetRegistry';
-import { t, useAppLanguage } from '@/lib/languageStore';
+import {
+  ArrowRight,
+  ChevronRight,
+  Dumbbell,
+  Flame,
+  Sparkles,
+  Trophy,
+  Zap,
+} from 'lucide-react';
+
+type FocusArea = 'chest' | 'back' | 'arms' | 'legs';
+
+type WorkoutExerciseDetail = {
+  exercise: string;
+  sets: number;
+  reps: number;
+  weight: number;
+  volume: number;
+};
 
 type WorkoutCompleteSummary = {
   workoutName: string;
@@ -11,6 +25,8 @@ type WorkoutCompleteSummary = {
   exercisesCompleted: number;
   volume: number;
   earnedXP: number;
+  focusArea?: FocusArea;
+  details?: WorkoutExerciseDetail[];
 };
 
 type WorkoutCompleteProps = {
@@ -19,19 +35,26 @@ type WorkoutCompleteProps = {
   onOpenPaywall: () => void;
 };
 
+const XP_PER_LEVEL = 250;
+
 function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
 }
 
-function formatMinutes(minutes: number, language: string) {
+function getLevelFromXP(xp: number) {
+  return Math.floor(Math.max(0, xp) / XP_PER_LEVEL) + 1;
+}
+
+function getLevelProgressXP(xp: number) {
+  const level = getLevelFromXP(xp);
+  const levelStart = (level - 1) * XP_PER_LEVEL;
+  return Math.max(0, xp - levelStart);
+}
+
+function formatMinutes(minutes: number) {
   if (minutes < 60) return `${minutes} min`;
   const hours = Math.floor(minutes / 60);
   const mins = minutes % 60;
-
-  if (language === 'sv') {
-    return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
-  }
-
   return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
 }
 
@@ -39,6 +62,78 @@ function vibrate(pattern: number | number[]) {
   if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
     navigator.vibrate(pattern);
   }
+}
+
+function getFocusLabel(focusArea?: FocusArea) {
+  if (focusArea === 'back') return 'Back';
+  if (focusArea === 'arms') return 'Arms';
+  if (focusArea === 'legs') return 'Legs';
+  return 'Chest';
+}
+
+function getRatStage(level: number) {
+  if (level >= 80) {
+    return {
+      title: 'Mythic Rat',
+      body:
+        'Your rat looks fully awakened now. The aura is heavy, dominant and impossible to ignore.',
+      glow:
+        'shadow-[0_0_80px_rgba(163,230,53,0.28),0_0_120px_rgba(250,204,21,0.18)]',
+      ring:
+        'from-yellow-300/30 via-lime-300/12 to-transparent',
+      ratScale: 'scale-[1.08]',
+    };
+  }
+
+  if (level >= 50) {
+    return {
+      title: 'Elite Rat',
+      body:
+        'This is no beginner energy anymore. The rat is visibly sharper, bigger and more dangerous.',
+      glow:
+        'shadow-[0_0_70px_rgba(163,230,53,0.24),0_0_110px_rgba(56,189,248,0.14)]',
+      ring:
+        'from-lime-300/28 via-emerald-300/10 to-transparent',
+      ratScale: 'scale-[1.05]',
+    };
+  }
+
+  if (level >= 25) {
+    return {
+      title: 'Alpha Rat',
+      body:
+        'Momentum is real now. The rat has crossed into a stronger identity and it shows.',
+      glow:
+        'shadow-[0_0_60px_rgba(163,230,53,0.2),0_0_90px_rgba(217,70,239,0.12)]',
+      ring:
+        'from-fuchsia-300/22 via-lime-300/10 to-transparent',
+      ratScale: 'scale-[1.02]',
+    };
+  }
+
+  if (level >= 10) {
+    return {
+      title: 'Grind Rat',
+      body:
+        'You are building visible form. The rat is no longer basic — it has weight and intent.',
+      glow:
+        'shadow-[0_0_48px_rgba(163,230,53,0.18),0_0_70px_rgba(251,146,60,0.12)]',
+      ring:
+        'from-orange-300/20 via-lime-300/10 to-transparent',
+      ratScale: 'scale-100',
+    };
+  }
+
+  return {
+    title: 'Base Rat',
+    body:
+      'You are stacking the first real layers. The identity is forming and the rat is waking up.',
+    glow:
+      'shadow-[0_0_38px_rgba(163,230,53,0.15),0_0_55px_rgba(255,255,255,0.08)]',
+    ring:
+      'from-white/14 via-lime-300/8 to-transparent',
+    ratScale: 'scale-[0.98]',
+  };
 }
 
 function StatTile({
@@ -53,92 +148,85 @@ function StatTile({
   accentClass?: string;
 }) {
   return (
-    <div className="rounded-[22px] border border-white/10 bg-white/5 p-4">
-      <div className="mb-3 flex items-center gap-2 text-white/45">
-        <div className="flex h-9 w-9 items-center justify-center rounded-2xl border border-white/10 bg-black/20">
-          {icon}
-        </div>
-        <div className="text-[10px] font-black uppercase tracking-[0.18em]">
-          {label}
-        </div>
+    <div className="rounded-[24px] border border-white/10 bg-white/[0.045] p-4 shadow-[0_14px_36px_rgba(0,0,0,0.24)]">
+      <div className={`flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.18em] text-white/45 ${accentClass}`}>
+        {icon}
+        {label}
       </div>
-
-      <div className={`text-2xl font-black uppercase tracking-[0.02em] text-white ${accentClass}`}>
-        {value}
-      </div>
+      <div className="mt-3 text-2xl font-black text-white">{value}</div>
     </div>
   );
 }
 
-function ExplosionFx({ active }: { active: boolean }) {
-  if (!active) return null;
-
+function MiniExerciseRow({ detail }: { detail: WorkoutExerciseDetail }) {
   return (
-    <>
-      <div className="pointer-events-none absolute inset-0 z-20 bg-[radial-gradient(circle_at_center,rgba(255,245,200,0.22),rgba(255,140,0,0.16)_18%,rgba(255,80,0,0.12)_30%,transparent_58%)] animate-pulse" />
-      <div className="pointer-events-none absolute inset-0 z-20 bg-[radial-gradient(circle_at_center,rgba(255,180,50,0.35),transparent_22%)] blur-xl animate-ping" />
-      <div className="pointer-events-none absolute inset-x-0 bottom-[18%] z-20 h-44 bg-[radial-gradient(circle_at_center,rgba(255,90,0,0.28),rgba(255,40,0,0.18)_28%,rgba(90,90,90,0.22)_45%,transparent_72%)] blur-2xl" />
-      <div className="pointer-events-none absolute inset-x-0 bottom-[16%] z-20 h-40 bg-[radial-gradient(circle_at_center,rgba(80,80,80,0.35),rgba(50,50,50,0.22)_40%,transparent_70%)] blur-3xl" />
-      <div className="pointer-events-none absolute inset-0 z-20 opacity-95">
-        <div className="absolute left-[50%] top-[32%] text-6xl animate-ping">💥</div>
-        <div className="absolute left-[38%] top-[29%] text-4xl">🔥</div>
-        <div className="absolute left-[58%] top-[28%] text-4xl">🔥</div>
-        <div className="absolute left-[34%] top-[40%] text-3xl">⚡</div>
-        <div className="absolute left-[63%] top-[38%] text-3xl">⚡</div>
+    <div className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
+      <div className="min-w-0">
+        <div className="truncate text-sm font-bold text-white">{detail.exercise}</div>
+        <div className="mt-1 text-xs text-white/45">
+          {detail.sets} sets · {detail.reps} reps · {detail.weight} kg
+        </div>
       </div>
-    </>
+      <div className="shrink-0 text-sm font-black text-lime-300">{detail.volume} kg</div>
+    </div>
   );
 }
 
-function RatTransition({
-  fromLevel,
-  toLevel,
-  active,
-  variant,
-  language,
+function RatVisual({
+  level,
+  isEvolving,
+  stageTitle,
 }: {
-  fromLevel: number;
-  toLevel: number;
-  active: boolean;
-  variant: 'male' | 'female' | 'non-binary';
-  language: string;
+  level: number;
+  isEvolving: boolean;
+  stageTitle: string;
 }) {
-  const fromRat = getRatImageForLevel(fromLevel, variant);
-  const toRat = getRatImageForLevel(toLevel, variant);
-
-  if (!fromRat && !toRat) return null;
+  const stage = getRatStage(level);
 
   return (
-    <div className="relative mx-auto mt-5 h-[250px] w-full max-w-[280px]">
-      {fromRat ? (
-        <img
-          src={fromRat}
-          alt="Previous form"
-          className={`absolute inset-0 h-full w-full object-contain transition-all duration-700 ${
-            active ? 'scale-[0.88] opacity-0 blur-md' : 'scale-100 opacity-100'
-          }`}
-          draggable={false}
-        />
-      ) : null}
+    <div className="relative mx-auto flex h-[320px] w-full max-w-[360px] items-center justify-center overflow-hidden">
+      <div
+        className={`absolute inset-0 rounded-full bg-[radial-gradient(circle_at_center,rgba(163,230,53,0.18),transparent_58%)] blur-2xl transition-all duration-500 ${
+          isEvolving ? 'scale-125 opacity-100' : 'scale-100 opacity-70'
+        }`}
+      />
+      <div
+        className={`absolute inset-[14%] rounded-full bg-gradient-to-br ${stage.ring} blur-xl transition-all duration-500 ${
+          isEvolving ? 'scale-125 opacity-100' : 'scale-100 opacity-80'
+        }`}
+      />
+      <div
+        className={`absolute inset-[18%] rounded-full border border-lime-300/15 bg-white/[0.03] ${stage.glow} transition-all duration-500 ${
+          isEvolving ? 'scale-[1.08] opacity-100' : 'scale-100 opacity-90'
+        }`}
+      />
 
-      {toRat ? (
-        <img
-          src={toRat}
-          alt="New form"
-          className={`absolute inset-0 h-full w-full object-contain drop-shadow-[0_20px_50px_rgba(0,0,0,0.55)] transition-all duration-700 ${
-            active ? 'scale-100 opacity-100' : 'scale-[1.12] opacity-0 blur-sm'
-          }`}
-          draggable={false}
-        />
-      ) : null}
+      <div
+        className={`relative z-10 flex h-[210px] w-[210px] items-center justify-center rounded-full border border-white/10 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.08),rgba(255,255,255,0.02)_55%,rgba(0,0,0,0.16))] transition-all duration-500 ${stage.ratScale} ${
+          isEvolving ? 'rotate-1 scale-[1.08]' : ''
+        }`}
+      >
+        <div className="absolute inset-0 rounded-full bg-[radial-gradient(circle_at_30%_25%,rgba(255,255,255,0.12),transparent_22%)]" />
 
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 mx-auto w-[72%] rounded-full bg-[radial-gradient(circle_at_center,rgba(124,255,107,0.28),transparent_70%)] py-8 blur-2xl" />
+        <div className="relative flex flex-col items-center">
+          <div className="mb-2 text-[10px] font-black uppercase tracking-[0.24em] text-white/35">
+            {stageTitle}
+          </div>
 
-      {active ? (
-        <div className="absolute left-1/2 top-2 -translate-x-1/2 rounded-full border border-lime-400/25 bg-lime-400/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-lime-300">
-          {t('workoutComplete.newForm', language)}
+          <div
+            className={`relative text-[110px] leading-none transition-all duration-500 ${
+              isEvolving ? 'scale-110 drop-shadow-[0_0_28px_rgba(163,230,53,0.35)]' : 'scale-100'
+            }`}
+          >
+            🐀
+          </div>
+
+          <div className="mt-2 flex items-center gap-2 rounded-full border border-white/10 bg-black/20 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-white/55">
+            <Zap className="h-3.5 w-3.5 text-lime-300" />
+            Level {level}
+          </div>
         </div>
-      ) : null}
+      </div>
     </div>
   );
 }
@@ -148,16 +236,18 @@ export default function WorkoutComplete({
   onContinue,
   onOpenPaywall,
 }: WorkoutCompleteProps) {
-  const language = useAppLanguage();
-
   const currentTotalXP = useMemo(() => {
     if (typeof window === 'undefined') return summary.earnedXP;
 
     try {
-      const raw = localStorage.getItem('gymrat-gamification');
+      const raw = localStorage.getItem('gymrat-app-store');
       if (!raw) return summary.earnedXP;
-      const parsed = JSON.parse(raw) as { totalXP?: number };
-      return typeof parsed.totalXP === 'number' ? parsed.totalXP : summary.earnedXP;
+
+      const parsed = JSON.parse(raw) as { xp?: number; totalXP?: number };
+      if (typeof parsed.totalXP === 'number') return parsed.totalXP;
+      if (typeof parsed.xp === 'number') return parsed.xp;
+
+      return summary.earnedXP;
     } catch {
       return summary.earnedXP;
     }
@@ -168,21 +258,13 @@ export default function WorkoutComplete({
   const finalLevel = getLevelFromXP(currentTotalXP);
   const levelsGained = Math.max(0, finalLevel - startLevel);
 
-  const profile = getProfile();
-  const variant =
-    profile?.gender === 'female'
-      ? 'female'
-      : profile?.gender === 'non-binary'
-        ? 'non-binary'
-        : 'male';
-
   const [displayXP, setDisplayXP] = useState(previousTotalXP);
   const [displayLevel, setDisplayLevel] = useState(startLevel);
   const [levelFlash, setLevelFlash] = useState(false);
   const [showExplosion, setShowExplosion] = useState(false);
   const [showLevelUpText, setShowLevelUpText] = useState(false);
   const [animationDone, setAnimationDone] = useState(false);
-  const [ratTransitionActive, setRatTransitionActive] = useState(false);
+  const [ratMorphPhase, setRatMorphPhase] = useState<'idle' | 'old' | 'burst' | 'new'>('idle');
 
   const previousLevelRef = useRef(startLevel);
 
@@ -196,10 +278,10 @@ export default function WorkoutComplete({
     setShowExplosion(false);
     setShowLevelUpText(false);
     setLevelFlash(false);
-    setRatTransitionActive(false);
+    setRatMorphPhase('old');
     previousLevelRef.current = startLevel;
 
-    const duration = 2400;
+    const duration = 2200;
 
     const step = (timestamp: number) => {
       if (!startTime) startTime = timestamp;
@@ -222,12 +304,12 @@ export default function WorkoutComplete({
         setLevelFlash(true);
         setShowExplosion(true);
         setShowLevelUpText(true);
-        setRatTransitionActive(true);
-        vibrate([120, 40, 160, 40, 220]);
+        setRatMorphPhase('burst');
+        vibrate([90, 40, 150, 40, 210]);
 
-        window.setTimeout(() => setLevelFlash(false), 500);
-        window.setTimeout(() => setShowExplosion(false), 1150);
-        window.setTimeout(() => setRatTransitionActive(false), 1100);
+        window.setTimeout(() => setLevelFlash(false), 420);
+        window.setTimeout(() => setShowExplosion(false), 1000);
+        window.setTimeout(() => setRatMorphPhase('new'), 240);
       } else {
         setDisplayLevel(nextLevel);
       }
@@ -238,7 +320,8 @@ export default function WorkoutComplete({
         setDisplayXP(currentTotalXP);
         setDisplayLevel(finalLevel);
         setAnimationDone(true);
-        vibrate(70);
+        setRatMorphPhase(finalLevel > startLevel ? 'new' : 'idle');
+        vibrate(60);
       }
     };
 
@@ -247,185 +330,229 @@ export default function WorkoutComplete({
     return () => cancelAnimationFrame(raf);
   }, [currentTotalXP, finalLevel, previousTotalXP, startLevel]);
 
-  const currentLevelXP = getCurrentLevelXP(displayXP);
-  const nextLevelXP = Math.max(1, getNextLevelXP(displayXP));
-  const progressPercent = clamp((currentLevelXP / nextLevelXP) * 100, 0, 100);
+  const currentLevelXP = getLevelProgressXP(displayXP);
+  const progressPercent = clamp((currentLevelXP / XP_PER_LEVEL) * 100, 0, 100);
   const coinsEarned = Math.max(10, Math.floor(summary.earnedXP / 5));
+  const topDetails = (summary.details ?? []).slice(0, 4);
+  const stage = getRatStage(displayLevel);
 
   return (
-    <div className="relative min-h-[100dvh] overflow-hidden bg-black text-white">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.05),transparent_32%)]" />
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_38%,rgba(132,255,88,0.08),transparent_22%)]" />
-      <div className="absolute inset-0 bg-[linear-gradient(to_bottom,rgba(0,0,0,0.04),rgba(0,0,0,0.45)_45%,rgba(0,0,0,0.88))]" />
+    <div className="min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top,rgba(132,204,22,0.16),transparent_28%),linear-gradient(180deg,#060606_0%,#111214_58%,#0b0b0d_100%)] px-4 pb-10 pt-5 text-white">
+      <div className="mx-auto max-w-4xl">
+        <div className="relative overflow-hidden rounded-[36px] border border-white/10 bg-white/[0.045] p-6 shadow-[0_30px_110px_rgba(0,0,0,0.4)] backdrop-blur">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.06),transparent_34%)]" />
 
-      <ExplosionFx active={showExplosion} />
+          {showExplosion ? (
+            <>
+              <div className="pointer-events-none absolute left-1/2 top-[18%] z-20 -translate-x-1/2 text-6xl opacity-90 animate-ping">
+                ✦
+              </div>
+              <div className="pointer-events-none absolute left-[18%] top-[26%] z-20 text-3xl text-amber-300 animate-pulse">
+                ⚡
+              </div>
+              <div className="pointer-events-none absolute right-[16%] top-[24%] z-20 text-4xl text-orange-300 animate-pulse">
+                ✦
+              </div>
+              <div className="pointer-events-none absolute left-[26%] top-[42%] z-20 text-3xl text-lime-300 animate-ping">
+                ✧
+              </div>
+              <div className="pointer-events-none absolute right-[22%] top-[46%] z-20 text-3xl text-yellow-300 animate-ping">
+                ✦
+              </div>
+              <div className="pointer-events-none absolute inset-x-[20%] top-[34%] z-10 h-28 rounded-full bg-[radial-gradient(circle_at_center,rgba(251,191,36,0.30),rgba(163,230,53,0.16),transparent_68%)] blur-2xl" />
+            </>
+          ) : null}
 
-      <div className="relative z-10 mx-auto flex min-h-[100dvh] w-full max-w-md flex-col px-4 pb-6 pt-6">
-        <div className="mb-3 text-[10px] font-black uppercase tracking-[0.22em] text-white/45">
-          {t('workoutComplete.complete', language)}
-        </div>
-
-        {showLevelUpText && levelsGained > 0 ? (
-          <div className="mb-2 inline-flex self-start rounded-full border border-lime-400/25 bg-lime-400/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-lime-300">
-            {t('workoutComplete.levelUp', language)}
-          </div>
-        ) : null}
-
-        <h1 className="text-4xl font-black uppercase leading-none tracking-[0.02em] text-white">
-          {t('workoutComplete.titleA', language)}
-          <br />
-          {t('workoutComplete.titleB', language)}
-        </h1>
-
-        <p className="mt-3 max-w-[32ch] text-sm text-white/55">
-          {summary.workoutName}. {t('workoutComplete.doneText', language)}
-        </p>
-
-        <RatTransition
-          fromLevel={startLevel}
-          toLevel={finalLevel}
-          active={ratTransitionActive || levelsGained > 0}
-          variant={variant}
-          language={language}
-        />
-
-        <div
-          className={[
-            'relative mt-4 rounded-[32px] border p-5 transition-all duration-200',
-            levelFlash
-              ? 'border-lime-300/35 bg-[linear-gradient(180deg,rgba(132,255,88,0.14),rgba(255,255,255,0.05))] shadow-[0_0_50px_rgba(132,255,88,0.12)]'
-              : 'border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.03))]',
-          ].join(' ')}
-        >
-          <div className="mb-4 flex items-center justify-between">
+          <div className="relative z-10 grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
             <div>
-              <div className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40">
-                {t('workoutComplete.xpEarned', language)}
+              <div className="inline-flex items-center gap-2 rounded-full border border-lime-300/15 bg-lime-300/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.22em] text-lime-300">
+                <Sparkles className="h-3.5 w-3.5" />
+                Workout complete
               </div>
-              <div className="mt-1 text-3xl font-black uppercase text-lime-300">
-                +{summary.earnedXP} XP
-              </div>
-            </div>
 
-            <div
-              className={[
-                'flex h-20 w-20 items-center justify-center rounded-full border text-center transition-all duration-200',
-                levelFlash
-                  ? 'scale-[1.08] border-lime-300/35 bg-lime-400/10 shadow-[0_0_45px_rgba(132,255,88,0.22)]'
-                  : 'border-white/10 bg-white/5',
-              ].join(' ')}
-            >
-              <div>
-                <div className="text-[9px] font-black uppercase tracking-[0.18em] text-white/40">
-                  {t('workoutComplete.level', language)}
+              {showLevelUpText && levelsGained > 0 ? (
+                <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-amber-300/20 bg-amber-300/10 px-4 py-2 text-xs font-black uppercase tracking-[0.2em] text-amber-200 shadow-[0_0_30px_rgba(251,191,36,0.18)]">
+                  <Zap className="h-4 w-4" />
+                  Level Up
                 </div>
-                <div className="mt-1 text-2xl font-black text-white">
-                  {displayLevel}
+              ) : null}
+
+              <h1 className="mt-4 text-4xl font-black leading-none sm:text-5xl">
+                Session
+                <span className="ml-3 text-lime-300">Crushed</span>
+              </h1>
+
+              <p className="mt-4 max-w-xl text-sm leading-6 text-white/65">
+                {summary.workoutName} is done. Work converted into XP, progression and a stronger GymRat identity.
+              </p>
+
+              <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                <StatTile
+                  icon={<Zap className="h-4 w-4 text-lime-300" />}
+                  label="XP earned"
+                  value={`+${summary.earnedXP} XP`}
+                />
+                <StatTile
+                  icon={<Trophy className="h-4 w-4 text-amber-300" />}
+                  label="Level"
+                  value={displayLevel}
+                  accentClass={levelFlash ? 'text-amber-200' : ''}
+                />
+              </div>
+
+              <div className="mt-4 rounded-[28px] border border-white/10 bg-black/20 p-5">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                  <div>
+                    <div className="text-[11px] font-black uppercase tracking-[0.18em] text-white/45">
+                      XP progress
+                    </div>
+                    <div className="mt-2 text-2xl font-black text-white">
+                      {currentLevelXP}
+                      <span className="ml-2 text-base text-white/35">/ {XP_PER_LEVEL}</span>
+                    </div>
+                  </div>
+
+                  <div className="text-sm font-semibold text-white/55">
+                    Total XP <span className="text-white">{displayXP}</span>
+                  </div>
+                </div>
+
+                <div className="mt-4 h-4 overflow-hidden rounded-full border border-white/10 bg-white/10">
+                  <div
+                    className={`h-full rounded-full bg-[linear-gradient(90deg,rgba(132,204,22,1)_0%,rgba(250,204,21,1)_100%)] transition-all duration-200 ${
+                      levelFlash ? 'brightness-125 saturate-150' : ''
+                    }`}
+                    style={{ width: `${progressPercent}%` }}
+                  />
+                </div>
+
+                <div className="mt-3 text-sm text-white/55">
+                  {levelsGained > 0 ? (
+                    <>
+                      You went from level <span className="font-black text-white">{startLevel}</span> to{' '}
+                      <span className="font-black text-lime-300">{finalLevel}</span>.
+                    </>
+                  ) : (
+                    <>
+                      Level <span className="font-black text-white">{displayLevel}</span> progression updated.
+                    </>
+                  )}
+                </div>
+              </div>
+
+              <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <StatTile
+                  icon={<Dumbbell className="h-4 w-4" />}
+                  label="Exercises"
+                  value={summary.exercisesCompleted}
+                />
+                <StatTile
+                  icon={<Flame className="h-4 w-4" />}
+                  label="Duration"
+                  value={formatMinutes(summary.durationMinutes)}
+                />
+                <StatTile
+                  icon={<Trophy className="h-4 w-4" />}
+                  label="Volume"
+                  value={`${summary.volume} kg`}
+                />
+                <StatTile
+                  icon={<Sparkles className="h-4 w-4 text-amber-300" />}
+                  label="Coins"
+                  value={`+${coinsEarned}`}
+                  accentClass="text-amber-300"
+                />
+              </div>
+
+              <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+                <button
+                  onClick={onContinue}
+                  type="button"
+                  className="inline-flex min-h-[56px] flex-1 items-center justify-center gap-2 rounded-[24px] bg-lime-300 px-5 py-4 text-sm font-black uppercase tracking-[0.16em] text-black shadow-[0_18px_50px_rgba(163,230,53,0.18)] transition hover:brightness-105 active:scale-[0.995]"
+                >
+                  Back Home
+                  <ArrowRight className="h-4 w-4" />
+                </button>
+
+                <button
+                  onClick={onOpenPaywall}
+                  type="button"
+                  className="inline-flex min-h-[56px] flex-1 items-center justify-center gap-2 rounded-[24px] border border-white/10 bg-white/[0.05] px-5 py-4 text-sm font-black uppercase tracking-[0.16em] text-white transition hover:border-white/20 hover:bg-white/[0.08] active:scale-[0.995]"
+                >
+                  Premium boost
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+
+              {!animationDone ? (
+                <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-[11px] font-black uppercase tracking-[0.16em] text-white/55">
+                  <Sparkles className="h-3.5 w-3.5 text-lime-300 animate-pulse" />
+                  Animating progression…
+                </div>
+              ) : null}
+            </div>
+
+            <div>
+              <div className="rounded-[30px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.03))] p-5">
+                <div className="text-[11px] font-black uppercase tracking-[0.18em] text-white/45">
+                  Rat transition
+                </div>
+
+                <RatVisual
+                  level={displayLevel}
+                  isEvolving={ratMorphPhase === 'burst'}
+                  stageTitle={stage.title}
+                />
+
+                <div className="text-center">
+                  <div className="text-xl font-black text-white">{stage.title}</div>
+                  <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-white/58">
+                    {levelsGained > 0
+                      ? 'You triggered a real level shift. The rat evolves with your work, not fake taps.'
+                      : stage.body}
+                  </p>
+                </div>
+
+                <div className="mt-5 rounded-[24px] border border-white/10 bg-black/20 p-4">
+                  <div className="text-[11px] font-black uppercase tracking-[0.18em] text-white/45">
+                    Session focus
+                  </div>
+                  <div className="mt-2 text-2xl font-black text-lime-300">
+                    {getFocusLabel(summary.focusArea)}
+                  </div>
+                  <div className="mt-1 text-sm text-white/55">
+                    Progress hits harder when the app remembers what you actually trained.
+                  </div>
+                </div>
+
+                {topDetails.length > 0 ? (
+                  <div className="mt-4">
+                    <div className="mb-3 text-[11px] font-black uppercase tracking-[0.18em] text-white/45">
+                      Exercise breakdown
+                    </div>
+                    <div className="space-y-2">
+                      {topDetails.map((detail, index) => (
+                        <MiniExerciseRow
+                          key={`${detail.exercise}-${index}`}
+                          detail={detail}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+
+                <div className="mt-4 rounded-[24px] border border-lime-300/12 bg-lime-300/[0.06] p-4">
+                  <div className="text-[11px] font-black uppercase tracking-[0.18em] text-lime-300">
+                    Make progression hit harder
+                  </div>
+                  <p className="mt-2 text-sm leading-6 text-white/58">
+                    Stronger identity, cleaner flow and more dopamine in every session.
+                  </p>
                 </div>
               </div>
             </div>
-          </div>
-
-          {levelsGained > 0 ? (
-            <div className="mb-4 rounded-[20px] border border-lime-400/20 bg-lime-400/8 px-4 py-3 text-sm font-semibold text-lime-200">
-              {t('workoutComplete.levelFromTo', language, {
-                from: startLevel,
-                to: finalLevel,
-              })}
-            </div>
-          ) : (
-            <div className="mb-4 rounded-[20px] border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/65">
-              {t('workoutComplete.levelProgressUpdated', language, {
-                level: displayLevel,
-              })}
-            </div>
-          )}
-
-          <div className="mb-2 flex items-center justify-between text-[10px] font-black uppercase tracking-[0.18em] text-white/40">
-            <span>{t('workoutComplete.xpProgress', language)}</span>
-            <span>
-              {currentLevelXP} / {nextLevelXP}
-            </span>
-          </div>
-
-          <div className="h-4 overflow-hidden rounded-full bg-white/10">
-            <div
-              className={[
-                'h-full rounded-full transition-all duration-150',
-                levelFlash
-                  ? 'bg-[linear-gradient(90deg,#ffd37a_0%,#ff7b39_30%,#ff3d2e_55%,#ffffff_100%)]'
-                  : 'bg-[linear-gradient(90deg,#d4af37_0%,#ffe58f_30%,#7cff6b_100%)]',
-              ].join(' ')}
-              style={{ width: `${progressPercent}%` }}
-            />
-          </div>
-
-          <div className="mt-2 text-right text-[10px] font-black uppercase tracking-[0.16em] text-white/35">
-            {t('workoutComplete.totalXp', language)} {displayXP}
           </div>
         </div>
-
-        <div className="mt-4 grid grid-cols-2 gap-3">
-          <StatTile
-            icon={<Dumbbell className="h-4 w-4" />}
-            label={t('workoutComplete.exercises', language)}
-            value={summary.exercisesCompleted}
-          />
-          <StatTile
-            icon={<Flame className="h-4 w-4" />}
-            label={t('workoutComplete.duration', language)}
-            value={formatMinutes(summary.durationMinutes, language)}
-          />
-          <StatTile
-            icon={<Trophy className="h-4 w-4" />}
-            label={t('workoutComplete.volume', language)}
-            value={summary.volume}
-          />
-          <StatTile
-            icon={<Zap className="h-4 w-4" />}
-            label={t('workoutComplete.coins', language)}
-            value={`+${coinsEarned}`}
-            accentClass="text-amber-300"
-          />
-        </div>
-
-        <button
-          type="button"
-          onClick={onContinue}
-          className="mt-5 flex h-16 w-full items-center justify-center gap-2 rounded-[24px] border border-white/10 bg-white/6 text-sm font-black uppercase tracking-[0.18em] text-white transition hover:border-white/20 hover:bg-white/10 active:scale-[0.99]"
-        >
-          {t('workoutComplete.backHome', language)}
-          <ArrowRight className="h-4 w-4" />
-        </button>
-
-        <button
-          type="button"
-          onClick={onOpenPaywall}
-          className="mt-3 rounded-[24px] border border-amber-400/20 bg-[linear-gradient(180deg,rgba(251,191,36,0.14),rgba(255,255,255,0.03))] p-4 text-left transition hover:border-amber-300/35 hover:bg-[linear-gradient(180deg,rgba(251,191,36,0.2),rgba(255,255,255,0.05))] active:scale-[0.99]"
-        >
-          <div className="mb-3 flex items-center gap-2">
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-amber-400/20 bg-amber-400/10">
-              <Crown className="h-4 w-4 text-amber-300" />
-            </div>
-            <div className="text-[10px] font-black uppercase tracking-[0.18em] text-amber-300">
-              {t('workoutComplete.premiumBoost', language)}
-            </div>
-          </div>
-
-          <div className="text-[13px] font-black uppercase tracking-[0.12em] text-white">
-            {t('workoutComplete.makeItHit', language)}
-          </div>
-          <p className="mt-1 text-sm text-white/55">
-            {t('workoutComplete.makeItHitSub', language)}
-          </p>
-        </button>
-
-        {!animationDone ? (
-          <div className="mt-3 flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.18em] text-white/35">
-            <Sparkles className="h-3.5 w-3.5" />
-            {t('workoutComplete.animating', language)}
-          </div>
-        ) : null}
       </div>
     </div>
   );
