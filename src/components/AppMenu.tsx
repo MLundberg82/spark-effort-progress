@@ -1,47 +1,55 @@
-import { X, Crown, Apple, History, Dumbbell, TimerReset, Settings2, Flame } from 'lucide-react';
-import { getTimerSettings, toggleTimerEnabled } from '@/lib/timerStore';
+import { Crown, Apple, History, Dumbbell, Flame, Settings, X, TimerReset } from 'lucide-react';
+import type { AppPage } from '../lib/appStore';
 
 type AppMenuProps = {
   open: boolean;
+  currentPage: AppPage;
   onClose: () => void;
-  isPremium: boolean;
-  hasTrainingLevel: boolean;
-  onOpenPremium: () => void;
-  onOpenNutrition: () => void;
-  onOpenHistory: () => void;
-  onOpenCustomWorkout: () => void;
-  onOpenLevelSelect: () => void;
+  onNavigate: (page: AppPage) => void;
+  onOpenPaywall: () => void;
 };
 
-type MenuRowProps = {
+type MenuItemProps = {
   icon: React.ReactNode;
   title: string;
-  subtitle?: string;
+  subtitle: string;
+  active?: boolean;
   premium?: boolean;
   onClick: () => void;
 };
 
-function MenuRow({ icon, title, subtitle, premium, onClick }: MenuRowProps) {
+function MenuItem({
+  icon,
+  title,
+  subtitle,
+  active = false,
+  premium = false,
+  onClick,
+}: MenuItemProps) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="flex w-full items-start gap-3 rounded-2xl border border-border bg-card px-4 py-3 text-left transition hover:bg-accent"
+      className={`flex w-full items-start gap-3 rounded-2xl border px-4 py-3 text-left transition ${
+        active
+          ? 'border-lime-400/25 bg-lime-400/10'
+          : 'border-white/10 bg-white/5 hover:bg-white/10'
+      }`}
     >
-      <div className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-xl bg-muted text-foreground">
+      <div className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-xl bg-black/20 text-white">
         {icon}
       </div>
 
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <p className="text-sm font-semibold text-foreground">{title}</p>
+          <p className="text-sm font-semibold text-white">{title}</p>
           {premium && (
-            <span className="rounded-full bg-lime-400/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-lime-300">
+            <span className="rounded-full bg-lime-400/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-lime-300">
               Premium
             </span>
           )}
         </div>
-        {subtitle && <p className="mt-1 text-xs leading-5 text-muted-foreground">{subtitle}</p>}
+        <p className="mt-1 text-xs leading-5 text-zinc-400">{subtitle}</p>
       </div>
     </button>
   );
@@ -49,40 +57,29 @@ function MenuRow({ icon, title, subtitle, premium, onClick }: MenuRowProps) {
 
 export default function AppMenu({
   open,
+  currentPage,
   onClose,
-  isPremium,
-  hasTrainingLevel,
-  onOpenPremium,
-  onOpenNutrition,
-  onOpenHistory,
-  onOpenCustomWorkout,
-  onOpenLevelSelect,
+  onNavigate,
+  onOpenPaywall,
 }: AppMenuProps) {
-  const timer = getTimerSettings();
-
   if (!open) return null;
 
   return (
-    <div
-      className="fixed inset-0 z-[75] bg-black/60"
-      onClick={onClose}
-    >
+    <div className="fixed inset-0 z-[75] bg-black/60" onClick={onClose}>
       <div
-        className="absolute left-0 top-0 h-full w-[88%] max-w-sm overflow-y-auto border-r border-border bg-background p-4 shadow-2xl"
+        className="absolute left-0 top-0 h-full w-[88%] max-w-sm overflow-y-auto border-r border-white/10 bg-zinc-950 p-4 text-white shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-lime-300/80">
-              Menu
-            </p>
-            <h2 className="mt-1 text-2xl font-bold text-foreground">GymRat</h2>
+            <p className="text-[10px] uppercase tracking-[0.28em] text-lime-300/80">Menu</p>
+            <h2 className="mt-1 text-2xl font-black">GymRat</h2>
           </div>
 
           <button
             type="button"
             onClick={onClose}
-            className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-border bg-card"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/5"
             aria-label="Close menu"
           >
             <X className="h-5 w-5" />
@@ -90,111 +87,74 @@ export default function AppMenu({
         </div>
 
         <div className="space-y-3">
-          {!isPremium && (
-            <MenuRow
-              icon={<Crown className="h-5 w-5" />}
-              title="Go Premium"
-              subtitle="Unlock nutrition, history, custom workouts, XP boost and exclusive cosmetics."
-              onClick={() => {
-                onClose();
-                onOpenPremium();
-              }}
-            />
-          )}
-
-          <MenuRow
-            icon={<Apple className="h-5 w-5" />}
-            title="Nutrition"
-            subtitle="Track food, macros and goals."
-            premium
-            onClick={() => {
-              onClose();
-              onOpenNutrition();
-            }}
-          />
-
-          <MenuRow
-            icon={<History className="h-5 w-5" />}
-            title="Workout History"
-            subtitle="See previous sessions and progress."
-            premium
-            onClick={() => {
-              onClose();
-              onOpenHistory();
-            }}
-          />
-
-          <MenuRow
-            icon={<Dumbbell className="h-5 w-5" />}
-            title="Custom Workout"
-            subtitle="Build your own session structure."
-            premium
-            onClick={() => {
-              onClose();
-              onOpenCustomWorkout();
-            }}
-          />
-
-          <MenuRow
+          <MenuItem
             icon={<Flame className="h-5 w-5" />}
             title="Daily Check-in"
-            subtitle="Hookas till din daily flow i nästa steg."
-            onClick={() => {
-              onClose();
-              alert('Daily check-in hookas in i nästa steg.');
-            }}
+            subtitle="Quick daily consistency and momentum check."
+            active={currentPage === 'daily'}
+            onClick={() => onNavigate('daily')}
           />
 
-          <MenuRow
-            icon={<Settings2 className="h-5 w-5" />}
-            title={hasTrainingLevel ? 'Change Training Level' : 'Choose Training Level'}
-            subtitle="Set beginner / intermediate / advanced flow."
-            onClick={() => {
-              onClose();
-              onOpenLevelSelect();
-            }}
+          <MenuItem
+            icon={<Apple className="h-5 w-5" />}
+            title="Nutrition"
+            subtitle="Track food, macros and progress."
+            premium
+            active={currentPage === 'nutrition'}
+            onClick={() => onNavigate('nutrition')}
           />
 
-          <div className="rounded-2xl border border-border bg-card p-4">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted text-foreground">
-                <TimerReset className="h-5 w-5" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-foreground">Workout Timer</p>
-                <p className="text-xs text-muted-foreground">
-                  Set length: {timer.setSeconds}s · Rest: {timer.restSeconds}s
-                </p>
-              </div>
+          <MenuItem
+            icon={<History className="h-5 w-5" />}
+            title="Workout History"
+            subtitle="See previous sessions and progression."
+            premium
+            active={currentPage === 'history'}
+            onClick={() => onNavigate('history')}
+          />
+
+          <MenuItem
+            icon={<Dumbbell className="h-5 w-5" />}
+            title="Shop"
+            subtitle="Cosmetics, backgrounds and premium visuals."
+            active={currentPage === 'shop'}
+            onClick={() => onNavigate('shop')}
+          />
+
+          <MenuItem
+            icon={<Settings className="h-5 w-5" />}
+            title="Settings"
+            subtitle="Profile, app status and timer settings."
+            active={currentPage === 'settings'}
+            onClick={() => onNavigate('settings')}
+          />
+
+          <div className="rounded-2xl border border-lime-400/20 bg-lime-400/10 p-4">
+            <div className="flex items-center gap-2">
+              <Crown className="h-4 w-4 text-lime-300" />
+              <p className="text-sm font-semibold text-white">Go Premium</p>
             </div>
+            <p className="mt-2 text-xs leading-5 text-zinc-300">
+              Unlock nutrition, history, custom workout flow, timer upgrades and exclusive visual rewards.
+            </p>
 
-            <div className="mt-4 flex items-center justify-between rounded-2xl border border-border bg-background px-3 py-2">
-              <div>
-                <p className="text-sm font-medium text-foreground">Auto timer active</p>
-                <p className="text-xs text-muted-foreground">
-                  Uses your saved timer settings during workouts.
-                </p>
-              </div>
+            <button
+              type="button"
+              onClick={onOpenPaywall}
+              className="mt-4 inline-flex h-11 w-full items-center justify-center gap-2 rounded-2xl bg-lime-400 px-4 text-sm font-bold text-black"
+            >
+              <Crown className="h-4 w-4" />
+              Open Premium
+            </button>
+          </div>
 
-              <button
-                type="button"
-                onClick={() => {
-                  toggleTimerEnabled();
-                }}
-                className={`relative inline-flex h-7 w-12 items-center rounded-full transition ${
-                  timer.enabled ? 'bg-lime-400' : 'bg-muted'
-                }`}
-              >
-                <span
-                  className={`inline-block h-5 w-5 transform rounded-full bg-white transition ${
-                    timer.enabled ? 'translate-x-6' : 'translate-x-1'
-                  }`}
-                />
-              </button>
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+            <div className="flex items-center gap-2">
+              <TimerReset className="h-4 w-4 text-lime-300" />
+              <p className="text-sm font-semibold text-white">Timer</p>
             </div>
-
-            <p className="mt-3 text-xs leading-5 text-muted-foreground">
-              Exact editing for set/rest values comes in the next timer settings step.
+            <p className="mt-2 text-xs leading-5 text-zinc-400">
+              Timer setup lives in Settings next, then the same timer will float during workouts.
             </p>
           </div>
         </div>

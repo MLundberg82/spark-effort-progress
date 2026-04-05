@@ -1,10 +1,20 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Crown, Check, Sparkles, Dumbbell, History, Apple, Wand2, X, Loader2 } from 'lucide-react';
 import {
-  getOfferings,
-  purchasePackage,
-  restorePurchases,
-  checkPremium,
+  Apple,
+  Check,
+  Crown,
+  Dumbbell,
+  History,
+  Loader2,
+  Sparkles,
+  Wand2,
+  X,
+} from 'lucide-react';
+import {
+  isPremiumUnlocked,
+  purchasePremium,
+  refreshPremiumStatus,
+  restorePremium,
 } from '@/lib/premiumStore';
 import {
   getPaywallHeadline,
@@ -13,16 +23,6 @@ import {
   type PaywallTrigger,
 } from '@/lib/paywallStore';
 
-type RevenueCatPackage = {
-  identifier: string;
-  packageType?: string;
-  product: {
-    identifier: string;
-    title?: string;
-    priceString?: string;
-  };
-};
-
 type PremiumPaywallProps = {
   open: boolean;
   onClose: () => void;
@@ -30,73 +30,47 @@ type PremiumPaywallProps = {
   onUnlocked?: () => void;
 };
 
-function normalizePackageType(value?: string) {
-  return (value || '').toUpperCase();
-}
-
-function findMonthlyPackage(packages: RevenueCatPackage[]) {
-  return (
-    packages.find((pkg) => normalizePackageType(pkg.packageType) === 'MONTHLY') ||
-    packages.find((pkg) => pkg.product.identifier.toLowerCase().includes('month')) ||
-    packages[0] ||
-    null
-  );
-}
-
-function findYearlyPackage(packages: RevenueCatPackage[]) {
-  return (
-    packages.find((pkg) => normalizePackageType(pkg.packageType) === 'ANNUAL') ||
-    packages.find((pkg) => normalizePackageType(pkg.packageType) === 'YEARLY') ||
-    packages.find((pkg) => {
-      const id = pkg.product.identifier.toLowerCase();
-      return id.includes('year') || id.includes('annual');
-    }) ||
-    null
-  );
-}
-
 export default function PremiumPaywall({
   open,
   onClose,
   trigger = 'manual',
   onUnlocked,
 }: PremiumPaywallProps) {
-  const [packages, setPackages] = useState<RevenueCatPackage[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loadingPlan, setLoadingPlan] = useState<'monthly' | 'yearly' | null>(null);
   const [restoring, setRestoring] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const benefits = useMemo(
     () => [
       {
-        icon: <Apple className="h-4 w-4" />,
+        icon: <Apple size={18} className="text-lime-300" />,
         title: 'Nutrition',
-        text: 'Macros, tracking and food progress.',
+        text: 'Macros, logging and cleaner food progress.',
       },
       {
-        icon: <History className="h-4 w-4" />,
+        icon: <History size={18} className="text-cyan-300" />,
         title: 'History',
-        text: 'Full workout history and better progress review.',
+        text: 'Full workout history and clearer progression review.',
       },
       {
-        icon: <Dumbbell className="h-4 w-4" />,
+        icon: <Dumbbell size={18} className="text-orange-300" />,
         title: 'Custom Workouts',
-        text: 'Build your own sessions your way.',
+        text: 'Build your own sessions without friction.',
       },
       {
-        icon: <Sparkles className="h-4 w-4" />,
+        icon: <Sparkles size={18} className="text-fuchsia-300" />,
         title: 'XP Boost',
-        text: 'Faster progression and stronger reward feeling.',
+        text: 'More reward feeling and faster momentum.',
       },
       {
-        icon: <Wand2 className="h-4 w-4" />,
+        icon: <Wand2 size={18} className="text-amber-300" />,
         title: 'Premium Cosmetics',
-        text: 'Exclusive visual upgrades included with Premium.',
+        text: 'Exclusive premium visuals and identity upgrades.',
       },
       {
-        icon: <Crown className="h-4 w-4" />,
-        title: 'Premium Identity',
-        text: 'More status, better look, more reward.',
+        icon: <Crown size={18} className="text-yellow-300" />,
+        title: 'Premium Status',
+        text: 'More than features — visible value in the app.',
       },
     ],
     []
@@ -104,76 +78,88 @@ export default function PremiumPaywall({
 
   useEffect(() => {
     if (!open) return;
-
-    let cancelled = false;
-
-    const loadOfferings = async () => {
-      setError(null);
-
-      try {
-        const offerings = await getOfferings();
-        const available = (offerings?.current?.availablePackages || []) as RevenueCatPackage[];
-
-        if (!cancelled) {
-          setPackages(available);
-          markPaywallShown();
-        }
-      } catch (err) {
-        if (!cancelled) {
-          setError('Could not load Premium offers right now.');
-        }
-      }
-    };
-
-    void loadOfferings();
-
-    return () => {
-      cancelled = true;
-    };
+    markPaywallShown();
+    setError(null);
   }, [open]);
 
-  const monthlyPackage = useMemo(() => findMonthlyPackage(packages), [packages]);
-  const yearlyPackage = useMemo(() => findYearlyPackage(packages), [packages]);
+  const headline = getPaywallHeadline(trigger);
+  const subheadline = getPaywallSubheadline(trigger);
 
-  const handlePurchase = async (pkg: RevenueCatPackage | null) => {
-    if (!pkg || loading) return;
+  const handlePurchase = async (plan: 'monthly' | 'yearly') => {
+    if (loadingPlan || restoring) return;
 
-    setLoading(true);
+    setLoadingPlan(plan);
     setError(null);
 
     try {
-      const success = await purchasePackage(pkg);
+      const result = await purchasePremium(plan);
 
-      if (success || checkPremium()) {
-        onUnlocked?.();
-        onClose();
+      if (result.ok) {
+        await refreshPremiumStatus();
+
+        if (isPremiumUnlocked()) {
+          onUnlocked?.();
+          onClose();
+          return;
+        }
+
+        setError('Purchase completed, but premium did not unlock yet.');
         return;
       }
 
-      setError('Purchase was not completed.');
+      if (result.reason === 'cancelled') {
+        setError('Purchase cancelled.');
+        return;
+      }
+
+      if (result.reason === 'not-native') {
+        setError(
+          'Purchases run in native iOS/Android builds. In browser, use preview mode from Settings.'
+        );
+        return;
+      }
+
+      if (result.reason === 'package-not-found') {
+        setError('RevenueCat package not found. Check monthly/yearly offering setup.');
+        return;
+      }
+
+      setError('Purchase failed. Please try again.');
     } catch (err) {
       setError('Purchase failed. Please try again.');
     } finally {
-      setLoading(false);
+      setLoadingPlan(null);
     }
   };
 
   const handleRestore = async () => {
-    if (restoring) return;
+    if (loadingPlan || restoring) return;
 
     setRestoring(true);
     setError(null);
 
     try {
-      const restored = await restorePurchases();
+      const result = await restorePremium();
 
-      if (restored || checkPremium()) {
-        onUnlocked?.();
-        onClose();
+      if (result.ok) {
+        await refreshPremiumStatus();
+
+        if (isPremiumUnlocked()) {
+          onUnlocked?.();
+          onClose();
+          return;
+        }
+
+        setError('Restore completed, but no active premium was found.');
         return;
       }
 
-      setError('No active purchase was found to restore.');
+      if (result.reason === 'not-native') {
+        setError('Restore only works in native iOS/Android builds.');
+        return;
+      }
+
+      setError('Restore failed. Please try again.');
     } catch (err) {
       setError('Restore failed. Please try again.');
     } finally {
@@ -183,124 +169,118 @@ export default function PremiumPaywall({
 
   if (!open) return null;
 
-  const headline = getPaywallHeadline(trigger);
-  const subheadline = getPaywallSubheadline(trigger);
-
   return (
     <div
-      className="fixed inset-0 z-[80] flex items-end justify-center bg-black/60 p-3 sm:items-center sm:p-4"
+      className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 px-4 py-6 backdrop-blur-sm"
       onClick={onClose}
     >
       <div
-        className="relative flex h-[82vh] w-full max-w-md flex-col overflow-hidden rounded-[32px] border border-white/10 bg-zinc-950 shadow-2xl"
+        className="relative w-full max-w-2xl rounded-[32px] border border-white/10 bg-[linear-gradient(180deg,rgba(18,18,22,0.98),rgba(11,12,16,0.98))] p-5 text-white shadow-[0_25px_100px_rgba(0,0,0,0.55)] md:p-7"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="absolute inset-x-0 top-0 h-28 bg-[radial-gradient(circle_at_top,rgba(163,230,53,0.18),transparent_70%)] pointer-events-none" />
-
         <button
           type="button"
           onClick={onClose}
-          className="absolute right-3 top-3 z-10 inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-black/30 text-white/80 transition hover:bg-white/10 hover:text-white"
+          className="absolute right-4 top-4 inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-white/75 transition hover:bg-white/[0.09] hover:text-white"
           aria-label="Close premium paywall"
         >
-          <X className="h-5 w-5" />
+          <X size={18} />
         </button>
 
-        <div className="flex-1 overflow-hidden px-5 pb-5 pt-6 sm:px-6">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-lime-400/20 bg-lime-400/10 text-lime-300">
-            <Crown className="h-7 w-7" />
+        <div className="pr-12">
+          <div className="inline-flex items-center gap-2 rounded-full border border-lime-400/20 bg-lime-400/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.22em] text-lime-300">
+            <Crown size={14} />
+            GymRat Premium
           </div>
 
-          <div className="text-center">
-            <p className="text-xs font-semibold uppercase tracking-[0.25em] text-lime-300/80">
-              GymRat Premium
-            </p>
-            <h2 className="mt-2 text-2xl font-bold text-white">
-              {headline}
-            </h2>
-            <p className="mx-auto mt-2 max-w-[28rem] text-sm leading-6 text-zinc-300">
-              {subheadline}
-            </p>
-          </div>
+          <h2 className="mt-4 text-3xl font-black tracking-tight">
+            {headline}
+          </h2>
 
-          <div className="mt-5 grid gap-2.5">
-            {benefits.map((benefit) => (
-              <div
-                key={benefit.title}
-                className="flex items-start gap-3 rounded-2xl border border-white/8 bg-white/[0.03] px-3.5 py-3"
-              >
-                <div className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-xl bg-lime-400/10 text-lime-300">
-                  {benefit.icon}
-                </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-white">{benefit.title}</p>
-                  <p className="text-xs leading-5 text-zinc-400">{benefit.text}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-5 rounded-2xl border border-amber-300/15 bg-amber-300/8 px-4 py-3">
-            <p className="text-sm font-semibold text-amber-200">
-              Premium should feel visible
-            </p>
-            <p className="mt-1 text-xs leading-5 text-amber-100/80">
-              Premium is not only features. It should also unlock cosmetics, identity and cleaner status visuals in the app.
-            </p>
-          </div>
-
-          {error && (
-            <div className="mt-4 rounded-2xl border border-red-400/20 bg-red-400/10 px-4 py-3 text-sm text-red-200">
-              {error}
-            </div>
-          )}
+          <p className="mt-2 max-w-xl text-sm leading-6 text-white/65">
+            {subheadline}
+          </p>
         </div>
 
-        <div className="border-t border-white/8 bg-black/20 px-5 py-4 sm:px-6">
-          <div className="grid gap-2">
-            <button
-              type="button"
-              onClick={() => void handlePurchase(monthlyPackage)}
-              disabled={!monthlyPackage || loading || restoring}
-              className="inline-flex min-h-[54px] w-full items-center justify-center gap-2 rounded-2xl bg-lime-400 px-4 py-3 text-sm font-bold text-black transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
+        <div className="mt-5 grid gap-3 md:grid-cols-2">
+          {benefits.map((benefit) => (
+            <div
+              key={benefit.title}
+              className="rounded-2xl border border-white/8 bg-white/[0.04] p-4"
             >
-              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-              {monthlyPackage
-                ? `Start Monthly • ${monthlyPackage.product.priceString || ''}`.trim()
-                : 'Monthly package not found'}
-            </button>
+              <div className="flex items-start gap-3">
+                <div className="mt-0.5">{benefit.icon}</div>
+                <div>
+                  <div className="text-sm font-bold text-white">{benefit.title}</div>
+                  <div className="mt-1 text-sm leading-5 text-white/60">
+                    {benefit.text}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
 
-            <button
-              type="button"
-              onClick={() => void handlePurchase(yearlyPackage)}
-              disabled={!yearlyPackage || loading || restoring}
-              className="inline-flex min-h-[54px] w-full items-center justify-center gap-2 rounded-2xl border border-white/12 bg-white/6 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Crown className="h-4 w-4" />}
-              {yearlyPackage
-                ? `Best Value • ${yearlyPackage.product.priceString || ''}`.trim()
-                : 'Yearly package not found'}
-            </button>
+        <div className="mt-5 rounded-2xl border border-amber-300/10 bg-amber-300/[0.06] p-4">
+          <div className="flex items-start gap-3">
+            <Sparkles className="mt-0.5 text-amber-200" size={18} />
+            <div>
+              <div className="text-sm font-bold text-white">
+                Premium should feel visible
+              </div>
+              <div className="mt-1 text-sm leading-5 text-white/65">
+                Premium is not only features. It should also unlock cleaner visuals,
+                stronger identity and exclusive cosmetics.
+              </div>
+            </div>
           </div>
+        </div>
 
-          <div className="mt-3 flex items-center justify-between gap-3 text-xs">
-            <button
-              type="button"
-              onClick={() => void handleRestore()}
-              disabled={loading || restoring}
-              className="font-medium text-zinc-300 transition hover:text-white disabled:opacity-60"
-            >
-              {restoring ? 'Restoring…' : 'Restore purchases'}
-            </button>
-
-            <button
-              type="button"
-              onClick={onClose}
-              className="font-medium text-zinc-500 transition hover:text-zinc-300"
-            >
-              Continue free
-            </button>
+        {error ? (
+          <div className="mt-4 rounded-2xl border border-red-400/20 bg-red-400/10 px-4 py-3 text-sm font-medium text-red-200">
+            {error}
           </div>
+        ) : null}
+
+        <div className="mt-5 grid gap-3">
+          <button
+            type="button"
+            onClick={() => handlePurchase('monthly')}
+            disabled={!!loadingPlan || restoring}
+            className="inline-flex min-h-[56px] w-full items-center justify-center gap-2 rounded-2xl bg-lime-400 px-4 py-3 text-sm font-black text-black transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {loadingPlan === 'monthly' ? <Loader2 size={18} className="animate-spin" /> : <Check size={18} />}
+            Start Monthly
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handlePurchase('yearly')}
+            disabled={!!loadingPlan || restoring}
+            className="inline-flex min-h-[56px] w-full items-center justify-center gap-2 rounded-2xl border border-white/12 bg-white/[0.05] px-4 py-3 text-sm font-bold text-white transition hover:bg-white/[0.09] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {loadingPlan === 'yearly' ? <Loader2 size={18} className="animate-spin" /> : <Crown size={18} />}
+            Best Value • Yearly
+          </button>
+        </div>
+
+        <div className="mt-4 flex flex-col items-center gap-3 text-center">
+          <button
+            type="button"
+            onClick={handleRestore}
+            disabled={!!loadingPlan || restoring}
+            className="text-sm font-medium text-white/70 transition hover:text-white disabled:opacity-60"
+          >
+            {restoring ? 'Restoring…' : 'Restore purchases'}
+          </button>
+
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-sm font-semibold text-white/55 transition hover:text-white"
+          >
+            Continue free
+          </button>
         </div>
       </div>
     </div>
