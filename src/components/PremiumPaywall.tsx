@@ -21,7 +21,7 @@ import {
   getPaywallSubheadline,
   markPaywallShown,
   type PaywallTrigger,
-} from '@/lib/paywallStore';
+} from '@/lib/PayWallStore';
 
 type PremiumPaywallProps = {
   open: boolean;
@@ -125,7 +125,7 @@ export default function PremiumPaywall({
       }
 
       setError('Purchase failed. Please try again.');
-    } catch (err) {
+    } catch {
       setError('Purchase failed. Please try again.');
     } finally {
       setLoadingPlan(null);
@@ -160,7 +160,7 @@ export default function PremiumPaywall({
       }
 
       setError('Restore failed. Please try again.');
-    } catch (err) {
+    } catch {
       setError('Restore failed. Please try again.');
     } finally {
       setRestoring(false);
@@ -249,7 +249,11 @@ export default function PremiumPaywall({
             disabled={!!loadingPlan || restoring}
             className="inline-flex min-h-[56px] w-full items-center justify-center gap-2 rounded-2xl bg-lime-400 px-4 py-3 text-sm font-black text-black transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {loadingPlan === 'monthly' ? <Loader2 size={18} className="animate-spin" /> : <Check size={18} />}
+            {loadingPlan === 'monthly' ? (
+              <Loader2 size={18} className="animate-spin" />
+            ) : (
+              <Check size={18} />
+            )}
             Start Monthly
           </button>
 
@@ -259,7 +263,11 @@ export default function PremiumPaywall({
             disabled={!!loadingPlan || restoring}
             className="inline-flex min-h-[56px] w-full items-center justify-center gap-2 rounded-2xl border border-white/12 bg-white/[0.05] px-4 py-3 text-sm font-bold text-white transition hover:bg-white/[0.09] disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {loadingPlan === 'yearly' ? <Loader2 size={18} className="animate-spin" /> : <Crown size={18} />}
+            {loadingPlan === 'yearly' ? (
+              <Loader2 size={18} className="animate-spin" />
+            ) : (
+              <Crown size={18} />
+            )}
             Best Value • Yearly
           </button>
         </div>

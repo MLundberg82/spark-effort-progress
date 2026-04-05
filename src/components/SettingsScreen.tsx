@@ -4,6 +4,7 @@ import {
   Check,
   Clock3,
   Crown,
+  RefreshCw,
   RotateCcw,
   Settings,
   Sparkles,
@@ -32,6 +33,12 @@ type SettingsScreenProps = {
   onBack: () => void;
 };
 
+function clampSeconds(value: string | number, fallback: number) {
+  const parsed = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.max(5, Math.min(600, Math.floor(parsed)));
+}
+
 export default function SettingsScreen({ onBack }: SettingsScreenProps) {
   const profile = getProfile();
 
@@ -41,7 +48,7 @@ export default function SettingsScreen({ onBack }: SettingsScreenProps) {
 
   const [premiumState, setPremiumState] = useState(getPremiumState());
   const [premiumLoading, setPremiumLoading] = useState(false);
-  const [premiumMessage, setPremiumMessage] = useState<string>('');
+  const [message, setMessage] = useState('');
 
   useEffect(() => {
     const timer = getTimerSettings();
@@ -83,22 +90,26 @@ export default function SettingsScreen({ onBack }: SettingsScreenProps) {
     return 'Premium Active';
   }, [premiumState]);
 
+  const currentPlan = getPremiumPlan();
   const managementURL = getPremiumManagementURL();
-  const savedPlan = getPremiumPlan();
 
-  const clampSeconds = (value: string, fallback: number) => {
-    const parsed = Number(value);
-    if (!Number.isFinite(parsed)) return fallback;
-    return Math.max(5, Math.min(600, Math.floor(parsed)));
-  };
+  const cardClass =
+    'rounded-[28px] border border-white/10 bg-white/[0.04] p-5 shadow-[0_10px_40px_rgba(0,0,0,0.25)] backdrop-blur';
+  const smallLabelClass =
+    'text-[11px] font-semibold uppercase tracking-[0.2em] text-white/45';
+  const valueClass = 'mt-2 text-base font-semibold text-white';
+  const inputClass =
+    'mt-2 w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-white outline-none transition focus:border-emerald-400/50';
+  const buttonClass =
+    'rounded-2xl px-4 py-3 text-sm font-bold transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-50';
 
   const handleSaveTimer = () => {
     saveTimerSettings({
       enabled: timerEnabled,
-      setSeconds: clampSeconds(String(setSeconds), 45),
-      restSeconds: clampSeconds(String(restSeconds), 90),
+      setSeconds: clampSeconds(setSeconds, 45),
+      restSeconds: clampSeconds(restSeconds, 90),
     });
-    setPremiumMessage('Timer settings saved.');
+    setMessage('Timer settings saved.');
   };
 
   const handleResetTimer = () => {
@@ -107,18 +118,18 @@ export default function SettingsScreen({ onBack }: SettingsScreenProps) {
     setTimerEnabled(next.enabled);
     setSetSeconds(next.setSeconds);
     setRestSeconds(next.restSeconds);
-    setPremiumMessage('Timer settings reset to default.');
+    setMessage('Timer settings reset to default.');
   };
 
   const handleRefreshPremium = async () => {
     setPremiumLoading(true);
-    setPremiumMessage('');
+    setMessage('');
 
     const state = await refreshPremiumStatus();
     setPremiumState(state);
 
     setPremiumLoading(false);
-    setPremiumMessage(
+    setMessage(
       state.isActive
         ? 'Premium status refreshed.'
         : 'No active premium entitlement found.'
@@ -127,7 +138,7 @@ export default function SettingsScreen({ onBack }: SettingsScreenProps) {
 
   const handlePurchase = async (plan: 'monthly' | 'yearly') => {
     setPremiumLoading(true);
-    setPremiumMessage('');
+    setMessage('');
 
     const result = await purchasePremium(plan);
 
@@ -135,7 +146,7 @@ export default function SettingsScreen({ onBack }: SettingsScreenProps) {
 
     if (result.ok) {
       setPremiumState(result.state);
-      setPremiumMessage(
+      setMessage(
         plan === 'yearly'
           ? 'Yearly premium activated.'
           : 'Monthly premium activated.'
@@ -144,30 +155,30 @@ export default function SettingsScreen({ onBack }: SettingsScreenProps) {
     }
 
     if (result.reason === 'cancelled') {
-      setPremiumMessage('Purchase cancelled.');
+      setMessage('Purchase cancelled.');
       return;
     }
 
     if (result.reason === 'not-native') {
-      setPremiumMessage(
+      setMessage(
         'RevenueCat purchases only run on native iOS/Android builds. Use preview mode in browser.'
       );
       return;
     }
 
     if (result.reason === 'package-not-found') {
-      setPremiumMessage(
+      setMessage(
         'Could not find the RevenueCat package. Check your offering identifiers.'
       );
       return;
     }
 
-    setPremiumMessage('Premium purchase failed.');
+    setMessage('Premium purchase failed.');
   };
 
   const handleRestore = async () => {
     setPremiumLoading(true);
-    setPremiumMessage('');
+    setMessage('');
 
     const result = await restorePremium();
 
@@ -175,7 +186,7 @@ export default function SettingsScreen({ onBack }: SettingsScreenProps) {
 
     if (result.ok) {
       setPremiumState(result.state);
-      setPremiumMessage(
+      setMessage(
         result.state.isActive
           ? 'Purchases restored successfully.'
           : 'Restore completed, but no active premium entitlement was found.'
@@ -184,23 +195,14 @@ export default function SettingsScreen({ onBack }: SettingsScreenProps) {
     }
 
     if (result.reason === 'not-native') {
-      setPremiumMessage(
+      setMessage(
         'Restore only works on native iOS/Android builds. Browser can use preview mode.'
       );
       return;
     }
 
-    setPremiumMessage('Restore failed.');
+    setMessage('Restore failed.');
   };
-
-  const cardClass =
-    'rounded-[28px] border border-white/10 bg-white/[0.04] p-5 shadow-[0_10px_40px_rgba(0,0,0,0.25)] backdrop-blur';
-  const smallLabelClass = 'text-[11px] font-semibold uppercase tracking-[0.2em] text-white/45';
-  const valueClass = 'mt-2 text-base font-semibold text-white';
-  const inputClass =
-    'mt-2 w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-white outline-none transition focus:border-emerald-400/50';
-  const buttonClass =
-    'rounded-2xl px-4 py-3 text-sm font-bold transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-50';
 
   return (
     <div className="min-h-screen bg-[#0a0d12] px-4 pb-8 pt-5 text-white">
@@ -228,7 +230,9 @@ export default function SettingsScreen({ onBack }: SettingsScreenProps) {
                 <Sparkles size={14} />
                 GymRat Control Center
               </div>
-              <h1 className="mt-4 text-3xl font-black tracking-tight">Profile, timer and premium</h1>
+              <h1 className="mt-4 text-3xl font-black tracking-tight">
+                Profile, timer and premium
+              </h1>
               <p className="mt-2 max-w-xl text-sm text-white/65">
                 Clean control over your workout flow, recovery timing and premium progression.
               </p>
@@ -285,7 +289,9 @@ export default function SettingsScreen({ onBack }: SettingsScreenProps) {
             <div className="mt-4 rounded-2xl bg-black/20 p-4">
               <label className="flex items-center justify-between gap-3">
                 <div>
-                  <div className="text-sm font-semibold text-white">Enable workout timer</div>
+                  <div className="text-sm font-semibold text-white">
+                    Enable workout timer
+                  </div>
                   <div className="mt-1 text-xs text-white/55">
                     Uses the same saved timer config during workouts.
                   </div>
@@ -316,7 +322,9 @@ export default function SettingsScreen({ onBack }: SettingsScreenProps) {
                   max={600}
                   step={5}
                   value={setSeconds}
-                  onChange={(e) => setSetSeconds(clampSeconds(e.target.value, setSeconds))}
+                  onChange={(e) =>
+                    setSetSeconds(clampSeconds(e.target.value, setSeconds))
+                  }
                   className={inputClass}
                 />
               </div>
@@ -329,7 +337,9 @@ export default function SettingsScreen({ onBack }: SettingsScreenProps) {
                   max={600}
                   step={5}
                   value={restSeconds}
-                  onChange={(e) => setRestSeconds(clampSeconds(e.target.value, restSeconds))}
+                  onChange={(e) =>
+                    setRestSeconds(clampSeconds(e.target.value, restSeconds))
+                  }
                   className={inputClass}
                 />
               </div>
@@ -364,18 +374,20 @@ export default function SettingsScreen({ onBack }: SettingsScreenProps) {
             <h2 className="text-lg font-bold">Premium</h2>
           </div>
 
-          <div className="mt-4 grid gap-3 md:grid-cols-3">
+          <div className="mt-4 grid gap-3 md:grid-cols-4">
             <div className="rounded-2xl bg-black/20 p-4">
               <div className={smallLabelClass}>Status</div>
-              <div className={valueClass}>{premiumState.isActive ? 'Active' : 'Free'}</div>
+              <div className={valueClass}>
+                {premiumState.isActive ? 'Active' : 'Free'}
+              </div>
             </div>
 
             <div className="rounded-2xl bg-black/20 p-4">
               <div className={smallLabelClass}>Plan</div>
               <div className={valueClass}>
-                {savedPlan === 'yearly'
+                {currentPlan === 'yearly'
                   ? 'Yearly'
-                  : savedPlan === 'monthly'
+                  : currentPlan === 'monthly'
                   ? 'Monthly'
                   : '-'}
               </div>
@@ -385,6 +397,13 @@ export default function SettingsScreen({ onBack }: SettingsScreenProps) {
               <div className={smallLabelClass}>Source</div>
               <div className={valueClass}>{premiumState.source}</div>
             </div>
+
+            <div className="rounded-2xl bg-black/20 p-4">
+              <div className={smallLabelClass}>Sync</div>
+              <div className={valueClass}>
+                {premiumState.lastSyncedAt ? 'Updated' : 'Not synced'}
+              </div>
+            </div>
           </div>
 
           <div className="mt-4 rounded-2xl border border-amber-300/10 bg-amber-300/[0.06] p-4">
@@ -392,7 +411,7 @@ export default function SettingsScreen({ onBack }: SettingsScreenProps) {
               <Zap className="mt-0.5 text-amber-200" size={18} />
               <div>
                 <div className="text-sm font-bold text-white">
-                  Premium unlocks your real value layer
+                  Premium should feel visible
                 </div>
                 <div className="mt-1 text-sm text-white/65">
                   Nutrition, history, custom workouts and premium cosmetics should all route from
@@ -436,7 +455,10 @@ export default function SettingsScreen({ onBack }: SettingsScreenProps) {
               disabled={premiumLoading}
               className={`${buttonClass} border border-emerald-400/30 bg-emerald-400/10 text-emerald-300`}
             >
-              Refresh status
+              <span className="inline-flex items-center gap-2">
+                <RefreshCw size={16} />
+                Refresh status
+              </span>
             </button>
           </div>
 
@@ -445,7 +467,8 @@ export default function SettingsScreen({ onBack }: SettingsScreenProps) {
               type="button"
               onClick={() => {
                 unlockPremiumPreview('monthly');
-                setPremiumMessage('Preview premium enabled.');
+                setPremiumState(getPremiumState());
+                setMessage('Preview monthly enabled.');
               }}
               className={`${buttonClass} border border-white/10 bg-white/[0.04] text-white`}
             >
@@ -456,7 +479,8 @@ export default function SettingsScreen({ onBack }: SettingsScreenProps) {
               type="button"
               onClick={() => {
                 unlockPremiumPreview('yearly');
-                setPremiumMessage('Preview yearly enabled.');
+                setPremiumState(getPremiumState());
+                setMessage('Preview yearly enabled.');
               }}
               className={`${buttonClass} border border-white/10 bg-white/[0.04] text-white`}
             >
@@ -468,7 +492,7 @@ export default function SettingsScreen({ onBack }: SettingsScreenProps) {
               onClick={() => {
                 clearPremiumPreview();
                 setPremiumState(getPremiumState());
-                setPremiumMessage('Preview premium cleared.');
+                setMessage('Preview premium cleared.');
               }}
               className={`${buttonClass} border border-red-400/20 bg-red-400/10 text-red-200`}
             >
@@ -483,10 +507,10 @@ export default function SettingsScreen({ onBack }: SettingsScreenProps) {
             </div>
           ) : null}
 
-          {premiumMessage ? (
+          {message ? (
             <div className="mt-4 inline-flex items-center gap-2 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 text-sm font-semibold text-emerald-300">
               <Check size={16} />
-              {premiumMessage}
+              {message}
             </div>
           ) : null}
         </div>
