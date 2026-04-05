@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import SplashScreen from '../components/SplashScreen';
-import HomeScreen from '../components/Homescreen';
+import HomeScreen from '../components/HomeScreen';
 import WorkoutFlow from '../components/WorkoutFlow';
 import WorkoutComplete from '../components/WorkoutComplete';
 import HistoryScreen from '../components/HistoryScreen';
@@ -10,14 +10,17 @@ import SettingsScreen from '../components/SettingsScreen';
 import AppMenu from '../components/AppMenu';
 import PremiumPaywall from '../components/PremiumPaywall';
 import DailyCheckInScreen from '../components/DailyCheckInScreen';
+
 import {
   completeOnboarding,
   getProfile,
+  isOnboardingComplete,
   saveProfile,
   type TrainingLevel,
   type UserGender,
   type UserProfile,
 } from '../lib/profileStore';
+
 import {
   addXP,
   getAppStats,
@@ -29,8 +32,9 @@ import {
   setWorkoutSummary,
   type AppPage,
 } from '../lib/appStore';
+
 import { addWorkoutHistory } from '../lib/historyStore';
-import { saveWorkoutDraft, clearWorkoutDraft } from '../lib/workoutStore';
+import { clearWorkoutDraft, saveWorkoutDraft } from '../lib/workoutStore';
 
 type FinishedWorkout = {
   workoutName: string;
@@ -58,108 +62,113 @@ function OnboardingGate({ onComplete }: { onComplete: () => void }) {
       gender,
       trainingLevel,
     };
+
     saveProfile(nextProfile);
     completeOnboarding();
     onComplete();
   };
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-white px-6 py-10 flex items-center justify-center">
-      <div className="w-full max-w-md rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl backdrop-blur">
-        {step === 1 && (
-          <>
-            <div className="mb-6">
-              <p className="text-xs uppercase tracking-[0.2em] text-emerald-400">GymRat</p>
-              <h1 className="mt-2 text-3xl font-bold">Set your base</h1>
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(16,185,129,0.18),_transparent_24%),linear-gradient(180deg,_#09090b_0%,_#0f172a_100%)] px-4 py-8 text-white">
+      <div className="mx-auto flex min-h-screen max-w-md items-center justify-center">
+        <div className="w-full rounded-[32px] border border-white/10 bg-zinc-950/80 p-6 shadow-[0_20px_80px_rgba(0,0,0,0.45)] backdrop-blur">
+          {step === 1 && (
+            <>
+              <p className="text-[10px] uppercase tracking-[0.35em] text-emerald-400">GymRat</p>
+              <h1 className="mt-3 text-3xl font-black">Set your base</h1>
               <p className="mt-2 text-sm text-zinc-400">
                 Quick setup first. Then straight to your start screen.
               </p>
-            </div>
 
-            <div className="space-y-4">
-              <div>
-                <label className="mb-2 block text-sm text-zinc-300">Age</label>
-                <input
-                  type="number"
-                  value={age}
-                  onChange={(e) => setAge(Number(e.target.value))}
-                  className="w-full rounded-2xl border border-white/10 bg-zinc-900 px-4 py-3 outline-none focus:border-emerald-400"
-                />
-              </div>
+              <div className="mt-6 space-y-4">
+                <div>
+                  <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-zinc-400">
+                    Age
+                  </label>
+                  <input
+                    type="number"
+                    value={age}
+                    onChange={(e) => setAge(Number(e.target.value))}
+                    className="w-full rounded-2xl border border-white/10 bg-zinc-900 px-4 py-3 outline-none focus:border-emerald-400"
+                  />
+                </div>
 
-              <div>
-                <label className="mb-2 block text-sm text-zinc-300">Weight</label>
-                <input
-                  type="number"
-                  value={weight}
-                  onChange={(e) => setWeight(Number(e.target.value))}
-                  className="w-full rounded-2xl border border-white/10 bg-zinc-900 px-4 py-3 outline-none focus:border-emerald-400"
-                />
-              </div>
+                <div>
+                  <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-zinc-400">
+                    Weight
+                  </label>
+                  <input
+                    type="number"
+                    value={weight}
+                    onChange={(e) => setWeight(Number(e.target.value))}
+                    className="w-full rounded-2xl border border-white/10 bg-zinc-900 px-4 py-3 outline-none focus:border-emerald-400"
+                  />
+                </div>
 
-              <div>
-                <label className="mb-2 block text-sm text-zinc-300">Gender</label>
-                <div className="grid grid-cols-3 gap-2">
-                  {(['male', 'female', 'non-binary'] as const).map((option) => (
-                    <button
-                      key={option}
-                      onClick={() => setGender(option)}
-                      type="button"
-                      className={`rounded-2xl px-3 py-3 text-sm transition ${
-                        gender === option
-                          ? 'bg-emerald-500 text-black font-semibold'
-                          : 'bg-white/5 text-white border border-white/10'
-                      }`}
-                    >
-                      {option}
-                    </button>
-                  ))}
+                <div>
+                  <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-zinc-400">
+                    Gender
+                  </label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {(['male', 'female', 'non-binary'] as const).map((option) => (
+                      <button
+                        key={option}
+                        onClick={() => setGender(option)}
+                        type="button"
+                        className={`rounded-2xl px-3 py-3 text-sm transition ${
+                          gender === option
+                            ? 'bg-emerald-500 font-semibold text-black'
+                            : 'border border-white/10 bg-white/5 text-white'
+                        }`}
+                      >
+                        {option}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
 
               <button
                 onClick={() => setStep(2)}
                 type="button"
-                className="w-full rounded-2xl bg-emerald-400 px-4 py-3 font-semibold text-black"
+                className="mt-6 w-full rounded-2xl bg-emerald-400 px-4 py-3 font-semibold text-black"
               >
                 Next
               </button>
-            </div>
-          </>
-        )}
+            </>
+          )}
 
-        {step === 2 && (
-          <>
-            <div className="mb-6">
-              <p className="text-xs uppercase tracking-[0.2em] text-emerald-400">GymRat</p>
-              <h1 className="mt-2 text-3xl font-bold">Training level</h1>
+          {step === 2 && (
+            <>
+              <p className="text-[10px] uppercase tracking-[0.35em] text-emerald-400">GymRat</p>
+              <h1 className="mt-3 text-3xl font-black">Training level</h1>
               <p className="mt-2 text-sm text-zinc-400">
                 Pick your experience level, then we drop you into the app.
               </p>
-            </div>
 
-            <div className="space-y-3">
-              {([
-                { key: 'beginner', label: 'Beginner', desc: 'Simple and direct start' },
-                { key: 'intermediate', label: 'Intermediate', desc: 'Some gym experience already' },
-                { key: 'advanced', label: 'Advanced', desc: 'More serious training base' },
-              ] as const).map((option) => (
-                <button
-                  key={option.key}
-                  onClick={() => setTrainingLevel(option.key)}
-                  type="button"
-                  className={`w-full rounded-2xl border p-4 text-left ${
-                    trainingLevel === option.key
-                      ? 'border-emerald-400/20 bg-emerald-400/10'
-                      : 'border-white/10 bg-white/5'
-                  }`}
-                >
-                  <p className="font-bold">{option.label}</p>
-                  <p className="mt-1 text-sm text-zinc-400">{option.desc}</p>
-                </button>
-              ))}
+              <div className="mt-6 space-y-3">
+                {([
+                  { key: 'beginner', label: 'Beginner', desc: 'Simple and direct start' },
+                  { key: 'intermediate', label: 'Intermediate', desc: 'Some gym experience already' },
+                  { key: 'advanced', label: 'Advanced', desc: 'More serious training base' },
+                ] as const).map((option) => (
+                  <button
+                    key={option.key}
+                    onClick={() => setTrainingLevel(option.key)}
+                    type="button"
+                    className={`w-full rounded-2xl border p-4 text-left ${
+                      trainingLevel === option.key
+                        ? 'border-emerald-400/20 bg-emerald-400/10'
+                        : 'border-white/10 bg-white/5'
+                    }`}
+                  >
+                    <div className="font-semibold">{option.label}</div>
+                    <div className="mt-1 text-sm text-zinc-400">{option.desc}</div>
+                  </button>
+                ))}
+              </div>
 
-              <div className="grid grid-cols-2 gap-3 pt-2">
+              <div className="mt-6 grid grid-cols-2 gap-3">
                 <button
                   onClick={() => setStep(1)}
                   type="button"
@@ -167,7 +176,6 @@ function OnboardingGate({ onComplete }: { onComplete: () => void }) {
                 >
                   Back
                 </button>
-
                 <button
                   onClick={finish}
                   type="button"
@@ -176,9 +184,9 @@ function OnboardingGate({ onComplete }: { onComplete: () => void }) {
                   Start
                 </button>
               </div>
-            </div>
-          </>
-        )}
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -186,43 +194,27 @@ function OnboardingGate({ onComplete }: { onComplete: () => void }) {
 
 export default function Index() {
   const [showSplash, setShowSplash] = useState(true);
-  const [page, setPage] = useState<AppPage>(getCurrentPage());
-  const [profileReady, setProfileReady] = useState(Boolean(getProfile()));
-  const [menuOpen, setMenuOpenLocal] = useState(getUIState().menuOpen);
-  const [paywallOpen, setPaywallOpenLocal] = useState(getUIState().paywallOpen);
+  const [page, setPage] = useState<AppPage>(() => getCurrentPage() as AppPage);
+  const [profileReady, setProfileReady] = useState(
+    isOnboardingComplete() && Boolean(getProfile())
+  );
+  const [menuOpenLocal, setMenuOpenLocal] = useState(getUIState().menuOpen);
+  const [paywallOpenLocal, setPaywallOpenLocal] = useState(getUIState().paywallOpen);
   const [finishedWorkout, setFinishedWorkout] = useState<FinishedWorkout | null>(null);
-  const [navStack, setNavStack] = useState<AppPage[]>([]);
 
-  const stats = useMemo(() => getAppStats(), [page, finishedWorkout, paywallOpen, menuOpen, profileReady]);
+  const stats = useMemo(
+    () => getAppStats(),
+    [page, finishedWorkout, menuOpenLocal, paywallOpenLocal, profileReady]
+  );
 
   useEffect(() => {
     const timer = window.setTimeout(() => setShowSplash(false), 1200);
     return () => window.clearTimeout(timer);
   }, []);
 
-  const changePage = (nextPage: AppPage, pushHistory = true) => {
-    if (pushHistory && page !== nextPage) {
-      setNavStack((current) => [...current, page]);
-    }
+  const changePage = (nextPage: AppPage) => {
     setCurrentPage(nextPage);
     setPage(nextPage);
-  };
-
-  const goBack = () => {
-    setNavStack((current) => {
-      const copy = [...current];
-      const previous = copy.pop();
-
-      if (previous) {
-        setCurrentPage(previous);
-        setPage(previous);
-      } else {
-        setCurrentPage('home');
-        setPage('home');
-      }
-
-      return copy;
-    });
   };
 
   const openMenu = () => {
@@ -245,8 +237,16 @@ export default function Index() {
     setPaywallOpenLocal(false);
   };
 
-  const handleWorkoutFinish = (result: Omit<FinishedWorkout, 'earnedXP'>) => {
-    const earnedXP = Math.max(50, result.exercisesCompleted * 20 + Math.floor(result.volume / 100));
+  const handleWorkoutFinish = (result: {
+    workoutName: string;
+    durationMinutes: number;
+    exercisesCompleted: number;
+    volume: number;
+  }) => {
+    const earnedXP = Math.max(
+      50,
+      result.exercisesCompleted * 20 + Math.floor(result.volume / 100)
+    );
 
     addWorkoutHistory({
       workoutName: result.workoutName,
@@ -259,7 +259,11 @@ export default function Index() {
     addXP(earnedXP);
     clearWorkoutDraft();
 
-    const summary: FinishedWorkout = { ...result, earnedXP };
+    const summary: FinishedWorkout = {
+      ...result,
+      earnedXP,
+    };
+
     setWorkoutSummary(summary);
     setFinishedWorkout(summary);
     setCurrentPage('complete');
@@ -267,7 +271,10 @@ export default function Index() {
   };
 
   const startWorkout = () => {
-    saveWorkoutDraft({ startedAt: new Date().toISOString() });
+    saveWorkoutDraft({
+      startedAt: new Date().toISOString(),
+    });
+
     changePage('workout');
   };
 
@@ -280,20 +287,24 @@ export default function Index() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-white">
+    <>
       {page === 'home' && (
         <HomeScreen
           stats={stats}
           onOpenMenu={openMenu}
           onStartWorkout={startWorkout}
+          onOpenGallery={() => {
+            // tillfälligt: samma plats som shop/navigation-strukturen har nu
+            changePage('shop');
+          }}
+          onOpenShop={() => changePage('shop')}
         />
       )}
 
       {page === 'workout' && (
         <WorkoutFlow
-          onCancel={goBack}
-          onFinish={handleWorkoutFinish}
-          onOpenPaywall={openPaywall}
+          onBack={() => changePage('home')}
+          onComplete={handleWorkoutFinish}
         />
       )}
 
@@ -301,7 +312,6 @@ export default function Index() {
         <WorkoutComplete
           summary={finishedWorkout}
           onGoHome={() => {
-            setNavStack([]);
             setCurrentPage('home');
             setPage('home');
           }}
@@ -309,27 +319,43 @@ export default function Index() {
         />
       )}
 
-      {page === 'history' && <HistoryScreen onBack={goBack} />}
-      {page === 'nutrition' && <NutritionScreen onBack={goBack} onOpenPaywall={openPaywall} />}
-      {page === 'shop' && <ShopScreen onBack={goBack} onOpenPaywall={openPaywall} />}
-      {page === 'settings' && <SettingsScreen onBack={goBack} />}
-      {page === 'daily' && <DailyCheckInScreen onBack={goBack} />}
+      {page === 'history' && <HistoryScreen onBack={() => changePage('home')} />}
 
-      <AppMenu
-        open={menuOpen}
-        currentPage={page}
-        onClose={closeMenu}
-        onNavigate={(nextPage) => {
-          closeMenu();
-          changePage(nextPage);
-        }}
-        onOpenPaywall={() => {
-          closeMenu();
-          openPaywall();
-        }}
+      {page === 'nutrition' && (
+        <NutritionScreen
+          onBack={() => changePage('home')}
+          onOpenPaywall={openPaywall}
+        />
+      )}
+
+      {page === 'shop' && (
+        <ShopScreen
+          onBack={() => changePage('home')}
+          onOpenPaywall={openPaywall}
+        />
+      )}
+
+      {page === 'settings' && <SettingsScreen onBack={() => changePage('home')} />}
+
+      {page === 'daily' && <DailyCheckInScreen onBack={() => changePage('home')} />}
+
+<AppMenu
+  open={menuOpenLocal}
+  onClose={closeMenu}
+  onNavigate={(nextPage) => {
+    closeMenu();
+    changePage(nextPage);
+  }}
+  onOpenPaywall={() => {
+    closeMenu();
+    openPaywall();
+  }}
+/>
+
+      <PremiumPaywall
+        open={paywallOpenLocal}
+        onClose={closePaywall}
       />
-
-      <PremiumPaywall open={paywallOpen} onClose={closePaywall} />
-    </div>
+    </>
   );
 }

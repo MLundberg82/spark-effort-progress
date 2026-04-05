@@ -1,6 +1,27 @@
-import { Crown, Dumbbell, Flame, Lock, Plus, Sparkles, Target } from 'lucide-react';
-import { useMemo, useState } from 'react';
-import { isPremiumUnlocked } from '../lib/premiumStore';
+import { useEffect, useMemo, useState } from 'react';
+import {
+  ArrowLeft,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Clock3,
+  Crown,
+  Dumbbell,
+  Flame,
+  Plus,
+  Sparkles,
+  Target,
+  Trash2,
+} from 'lucide-react';
+import FloatingWorkoutTimer from '@/components/FloatingWorkoutTimer';
+import { checkPremium } from '@/lib/premiumStore';
+import { getTrainingLevel } from '@/lib/trainingStore';
+import {
+  getTimerSettings,
+  resetWorkoutTimerToPhase,
+  startWorkoutTimer,
+  stopWorkoutTimer,
+} from '@/lib/timerStore';
 
 type ExerciseRow = {
   id: string;
@@ -9,6 +30,7 @@ type ExerciseRow = {
   reps: number;
   weight: number;
   muscleGroup: string;
+  completed?: boolean;
 };
 
 type WorkoutTemplate = {
@@ -16,15 +38,42 @@ type WorkoutTemplate = {
   name: string;
   subtitle: string;
   focus: string;
+  difficulty: 'beginner' | 'intermediate' | 'advanced';
   exercises: ExerciseRow[];
+};
+
+type WorkoutCompletePayload = {
+  workoutName: string;
+  durationMinutes: number;
+  exercisesCompleted: number;
+  volume: number;
+};
+
+type WorkoutFlowProps = {
+  onBack: () => void;
+  onComplete: (result: WorkoutCompletePayload) => void;
 };
 
 const workoutTemplates: WorkoutTemplate[] = [
   {
+    id: 'beginner-full-body',
+    name: 'Full Body Starter',
+    subtitle: 'Simple, balanced, easy to follow',
+    focus: 'Best starting point for new lifters',
+    difficulty: 'beginner',
+    exercises: [
+      { id: '1', name: 'Leg Press', sets: 3, reps: 12, weight: 80, muscleGroup: 'Legs' },
+      { id: '2', name: 'Chest Press', sets: 3, reps: 10, weight: 35, muscleGroup: 'Chest' },
+      { id: '3', name: 'Lat Pulldown', sets: 3, reps: 10, weight: 35, muscleGroup: 'Back' },
+      { id: '4', name: 'Shoulder Press', sets: 2, reps: 12, weight: 20, muscleGroup: 'Shoulders' },
+    ],
+  },
+  {
     id: 'upper-power',
     name: 'Upper Power',
     subtitle: 'Chest, back, shoulders',
-    focus: 'Strength-focused upper session',
+    focus: 'Strength-focused upper body session',
+    difficulty: 'intermediate',
     exercises: [
       { id: '1', name: 'Bench Press', sets: 4, reps: 6, weight: 70, muscleGroup: 'Chest' },
       { id: '2', name: 'Barbell Row', sets: 4, reps: 8, weight: 65, muscleGroup: 'Back' },
@@ -33,22 +82,11 @@ const workoutTemplates: WorkoutTemplate[] = [
     ],
   },
   {
-    id: 'lower-strength',
-    name: 'Lower Strength',
-    subtitle: 'Quads, glutes, hamstrings',
-    focus: 'Heavy lower body session',
-    exercises: [
-      { id: '1', name: 'Squat', sets: 4, reps: 6, weight: 90, muscleGroup: 'Legs' },
-      { id: '2', name: 'Romanian Deadlift', sets: 4, reps: 8, weight: 80, muscleGroup: 'Hamstrings' },
-      { id: '3', name: 'Leg Press', sets: 3, reps: 12, weight: 160, muscleGroup: 'Legs' },
-      { id: '4', name: 'Calf Raise', sets: 3, reps: 15, weight: 60, muscleGroup: 'Calves' },
-    ],
-  },
-  {
     id: 'push-hypertrophy',
     name: 'Push Hypertrophy',
     subtitle: 'Chest, shoulders, triceps',
-    focus: 'Pump and volume',
+    focus: 'Pump, volume and progression feeling',
+    difficulty: 'intermediate',
     exercises: [
       { id: '1', name: 'Incline Dumbbell Press', sets: 4, reps: 10, weight: 26, muscleGroup: 'Chest' },
       { id: '2', name: 'Machine Chest Press', sets: 3, reps: 12, weight: 65, muscleGroup: 'Chest' },
@@ -60,7 +98,8 @@ const workoutTemplates: WorkoutTemplate[] = [
     id: 'pull-hypertrophy',
     name: 'Pull Hypertrophy',
     subtitle: 'Back, biceps, rear delts',
-    focus: 'Thickness and width',
+    focus: 'Thickness, width and clean pump',
+    difficulty: 'intermediate',
     exercises: [
       { id: '1', name: 'Lat Pulldown', sets: 4, reps: 10, weight: 55, muscleGroup: 'Back' },
       { id: '2', name: 'Seated Cable Row', sets: 4, reps: 10, weight: 55, muscleGroup: 'Back' },
@@ -69,15 +108,16 @@ const workoutTemplates: WorkoutTemplate[] = [
     ],
   },
   {
-    id: 'full-body',
-    name: 'Full Body',
-    subtitle: 'Balanced all-round session',
-    focus: 'Best simple starting point',
+    id: 'advanced-lower',
+    name: 'Lower Strength',
+    subtitle: 'Legs, glutes, hamstrings',
+    focus: 'Heavy lower body progression',
+    difficulty: 'advanced',
     exercises: [
-      { id: '1', name: 'Bench Press', sets: 3, reps: 8, weight: 60, muscleGroup: 'Chest' },
-      { id: '2', name: 'Lat Pulldown', sets: 3, reps: 10, weight: 50, muscleGroup: 'Back' },
-      { id: '3', name: 'Leg Press', sets: 3, reps: 12, weight: 120, muscleGroup: 'Legs' },
-      { id: '4', name: 'Shoulder Press', sets: 3, reps: 10, weight: 35, muscleGroup: 'Shoulders' },
+      { id: '1', name: 'Squat', sets: 4, reps: 6, weight: 90, muscleGroup: 'Legs' },
+      { id: '2', name: 'Romanian Deadlift', sets: 4, reps: 8, weight: 80, muscleGroup: 'Hamstrings' },
+      { id: '3', name: 'Leg Press', sets: 3, reps: 12, weight: 160, muscleGroup: 'Legs' },
+      { id: '4', name: 'Calf Raise', sets: 3, reps: 15, weight: 60, muscleGroup: 'Calves' },
     ],
   },
 ];
@@ -144,63 +184,84 @@ const premiumExerciseLibrary: Record<string, string[]> = {
     'Seated Leg Curl',
     'Good Morning',
   ],
-  Glutes: [
-    'Hip Thrust',
-    'Glute Bridge',
-    'Cable Kickback',
-    'Smith Machine Lunge',
-  ],
-  Calves: [
-    'Standing Calf Raise',
-    'Seated Calf Raise',
-    'Leg Press Calf Raise',
-  ],
-  Core: [
-    'Crunch',
-    'Cable Crunch',
-    'Hanging Leg Raise',
-    'Plank',
-    'Ab Wheel',
-    'Russian Twist',
-  ],
+  Glutes: ['Hip Thrust', 'Glute Bridge', 'Cable Kickback', 'Smith Machine Lunge'],
+  Calves: ['Standing Calf Raise', 'Seated Calf Raise', 'Leg Press Calf Raise'],
+  Core: ['Crunch', 'Cable Crunch', 'Hanging Leg Raise', 'Plank', 'Ab Wheel', 'Russian Twist'],
 };
+
+function makeId(prefix: string) {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return `${prefix}-${crypto.randomUUID()}`;
+  }
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
 
 function cloneExercises(rows: ExerciseRow[]) {
   return rows.map((row, index) => ({
     ...row,
-    id: `${row.name}-${index}-${crypto.randomUUID()}`,
+    id: makeId(`${row.name}-${index}`),
+    completed: false,
   }));
 }
 
-export default function WorkoutFlow({
-  onCancel,
-  onFinish,
-  onOpenPaywall,
-}: {
-  onCancel: () => void;
-  onFinish: (result: {
-    workoutName: string;
-    durationMinutes: number;
-    exercisesCompleted: number;
-    volume: number;
-  }) => void;
-  onOpenPaywall: () => void;
-}) {
-  const premium = isPremiumUnlocked();
-  const [mode, setMode] = useState<'template' | 'custom'>('template');
-  const [selectedTemplateId, setSelectedTemplateId] = useState<string>(workoutTemplates[0].id);
-  const selectedTemplate = workoutTemplates.find((t) => t.id === selectedTemplateId) ?? workoutTemplates[0];
+function getRecommendedDifficulty(): 'beginner' | 'intermediate' | 'advanced' {
+  const trainingLevel = getTrainingLevel();
 
-  const [workoutName, setWorkoutName] = useState(selectedTemplate.name);
+  if (trainingLevel === 'advanced') return 'advanced';
+  if (trainingLevel === 'intermediate') return 'intermediate';
+  return 'beginner';
+}
+
+function formatSeconds(total: number) {
+  const minutes = Math.floor(total / 60);
+  const seconds = total % 60;
+  return `${minutes}:${String(seconds).padStart(2, '0')}`;
+}
+
+export default function WorkoutFlow({ onBack, onComplete }: WorkoutFlowProps) {
+  const premium = checkPremium();
+  const timerSettings = getTimerSettings();
+  const recommendedDifficulty = getRecommendedDifficulty();
+
+  const defaultTemplate =
+    workoutTemplates.find((template) => template.difficulty === recommendedDifficulty) ||
+    workoutTemplates[0];
+
+  const [mode, setMode] = useState<'template' | 'custom'>('template');
+  const [selectedTemplateId, setSelectedTemplateId] = useState(defaultTemplate.id);
+  const [workoutName, setWorkoutName] = useState(defaultTemplate.name);
   const [durationMinutes, setDurationMinutes] = useState(45);
-  const [rows, setRows] = useState<ExerciseRow[]>(cloneExercises(selectedTemplate.exercises));
+  const [rows, setRows] = useState<ExerciseRow[]>(cloneExercises(defaultTemplate.exercises));
+  const [activeExerciseIndex, setActiveExerciseIndex] = useState(0);
+  const [showPremiumInfo, setShowPremiumInfo] = useState(false);
+  const [sessionStarted, setSessionStarted] = useState(false);
+
+  const selectedTemplate =
+    workoutTemplates.find((template) => template.id === selectedTemplateId) || defaultTemplate;
 
   const groupedPremiumExercises = useMemo(() => Object.entries(premiumExerciseLibrary), []);
+
+  const completedExercises = useMemo(
+    () => rows.filter((row) => row.completed).length,
+    [rows]
+  );
 
   const totalVolume = useMemo(
     () => rows.reduce((sum, row) => sum + row.sets * row.reps * row.weight, 0),
     [rows]
   );
+
+  const progressPercent = useMemo(() => {
+    if (!rows.length) return 0;
+    return Math.round((completedExercises / rows.length) * 100);
+  }, [completedExercises, rows.length]);
+
+  useEffect(() => {
+    resetWorkoutTimerToPhase('set');
+    return () => {
+      stopWorkoutTimer();
+    };
+  }, []);
 
   const applyTemplate = (templateId: string) => {
     const template = workoutTemplates.find((item) => item.id === templateId);
@@ -209,15 +270,25 @@ export default function WorkoutFlow({
     setSelectedTemplateId(template.id);
     setWorkoutName(template.name);
     setRows(cloneExercises(template.exercises));
+    setActiveExerciseIndex(0);
+    setMode('template');
+    setSessionStarted(false);
+    stopWorkoutTimer();
+    resetWorkoutTimerToPhase('set');
   };
 
-  const updateRow = (id: string, field: keyof ExerciseRow, value: string) => {
+  const updateRow = (id: string, field: keyof ExerciseRow, value: string | boolean) => {
     setRows((current) =>
       current.map((row) =>
         row.id === id
           ? {
               ...row,
-              [field]: field === 'name' || field === 'muscleGroup' ? value : Number(value),
+              [field]:
+                field === 'name' || field === 'muscleGroup'
+                  ? String(value)
+                  : field === 'completed'
+                  ? Boolean(value)
+                  : Number(value),
             }
           : row
       )
@@ -226,197 +297,250 @@ export default function WorkoutFlow({
 
   const removeRow = (id: string) => {
     setRows((current) => current.filter((row) => row.id !== id));
+    setActiveExerciseIndex((current) => Math.max(0, current - 1));
   };
 
   const addCustomExercise = (exerciseName: string, muscleGroup: string) => {
     if (!premium) {
-      onOpenPaywall();
+      setShowPremiumInfo(true);
       return;
     }
 
     setRows((current) => [
       ...current,
       {
-        id: `${exerciseName}-${crypto.randomUUID()}`,
+        id: makeId(exerciseName),
         name: exerciseName,
         sets: 3,
         reps: 10,
         weight: 20,
         muscleGroup,
+        completed: false,
       },
     ]);
   };
 
   const switchToCustom = () => {
     if (!premium) {
-      onOpenPaywall();
+      setShowPremiumInfo(true);
       return;
     }
+
     setMode('custom');
   };
 
   const switchToTemplate = () => {
     setMode('template');
+    setShowPremiumInfo(false);
   };
 
-  return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(16,185,129,0.14),_transparent_24%),linear-gradient(180deg,_#09090b_0%,_#0f172a_100%)] px-4 py-4 text-white">
-      <div className="mx-auto max-w-md">
-        <div className="mb-4 flex items-center justify-between">
-          <div>
-            <p className="text-[10px] uppercase tracking-[0.35em] text-emerald-400">Workout</p>
-            <h1 className="mt-1 text-2xl font-black">Log real-life effort</h1>
-          </div>
+  const activeRow = rows[activeExerciseIndex] || null;
 
+  const markCurrentDone = () => {
+    if (!activeRow) return;
+
+    updateRow(activeRow.id, 'completed', true);
+
+    if (activeExerciseIndex < rows.length - 1) {
+      setActiveExerciseIndex((current) => current + 1);
+    }
+  };
+
+  const goToPreviousExercise = () => {
+    setActiveExerciseIndex((current) => Math.max(0, current - 1));
+  };
+
+  const goToNextExercise = () => {
+    setActiveExerciseIndex((current) => Math.min(rows.length - 1, current + 1));
+  };
+
+  const handleStartSession = () => {
+    setSessionStarted(true);
+    resetWorkoutTimerToPhase('set');
+
+    if (timerSettings.enabled) {
+      startWorkoutTimer();
+    }
+  };
+
+const handleFinishWorkout = () => {
+  stopWorkoutTimer();
+
+  onComplete({
+    workoutName,
+    durationMinutes,
+    exercisesCompleted: rows.filter((row) => row.completed).length,
+    volume: totalVolume,
+  });
+};
+
+  return (
+    <div className="min-h-screen bg-background text-foreground">
+      <div className="mx-auto flex min-h-screen w-full max-w-md flex-col px-4 pb-28 pt-safe">
+        <div className="flex items-center justify-between pt-3">
           <button
-            onClick={onCancel}
             type="button"
-            className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm shadow-[0_8px_30px_rgba(0,0,0,0.25)] transition hover:bg-white/10"
+            onClick={() => {
+              stopWorkoutTimer();
+              onBack();
+            }}
+            className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-border bg-card"
+            aria-label="Go back"
           >
-            Cancel
+            <ArrowLeft className="h-5 w-5" />
           </button>
+
+          <div className="rounded-full border border-lime-400/20 bg-lime-400/10 px-3 py-1 text-xs font-semibold text-lime-300">
+            Workout
+          </div>
         </div>
 
-        <div className="mb-4 grid grid-cols-2 gap-3">
+        <div className="mt-4">
+          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-lime-300/80">
+            Real-life effort
+          </p>
+          <h1 className="mt-2 text-3xl font-bold tracking-tight">Train clean. Level up.</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Fast workout flow, clear structure, no clutter.
+          </p>
+        </div>
+
+        <div className="mt-5 grid grid-cols-2 gap-3">
           <button
-            onClick={switchToTemplate}
             type="button"
-            className={`rounded-[24px] border px-4 py-4 text-left transition ${
+            onClick={switchToTemplate}
+            className={`rounded-2xl border p-4 text-left transition ${
               mode === 'template'
-                ? 'border-emerald-400/20 bg-emerald-400/10'
-                : 'border-white/10 bg-white/[0.06]'
+                ? 'border-lime-400/20 bg-lime-400/10'
+                : 'border-border bg-card'
             }`}
           >
-            <div className="mb-2 inline-flex rounded-2xl bg-emerald-400/10 p-2.5 text-emerald-300">
+            <div className="flex items-center gap-2">
               <Dumbbell className="h-4 w-4" />
+              <p className="text-sm font-semibold">Quick start</p>
             </div>
-            <p className="font-black">Quick start</p>
-            <p className="mt-1 text-sm text-zinc-400">Choose a base workout and train fast.</p>
+            <p className="mt-2 text-xs leading-5 text-muted-foreground">
+              Choose a base workout and start fast.
+            </p>
           </button>
 
           <button
-            onClick={switchToCustom}
             type="button"
-            className={`rounded-[24px] border px-4 py-4 text-left transition ${
+            onClick={switchToCustom}
+            className={`rounded-2xl border p-4 text-left transition ${
               mode === 'custom'
-                ? 'border-amber-300/20 bg-amber-300/10'
-                : 'border-white/10 bg-white/[0.06]'
+                ? 'border-lime-400/20 bg-lime-400/10'
+                : 'border-border bg-card'
             }`}
           >
-            <div className="mb-2 inline-flex rounded-2xl bg-amber-300/10 p-2.5 text-amber-200">
-              <Crown className="h-4 w-4" />
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4" />
+              <p className="text-sm font-semibold">Custom workout</p>
+              {!premium && <Crown className="h-4 w-4 text-lime-300" />}
             </div>
-            <p className="font-black">Custom workout</p>
-            <p className="mt-1 text-sm text-zinc-400">
-              Premium unlock with full exercise library.
+            <p className="mt-2 text-xs leading-5 text-muted-foreground">
+              Premium builder with full exercise library.
             </p>
           </button>
         </div>
 
         {mode === 'template' && (
-          <div className="space-y-3">
-            <div className="rounded-[28px] border border-white/10 bg-white/[0.06] p-4 shadow-[0_16px_36px_rgba(0,0,0,0.24)]">
-              <p className="text-[10px] uppercase tracking-[0.25em] text-zinc-400">Choose workout type</p>
+          <div className="mt-5 space-y-3">
+            <div className="rounded-[28px] border border-border bg-card p-4">
+              <div className="mb-3 flex items-center gap-2">
+                <Target className="h-4 w-4 text-lime-300" />
+                <p className="text-sm font-semibold">Choose workout type</p>
+              </div>
 
-              <div className="mt-4 space-y-3">
+              <div className="space-y-2">
                 {workoutTemplates.map((template) => {
                   const active = template.id === selectedTemplateId;
 
                   return (
                     <button
                       key={template.id}
-                      onClick={() => applyTemplate(template.id)}
                       type="button"
-                      className={`w-full rounded-[24px] border p-4 text-left transition ${
+                      onClick={() => applyTemplate(template.id)}
+                      className={`w-full rounded-[22px] border p-4 text-left transition ${
                         active
-                          ? 'border-emerald-400/20 bg-gradient-to-br from-emerald-400/10 to-white/[0.04]'
-                          : 'border-white/10 bg-black/20 hover:bg-white/[0.04]'
+                          ? 'border-lime-400/20 bg-lime-400/10'
+                          : 'border-border bg-background hover:bg-accent'
                       }`}
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div>
-                          <p className="font-black">{template.name}</p>
-                          <p className="mt-1 text-sm text-zinc-400">{template.subtitle}</p>
-                          <p className="mt-2 text-xs text-zinc-500">{template.focus}</p>
+                          <p className="text-sm font-semibold">{template.name}</p>
+                          <p className="mt-1 text-xs text-muted-foreground">{template.subtitle}</p>
                         </div>
 
                         {active && (
-                          <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.15em] text-emerald-300">
+                          <span className="rounded-full bg-lime-400 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-black">
                             Active
                           </span>
                         )}
                       </div>
+
+                      <p className="mt-3 text-xs leading-5 text-muted-foreground">
+                        {template.focus}
+                      </p>
                     </button>
                   );
                 })}
-              </div>
-            </div>
-
-            <div className="rounded-[28px] border border-white/10 bg-white/[0.06] p-4 shadow-[0_16px_36px_rgba(0,0,0,0.24)]">
-              <p className="text-[10px] uppercase tracking-[0.25em] text-zinc-400">Template info</p>
-              <h2 className="mt-2 text-2xl font-black">{selectedTemplate.name}</h2>
-              <p className="mt-1 text-sm text-zinc-400">{selectedTemplate.subtitle}</p>
-
-              <div className="mt-4 grid grid-cols-2 gap-3">
-                <div className="rounded-[22px] border border-white/10 bg-black/20 p-4">
-                  <div className="mb-3 inline-flex rounded-2xl bg-emerald-400/10 p-2.5 text-emerald-300">
-                    <Target className="h-4 w-4" />
-                  </div>
-                  <p className="text-[10px] uppercase tracking-[0.22em] text-zinc-400">Focus</p>
-                  <p className="mt-1 text-sm font-bold">{selectedTemplate.focus}</p>
-                </div>
-
-                <div className="rounded-[22px] border border-white/10 bg-black/20 p-4">
-                  <div className="mb-3 inline-flex rounded-2xl bg-orange-500/10 p-2.5 text-orange-300">
-                    <Flame className="h-4 w-4" />
-                  </div>
-                  <p className="text-[10px] uppercase tracking-[0.22em] text-zinc-400">Exercises</p>
-                  <p className="mt-1 text-2xl font-black">{rows.length}</p>
-                </div>
               </div>
             </div>
           </div>
         )}
 
         {mode === 'custom' && (
-          <>
-            <div className="mb-4 rounded-[28px] border border-amber-300/20 bg-gradient-to-r from-amber-300/12 to-yellow-300/10 p-4 shadow-[0_16px_36px_rgba(0,0,0,0.24)]">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-[10px] uppercase tracking-[0.28em] text-amber-200">Premium builder</p>
-                  <h2 className="mt-2 text-xl font-black text-amber-100">Custom workout mode</h2>
-                  <p className="mt-2 text-sm text-zinc-300">
-                    Build your own workout from a larger exercise library divided by muscle group.
+          <div className="mt-5 space-y-3">
+            <div className="rounded-[28px] border border-border bg-card p-4">
+              <div className="flex items-center gap-2">
+                <Flame className="h-4 w-4 text-lime-300" />
+                <p className="text-sm font-semibold">Premium builder</p>
+              </div>
+
+              <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                Build your own workout from a larger exercise library divided by muscle group.
+              </p>
+
+              {!premium && (
+                <div className="mt-4 rounded-2xl border border-amber-300/20 bg-amber-300/10 p-4">
+                  <div className="flex items-center gap-2">
+                    <Crown className="h-4 w-4 text-amber-200" />
+                    <p className="text-sm font-semibold text-amber-100">Premium feature</p>
+                  </div>
+                  <p className="mt-2 text-xs leading-5 text-amber-100/80">
+                    Unlock custom workouts, bigger exercise library and more control over your sessions.
                   </p>
                 </div>
-
-                <div className="inline-flex rounded-2xl bg-amber-300/15 p-3 text-amber-200">
-                  <Crown className="h-5 w-5" />
-                </div>
-              </div>
-            </div>
-
-            <div className="mb-4 rounded-[28px] border border-white/10 bg-white/[0.06] p-4 shadow-[0_16px_36px_rgba(0,0,0,0.24)]">
-              <p className="text-[10px] uppercase tracking-[0.25em] text-zinc-400">Exercise library</p>
+              )}
 
               <div className="mt-4 space-y-4">
                 {groupedPremiumExercises.map(([group, exercises]) => (
-                  <div key={group} className="rounded-[22px] border border-white/10 bg-black/20 p-4">
-                    <p className="text-sm font-black">{group}</p>
-
-                    <div className="mt-3 flex flex-wrap gap-2">
+                  <div key={group}>
+                    <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-lime-300/80">
+                      {group}
+                    </p>
+                    <div className="flex flex-wrap gap-2">
                       {exercises.map((exercise) => (
                         <button
-                          key={`${group}-${exercise}`}
-                          onClick={() => addCustomExercise(exercise, group)}
+                          key={exercise}
                           type="button"
+                          onClick={() => addCustomExercise(exercise, group)}
                           className={`rounded-full px-3 py-2 text-sm transition ${
                             premium
-                              ? 'border border-white/10 bg-white/5 hover:bg-white/10'
-                              : 'border border-amber-300/20 bg-amber-300/10 text-amber-200'
+                              ? 'border border-border bg-background hover:bg-accent'
+                              : 'border border-amber-300/20 bg-amber-300/10 text-amber-100'
                           }`}
                         >
-                          {premium ? exercise : `🔒 ${exercise}`}
+                          {premium ? (
+                            exercise
+                          ) : (
+                            <span className="inline-flex items-center gap-1">
+                              <Crown className="h-3.5 w-3.5" />
+                              {exercise}
+                            </span>
+                          )}
                         </button>
                       ))}
                     </div>
@@ -424,141 +548,353 @@ export default function WorkoutFlow({
                 ))}
               </div>
             </div>
-          </>
+          </div>
         )}
 
-        <div className="mt-4 rounded-[28px] border border-white/10 bg-white/[0.06] p-4 shadow-[0_16px_36px_rgba(0,0,0,0.24)]">
-          <p className="text-[10px] uppercase tracking-[0.25em] text-zinc-400">Session setup</p>
+        <div className="mt-5 rounded-[28px] border border-border bg-card p-4">
+          <div className="mb-3 flex items-center gap-2">
+            <Clock3 className="h-4 w-4 text-lime-300" />
+            <p className="text-sm font-semibold">Session setup</p>
+          </div>
 
-          <div className="mt-4 space-y-4">
+          <div className="grid gap-3">
             <div>
-              <label className="mb-2 block text-sm text-zinc-400">Workout name</label>
+              <label className="mb-2 block text-xs font-medium text-muted-foreground">
+                Workout name
+              </label>
               <input
                 value={workoutName}
                 onChange={(e) => setWorkoutName(e.target.value)}
-                className="w-full rounded-2xl border border-white/10 bg-zinc-900 px-4 py-3 outline-none transition focus:border-emerald-400"
+                className="w-full rounded-2xl border border-border bg-background px-4 py-3 outline-none transition focus:border-lime-400"
+                placeholder="Workout name"
               />
             </div>
 
             <div>
-              <label className="mb-2 block text-sm text-zinc-400">Duration (minutes)</label>
+              <label className="mb-2 block text-xs font-medium text-muted-foreground">
+                Duration (minutes)
+              </label>
               <input
                 type="number"
+                min={5}
                 value={durationMinutes}
                 onChange={(e) => setDurationMinutes(Number(e.target.value))}
-                className="w-full rounded-2xl border border-white/10 bg-zinc-900 px-4 py-3 outline-none transition focus:border-emerald-400"
+                className="w-full rounded-2xl border border-border bg-background px-4 py-3 outline-none transition focus:border-lime-400"
+                placeholder="45"
               />
             </div>
           </div>
         </div>
 
-        <div className="mt-4 space-y-3">
-          {rows.map((row) => (
+        <div className="mt-5 rounded-[28px] border border-border bg-card p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold">Session summary</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {rows.length} exercises · {completedExercises} completed
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-lime-400/20 bg-lime-400/10 px-3 py-2 text-right">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-lime-300/80">
+                Progress
+              </p>
+              <p className="text-sm font-bold text-lime-200">{progressPercent}%</p>
+            </div>
+          </div>
+
+          <div className="mt-4 h-2 overflow-hidden rounded-full bg-background">
             <div
-              key={row.id}
-              className="rounded-[28px] border border-white/10 bg-white/[0.06] p-4 shadow-[0_16px_36px_rgba(0,0,0,0.24)]"
-            >
-              <div className="mb-3 flex items-start justify-between gap-3">
+              className="h-full rounded-full bg-lime-400 transition-all"
+              style={{ width: `${progressPercent}%` }}
+            />
+          </div>
+
+          <div className="mt-4 grid grid-cols-3 gap-3 text-center">
+            <div className="rounded-2xl border border-border bg-background px-3 py-3">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Exercises
+              </p>
+              <p className="mt-1 text-base font-bold">{rows.length}</p>
+            </div>
+
+            <div className="rounded-2xl border border-border bg-background px-3 py-3">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Volume
+              </p>
+              <p className="mt-1 text-base font-bold">{totalVolume}</p>
+            </div>
+
+            <div className="rounded-2xl border border-border bg-background px-3 py-3">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Timer
+              </p>
+              <p className="mt-1 text-base font-bold">
+                {timerSettings.enabled
+                  ? `${formatSeconds(timerSettings.setSeconds)} / ${formatSeconds(timerSettings.restSeconds)}`
+                  : 'Off'}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-5 rounded-[28px] border border-border bg-card p-4">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold">Workout flow</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                One exercise at a time, clean and focused.
+              </p>
+            </div>
+
+            {!sessionStarted ? (
+              <button
+                type="button"
+                onClick={handleStartSession}
+                className="inline-flex h-11 items-center justify-center rounded-2xl bg-lime-400 px-4 text-sm font-bold text-black"
+              >
+                Start
+              </button>
+            ) : (
+              <span className="rounded-full bg-lime-400/10 px-3 py-1 text-xs font-semibold text-lime-300">
+                Running
+              </span>
+            )}
+          </div>
+
+          {activeRow ? (
+            <div className="rounded-[24px] border border-lime-400/20 bg-lime-400/10 p-4">
+              <div className="flex items-start justify-between gap-3">
                 <div>
-                  <p className="text-[10px] uppercase tracking-[0.2em] text-emerald-400">{row.muscleGroup}</p>
-                  <p className="mt-1 font-black">{row.name}</p>
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-lime-300/80">
+                    Current exercise
+                  </p>
+                  <h3 className="mt-2 text-xl font-bold">{activeRow.name}</h3>
+                  <p className="mt-1 text-sm text-muted-foreground">{activeRow.muscleGroup}</p>
                 </div>
 
-                {mode === 'custom' && premium && (
-                  <button
-                    onClick={() => removeRow(row.id)}
-                    type="button"
-                    className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs transition hover:bg-white/10"
-                  >
-                    Remove
-                  </button>
+                {activeRow.completed && (
+                  <div className="rounded-full bg-lime-400 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-black">
+                    Done
+                  </div>
                 )}
               </div>
 
-              <input
-                value={row.name}
-                onChange={(e) => updateRow(row.id, 'name', e.target.value)}
-                className="mb-3 w-full rounded-2xl border border-white/10 bg-zinc-900 px-4 py-3 outline-none transition focus:border-emerald-400"
-              />
+              <div className="mt-4 grid grid-cols-3 gap-3">
+                <div className="rounded-2xl border border-border bg-background px-3 py-3 text-center">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    Sets
+                  </p>
+                  <p className="mt-1 text-base font-bold">{activeRow.sets}</p>
+                </div>
 
-              <div className="grid grid-cols-3 gap-2">
-                <input
-                  type="number"
-                  value={row.sets}
-                  onChange={(e) => updateRow(row.id, 'sets', e.target.value)}
-                  className="rounded-2xl border border-white/10 bg-zinc-900 px-3 py-3 outline-none transition focus:border-emerald-400"
-                  placeholder="Sets"
-                />
-                <input
-                  type="number"
-                  value={row.reps}
-                  onChange={(e) => updateRow(row.id, 'reps', e.target.value)}
-                  className="rounded-2xl border border-white/10 bg-zinc-900 px-3 py-3 outline-none transition focus:border-emerald-400"
-                  placeholder="Reps"
-                />
-                <input
-                  type="number"
-                  value={row.weight}
-                  onChange={(e) => updateRow(row.id, 'weight', e.target.value)}
-                  className="rounded-2xl border border-white/10 bg-zinc-900 px-3 py-3 outline-none transition focus:border-emerald-400"
-                  placeholder="Weight"
-                />
+                <div className="rounded-2xl border border-border bg-background px-3 py-3 text-center">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    Reps
+                  </p>
+                  <p className="mt-1 text-base font-bold">{activeRow.reps}</p>
+                </div>
+
+                <div className="rounded-2xl border border-border bg-background px-3 py-3 text-center">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    Weight
+                  </p>
+                  <p className="mt-1 text-base font-bold">{activeRow.weight}</p>
+                </div>
+              </div>
+
+              <div className="mt-4 grid grid-cols-3 gap-2">
+                <button
+                  type="button"
+                  onClick={goToPreviousExercise}
+                  disabled={activeExerciseIndex === 0}
+                  className="inline-flex h-11 items-center justify-center rounded-2xl border border-border bg-background disabled:opacity-40"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={markCurrentDone}
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-lime-400 font-bold text-black"
+                >
+                  <Check className="h-4 w-4" />
+                  Done
+                </button>
+
+                <button
+                  type="button"
+                  onClick={goToNextExercise}
+                  disabled={activeExerciseIndex === rows.length - 1}
+                  className="inline-flex h-11 items-center justify-center rounded-2xl border border-border bg-background disabled:opacity-40"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
               </div>
             </div>
-          ))}
+          ) : (
+            <div className="rounded-2xl border border-border bg-background px-4 py-6 text-center text-sm text-muted-foreground">
+              No exercises in this workout yet.
+            </div>
+          )}
         </div>
 
-        {!premium && (
-          <button
-            onClick={onOpenPaywall}
-            type="button"
-            className="mt-4 flex w-full items-center justify-between rounded-[26px] border border-amber-300/20 bg-gradient-to-r from-amber-300/12 to-yellow-300/10 p-4 text-left shadow-[0_14px_30px_rgba(0,0,0,0.24)] transition hover:scale-[1.01]"
-          >
-            <div>
-              <p className="text-[10px] uppercase tracking-[0.28em] text-amber-200">Premium feature</p>
-              <p className="mt-1 font-black text-amber-100">Unlock custom workouts</p>
-              <p className="mt-1 text-sm text-zinc-300">
-                Build sessions your way and choose from 40+ exercises.
-              </p>
-            </div>
-            <div className="inline-flex rounded-2xl bg-amber-300/15 p-3 text-amber-200">
-              <Lock className="h-5 w-5" />
-            </div>
-          </button>
-        )}
-
-        <div className="mt-4 rounded-[28px] border border-emerald-400/15 bg-emerald-400/8 p-4">
-          <p className="text-[10px] uppercase tracking-[0.28em] text-emerald-300">Session summary</p>
-
-          <div className="mt-3 grid grid-cols-2 gap-3">
-            <div className="rounded-[22px] border border-white/10 bg-black/20 p-4">
-              <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-400">Exercises</p>
-              <p className="mt-1 text-2xl font-black">{rows.length}</p>
-            </div>
-
-            <div className="rounded-[22px] border border-white/10 bg-black/20 p-4">
-              <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-400">Volume</p>
-              <p className="mt-1 text-2xl font-black">{totalVolume}</p>
-            </div>
+        <div className="mt-5 rounded-[28px] border border-border bg-card p-4">
+          <div className="mb-3 flex items-center justify-between">
+            <p className="text-sm font-semibold">Exercise list</p>
+            {mode === 'custom' && premium && (
+              <span className="rounded-full bg-lime-400/10 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-lime-300">
+                Editable
+              </span>
+            )}
           </div>
 
-          <button
-            onClick={() =>
-              onFinish({
-                workoutName,
-                durationMinutes,
-                exercisesCompleted: rows.length,
-                volume: totalVolume,
-              })
-            }
-            type="button"
-            className="mt-4 flex w-full items-center justify-center gap-2 rounded-[24px] bg-gradient-to-r from-emerald-400 via-lime-300 to-yellow-300 px-5 py-4 text-base font-black text-black shadow-[0_12px_40px_rgba(132,204,22,0.25)] transition hover:scale-[1.01]"
-          >
-            <Plus className="h-5 w-5" />
-            Finish workout
-          </button>
+          <div className="space-y-3">
+            {rows.map((row, index) => (
+              <div
+                key={row.id}
+                className={`rounded-[22px] border p-4 ${
+                  index === activeExerciseIndex
+                    ? 'border-lime-400/20 bg-lime-400/10'
+                    : 'border-border bg-background'
+                }`}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-lime-300/80">
+                      {row.muscleGroup}
+                    </p>
+                    <p className="mt-1 text-sm font-semibold">{row.name}</p>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {row.completed && (
+                      <span className="rounded-full bg-lime-400 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-black">
+                        Done
+                      </span>
+                    )}
+
+                    {mode === 'custom' && premium && (
+                      <button
+                        type="button"
+                        onClick={() => removeRow(row.id)}
+                        className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-card"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {mode === 'custom' && premium ? (
+                  <div className="mt-3 grid gap-3">
+                    <input
+                      value={row.name}
+                      onChange={(e) => updateRow(row.id, 'name', e.target.value)}
+                      className="w-full rounded-2xl border border-border bg-card px-4 py-3 outline-none transition focus:border-lime-400"
+                    />
+
+                    <div className="grid grid-cols-3 gap-2">
+                      <input
+                        type="number"
+                        min={1}
+                        value={row.sets}
+                        onChange={(e) => updateRow(row.id, 'sets', e.target.value)}
+                        className="rounded-2xl border border-border bg-card px-3 py-3 outline-none transition focus:border-lime-400"
+                        placeholder="Sets"
+                      />
+                      <input
+                        type="number"
+                        min={1}
+                        value={row.reps}
+                        onChange={(e) => updateRow(row.id, 'reps', e.target.value)}
+                        className="rounded-2xl border border-border bg-card px-3 py-3 outline-none transition focus:border-lime-400"
+                        placeholder="Reps"
+                      />
+                      <input
+                        type="number"
+                        min={0}
+                        value={row.weight}
+                        onChange={(e) => updateRow(row.id, 'weight', e.target.value)}
+                        className="rounded-2xl border border-border bg-card px-3 py-3 outline-none transition focus:border-lime-400"
+                        placeholder="Weight"
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+                    <div className="rounded-2xl border border-border bg-card px-3 py-2">
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        Sets
+                      </p>
+                      <p className="mt-1 text-sm font-bold">{row.sets}</p>
+                    </div>
+                    <div className="rounded-2xl border border-border bg-card px-3 py-2">
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        Reps
+                      </p>
+                      <p className="mt-1 text-sm font-bold">{row.reps}</p>
+                    </div>
+                    <div className="rounded-2xl border border-border bg-card px-3 py-2">
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        Weight
+                      </p>
+                      <p className="mt-1 text-sm font-bold">{row.weight}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {mode === 'custom' && premium && (
+            <button
+              type="button"
+              onClick={() =>
+                setRows((current) => [
+                  ...current,
+                  {
+                    id: makeId('custom'),
+                    name: 'New Exercise',
+                    sets: 3,
+                    reps: 10,
+                    weight: 20,
+                    muscleGroup: 'Custom',
+                    completed: false,
+                  },
+                ])
+              }
+              className="mt-4 inline-flex h-11 w-full items-center justify-center gap-2 rounded-2xl border border-border bg-background text-sm font-semibold"
+            >
+              <Plus className="h-4 w-4" />
+              Add empty exercise
+            </button>
+          )}
+
+          {showPremiumInfo && !premium && (
+            <div className="mt-4 rounded-2xl border border-amber-300/20 bg-amber-300/10 p-4">
+              <div className="flex items-center gap-2">
+                <Crown className="h-4 w-4 text-amber-200" />
+                <p className="text-sm font-semibold text-amber-100">Premium unlock</p>
+              </div>
+              <p className="mt-2 text-xs leading-5 text-amber-100/80">
+                Custom builder stays premium so the free flow remains clean and simple, while premium users get more control and more variety.
+              </p>
+            </div>
+          )}
         </div>
+
+        <button
+          type="button"
+          onClick={handleFinishWorkout}
+          className="mt-5 flex h-14 w-full items-center justify-center gap-2 rounded-[24px] bg-gradient-to-r from-lime-400 via-lime-300 to-yellow-300 text-base font-black text-black shadow-[0_12px_40px_rgba(132,204,22,0.25)] transition hover:scale-[1.01]"
+        >
+          <Dumbbell className="h-5 w-5" />
+          Finish workout
+        </button>
       </div>
+
+      <FloatingWorkoutTimer />
     </div>
   );
 }

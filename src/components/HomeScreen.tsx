@@ -1,7 +1,17 @@
-import { Menu } from 'lucide-react';
-import type { AppStats } from '../lib/appStore';
-import { getProfile } from '../lib/profileStore';
-import { getRatImage } from '../lib/assetRegistry';
+import { Menu, Images, ShoppingBag, Play } from 'lucide-react';
+import type { AppStats } from '@/lib/appStore';
+import { getProfile } from '@/lib/profileStore';
+import { getEquippedItemIds } from '@/lib/shopStore';
+import EquippedRatPreview from '@/components/EquippedRatPreview';
+import { Button } from '@/components/ui/button';
+
+type HomeScreenProps = {
+  stats: AppStats;
+  onOpenMenu: () => void;
+  onStartWorkout: () => void;
+  onOpenGallery: () => void;
+  onOpenShop: () => void;
+};
 
 function getTierFromLevel(level: number) {
   if (level >= 60) return 'Legend Tier';
@@ -17,98 +27,129 @@ export default function HomeScreen({
   stats,
   onOpenMenu,
   onStartWorkout,
-}: {
-  stats: AppStats;
-  onOpenMenu: () => void;
-  onStartWorkout: () => void;
-}) {
+  onOpenGallery,
+  onOpenShop,
+}: HomeScreenProps) {
   const profile = getProfile();
-function mapGenderToVariant(gender?: string) {
-  if (gender === 'female') return 'female';
-  if (gender === 'non-binary') return 'nonbinary';
-  return 'male';
-}
-
-const ratImage = getRatImage(
-  stats.level,
-  mapGenderToVariant(profile?.gender)
-);
+  const equippedIds = getEquippedItemIds();
+  const hasAnyEquipped = equippedIds.length > 0;
   const tierLabel = getTierFromLevel(stats.level);
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(16,185,129,0.16),_transparent_24%),linear-gradient(180deg,_#09090b_0%,_#0f172a_100%)] px-4 py-4 text-white">
-      <div className="mx-auto max-w-md">
-        <div className="relative overflow-hidden rounded-[36px] border border-white/10 bg-white/[0.05] px-5 pb-6 pt-5 shadow-[0_25px_80px_rgba(0,0,0,0.42)] backdrop-blur-xl">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_18%,rgba(52,211,153,0.18),transparent_20%),radial-gradient(circle_at_50%_60%,rgba(250,204,21,0.08),transparent_28%)]" />
+    <div className="h-screen overflow-hidden bg-background text-foreground">
+      <div className="mx-auto flex h-full w-full max-w-md flex-col px-4 pb-4 pt-3">
+        <div className="flex items-center justify-between">
+          <button
+            type="button"
+            onClick={onOpenMenu}
+            className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-border bg-card text-foreground shadow-sm"
+            aria-label="Open menu"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
 
-          <div className="relative z-10">
-            <div className="mb-3 flex justify-end">
-              <button
-                onClick={onOpenMenu}
-                type="button"
-                className="rounded-2xl border border-white/10 bg-black/20 p-3 text-white shadow-[0_8px_30px_rgba(0,0,0,0.25)] transition hover:scale-[1.03] hover:bg-white/10"
-              >
-                <Menu className="h-5 w-5" />
-              </button>
+          <div className="flex items-center gap-2">
+            <div className="rounded-full border border-border bg-card px-3 py-1 text-[11px] font-semibold text-muted-foreground">
+              {tierLabel}
+            </div>
+            <div className="rounded-full border border-lime-400/20 bg-lime-400/10 px-3 py-1 text-[11px] font-bold text-lime-300">
+              LEVEL {stats.level}
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-4 text-center">
+          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-lime-300/80">
+            GymRat
+          </p>
+          <h1 className="mt-2 text-3xl font-bold tracking-tight">
+            Level up in real life
+          </h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            {profile?.trainingLevel
+              ? `Training level: ${profile.trainingLevel}`
+              : 'Choose your level and start your first workout.'}
+          </p>
+        </div>
+
+        <div className="flex flex-1 items-center justify-center py-4">
+          <div className="relative flex h-full max-h-[48vh] w-full items-center justify-center overflow-hidden rounded-[32px] border border-border bg-card">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(163,230,53,0.12),transparent_60%)]" />
+
+            <div className="relative z-10 flex h-full w-full items-center justify-center">
+              <EquippedRatPreview
+                level={stats.level}
+                gender={profile?.gender}
+                size="hero"
+              />
             </div>
 
-            <div className="mb-3 flex items-center justify-between">
-              <div className="rounded-full border border-white/10 bg-black/20 px-3 py-2 text-xs font-semibold text-zinc-300">
-                {tierLabel}
+            {hasAnyEquipped && (
+              <div className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full border border-lime-400/20 bg-lime-400/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-lime-300">
+                Equipped look active
               </div>
+            )}
+          </div>
+        </div>
 
-              <div className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-2 text-xs font-bold text-emerald-300">
-                LEVEL {stats.level}
-              </div>
+        <div className="rounded-[24px] border border-border bg-card p-4">
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+                Progression
+              </p>
+              <h3 className="mt-1 text-2xl font-black">Level {stats.level}</h3>
             </div>
 
-            <div className="relative flex justify-center">
-              <div className="absolute top-8 h-52 w-52 rounded-full bg-emerald-400/12 blur-3xl" />
-              <div className="absolute top-12 h-64 w-64 rounded-full border border-white/5" />
-              <div className="absolute top-16 h-56 w-56 rounded-full border border-emerald-400/10" />
-
-              <div className="relative z-10 flex h-[340px] w-full items-center justify-center">
-                {ratImage ? (
-                  <img
-                    src={ratImage}
-                    alt="Gym Rat"
-                    className="max-h-[320px] w-auto object-contain drop-shadow-[0_0_28px_rgba(52,211,153,0.20)]"
-                  />
-                ) : (
-                  <div className="text-[120px]">🐀</div>
-                )}
-              </div>
+            <div className="rounded-2xl border border-lime-400/20 bg-lime-400/10 px-3 py-2 text-right">
+              <p className="text-[10px] uppercase tracking-[0.18em] text-lime-300">
+                XP
+              </p>
+              <p className="text-sm font-bold text-foreground">
+                {stats.currentLevelXP} / {stats.nextLevelXP}
+              </p>
             </div>
+          </div>
 
-            <div className="rounded-[24px] border border-white/10 bg-black/25 p-4">
-              <div className="mb-2 flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-[10px] uppercase tracking-[0.22em] text-zinc-400">Progression</p>
-                  <h3 className="mt-1 text-2xl font-black">Level {stats.level}</h3>
-                </div>
+          <div className="h-2 overflow-hidden rounded-full bg-background">
+            <div
+              className="h-full rounded-full bg-lime-400 transition-all"
+              style={{ width: `${stats.progressPercent}%` }}
+            />
+          </div>
 
-                <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-3 py-2 text-right">
-                  <p className="text-[10px] uppercase tracking-[0.18em] text-emerald-300">XP</p>
-                  <p className="text-sm font-bold text-white">
-                    {stats.currentLevelXP} / {stats.nextLevelXP}
-                  </p>
-                </div>
-              </div>
+          <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
+            <span>Total XP: {stats.totalXP}</span>
+            <span>Workouts: {stats.totalWorkouts}</span>
+          </div>
+        </div>
 
-              <div className="h-4 overflow-hidden rounded-full bg-white/10">
-                <div
-                  className="h-full rounded-full bg-gradient-to-r from-emerald-400 via-lime-300 to-yellow-300 transition-all duration-700"
-                  style={{ width: `${stats.progressPercent}%` }}
-                />
-              </div>
-            </div>
+        <div className="mt-4">
+          <Button
+            onClick={onStartWorkout}
+            className="h-14 w-full rounded-2xl text-base font-bold"
+          >
+            <Play className="mr-2 h-5 w-5" />
+            Start workout
+          </Button>
+
+          <div className="mt-3 grid grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={onOpenGallery}
+              className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl border border-border bg-card px-4 text-sm font-medium text-foreground shadow-sm"
+            >
+              <Images className="h-4 w-4" />
+              Gallery
+            </button>
 
             <button
-              onClick={onStartWorkout}
               type="button"
-              className="mt-5 w-full rounded-[26px] bg-gradient-to-r from-emerald-400 via-lime-300 to-yellow-300 px-5 py-5 text-lg font-black text-black shadow-[0_12px_40px_rgba(132,204,22,0.25)] transition hover:scale-[1.01]"
+              onClick={onOpenShop}
+              className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl border border-border bg-card px-4 text-sm font-medium text-foreground shadow-sm"
             >
-              Start Workout
+              <ShoppingBag className="h-4 w-4" />
+              Shop
             </button>
           </div>
         </div>
