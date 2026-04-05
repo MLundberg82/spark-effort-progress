@@ -6,7 +6,6 @@ import {
   Flame,
   History,
   Images,
-  Lock,
   Settings2,
   ShoppingBag,
   Sparkles,
@@ -14,6 +13,7 @@ import {
   X,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import type { ReactNode } from 'react';
 import type { AppPage } from '@/lib/appStore';
 import { getTimerSettings, toggleTimerEnabled } from '@/lib/timerStore';
 import { checkPremium } from '@/lib/premiumStore';
@@ -27,7 +27,7 @@ type AppMenuProps = {
 };
 
 type MenuRowProps = {
-  icon: React.ReactNode;
+  icon: ReactNode;
   title: string;
   subtitle?: string;
   premium?: boolean;

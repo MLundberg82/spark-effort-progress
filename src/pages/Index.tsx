@@ -372,14 +372,6 @@ export default function Index() {
   }, []);
 
   const changePage = (nextPage: AppPage) => {
-    if (nextPage === 'shop') {
-      setCurrentPage('home');
-      setPage('home');
-      setPaywallOpen(true);
-      setPaywallOpenLocal(true);
-      return;
-    }
-
     setCurrentPage(nextPage);
     setPage(nextPage);
   };
@@ -467,7 +459,7 @@ export default function Index() {
           onOpenMenu={openMenu}
           onStartWorkout={startWorkout}
           onOpenGallery={() => {
-            openPaywall();
+            changePage('gallery');
           }}
           onOpenShop={() => {
             changePage('shop');
@@ -516,6 +508,54 @@ export default function Index() {
         <DailyCheckInScreen
           onBack={() => changePage('home')}
         />
+      )}
+
+      {page === 'gallery' && (
+        <div className="min-h-screen bg-[#09090b] px-4 py-4 text-white">
+          <div className="mx-auto max-w-[430px]">
+            <button
+              type="button"
+              onClick={() => changePage('home')}
+              className="mb-4 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/[0.08]"
+            >
+              Back
+            </button>
+
+            <div className="rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.02))] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.45)]">
+              <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-300">
+                Gallery
+              </div>
+              <h1 className="text-[2rem] font-black tracking-[-0.04em]">Rat evolution</h1>
+              <p className="mt-2 text-sm text-white/65">
+                Placeholder page until your full gallery component is wired to this route.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {page === 'shop' && (
+        <div className="min-h-screen bg-[#09090b] px-4 py-4 text-white">
+          <div className="mx-auto max-w-[430px]">
+            <button
+              type="button"
+              onClick={() => changePage('home')}
+              className="mb-4 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/[0.08]"
+            >
+              Back
+            </button>
+
+            <div className="rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.02))] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.45)]">
+              <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-300">
+                Shop
+              </div>
+              <h1 className="text-[2rem] font-black tracking-[-0.04em]">Cosmetic loadout</h1>
+              <p className="mt-2 text-sm text-white/65">
+                Wire your main shop screen here if it is already present in the repo.
+              </p>
+            </div>
+          </div>
+        </div>
       )}
 
       <AppMenu

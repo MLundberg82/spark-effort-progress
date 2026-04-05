@@ -1,124 +1,243 @@
-import { getBackgroundImage, getItemImage, getRatImage } from '@/lib/assetRegistry';
-import type { RatVariant } from '@/lib/assetTypes';
-import type { UserGender } from '@/lib/profileStore';
-import { getEquippedItems } from '@/lib/shopStore';
+import type { AssetShopItem, ItemSlot, RatVariant } from './assetTypes';
 
-type Props = {
-  level: number;
-  gender?: UserGender;
-  size?: 'hero' | 'card';
-};
+const ratModules = import.meta.glob('../assets/rats/**/*.{png,jpg,jpeg,webp}', {
+  eager: true,
+  import: 'default',
+}) as Record<string, string>;
 
-function mapGenderToVariant(gender?: UserGender): RatVariant {
+const itemModules = import.meta.glob('../assets/items/**/*.{png,jpg,jpeg,webp}', {
+  eager: true,
+  import: 'default',
+}) as Record<string, string>;
+
+const backgroundModules = import.meta.glob('../assets/backgrounds/**/*.{png,jpg,jpeg,webp}', {
+  eager: true,
+  import: 'default',
+}) as Record<string, string>;
+
+function normalize(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+}
+
+function padLevel(level: number) {
+  return String(level).padStart(3, '0');
+}
+
+function nearestMilestone(level: number) {
+  const milestones = [100, 90, 80, 70, 60, 50, 40, 35, 30, 25, 20, 15, 10, 5, 1];
+  return milestones.find((entry) => level >= entry) ?? 1;
+}
+
+function scoreMatch(path: string, tokens: string[]) {
+  const normalizedPath = normalize(path);
+
+  let score = 0;
+  for (const token of tokens) {
+    const normalizedToken = normalize(token);
+    if (!normalizedToken) continue;
+    if (normalizedPath.includes(normalizedToken)) {
+      score += normalizedToken.length;
+    } else {
+      return -1;
+    }
+  }
+
+  if (normalizedPath.endsWith('.png')) score += 8;
+  if (normalizedPath.endsWith('.webp')) score += 6;
+  if (normalizedPath.includes('/premium/')) score += 2;
+
+  return score;
+}
+
+function findBest(modules: Record<string, string>, tokenSets: string[][]) {
+  const entries = Object.entries(modules);
+
+  let bestPath: string | undefined;
+  let bestValue: string | undefined;
+  let bestScore = -1;
+
+  for (const tokens of tokenSets) {
+    for (const [path, value] of entries) {
+      const score = scoreMatch(path, tokens);
+      if (score > bestScore) {
+        bestScore = score;
+        bestPath = path;
+        bestValue = value;
+      }
+    }
+
+    if (bestScore >= 0 && bestValue) {
+      return bestValue;
+    }
+  }
+
+  return bestPath ? modules[bestPath] : undefined;
+}
+
+export function toRatVariant(gender?: 'male' | 'female' | 'non-binary'): RatVariant {
   if (gender === 'female') return 'female';
   if (gender === 'non-binary') return 'nonbinary';
   return 'male';
 }
 
-function getFrameClass(size: 'hero' | 'card') {
-  if (size === 'card') {
-    return 'h-[190px] w-[190px] sm:h-[210px] sm:w-[210px]';
-  }
+export function getRatImage(level: number, variant: RatVariant): string | undefined {
+  const milestone = nearestMilestone(level);
+  const padded = padLevel(milestone);
 
-  return 'h-[300px] w-[300px] sm:h-[360px] sm:w-[360px]';
+  return findBest(ratModules, [
+    [`rat-lv-${padded}`, variant],
+    [`rat-lv-${milestone}`, variant],
+    [`lv-${padded}`, variant],
+    [`lv-${milestone}`, variant],
+    [padded, variant],
+    [String(milestone), variant],
+  ]);
 }
 
-function getRatPadding(size: 'hero' | 'card') {
-  return size === 'hero' ? 'p-2 sm:p-3' : 'p-2';
+export const ASSET_SHOP_CATALOG_BASE: Omit<AssetShopItem, 'owned' | 'image'>[] = [
+  {
+    id: 'cap-black-core',
+    name: 'Black Core Cap',
+    description: 'Clean starter head item.',
+    price: 60,
+    emoji: '🧢',
+    slot: 'head',
+    isPremium: false,
+    unlockLevel: 1,
+  },
+  {
+    id: 'hoodie-black-core',
+    name: 'Black Core Hoodie',
+    description: 'Classic gym-rat top.',
+    price: 90,
+    emoji: '🖤',
+    slot: 'top',
+    isPremium: false,
+    unlockLevel: 1,
+  },
+  {
+    id: 'joggers-core-grey',
+    name: 'Core Grey Joggers',
+    description: 'Starter lower-body cosmetic.',
+    price: 85,
+    emoji: '👖',
+    slot: 'pants',
+    isPremium: false,
+    unlockLevel: 1,
+  },
+  {
+    id: 'shoes-street-core',
+    name: 'Street Core Shoes',
+    description: 'Starter shoe cosmetic.',
+    price: 75,
+    emoji: '👟',
+    slot: 'feet',
+    isPremium: false,
+    unlockLevel: 1,
+  },
+  {
+    id: 'chain-gold-heavy',
+    name: 'Gold Heavy Chain',
+    description: 'Extra alpha energy.',
+    price: 180,
+    emoji: '⛓️',
+    slot: 'neck',
+    isPremium: false,
+    unlockLevel: 30,
+  },
+  {
+    id: 'shades-alpha',
+    name: 'Alpha Shades',
+    description: 'Clean upper-tier look.',
+    price: 160,
+    emoji: '🕶️',
+    slot: 'eyes',
+    isPremium: false,
+    unlockLevel: 35,
+  },
+  {
+    id: 'tank-alpha-gold',
+    name: 'Alpha Tank Gold',
+    description: 'High-visibility alpha tank.',
+    price: 260,
+    emoji: '💪',
+    slot: 'top',
+    isPremium: false,
+    unlockLevel: 35,
+  },
+  {
+    id: 'legend-pants-black',
+    name: 'Legend Black Pants',
+    description: 'Late-game lower-body flex.',
+    price: 320,
+    emoji: '⚫',
+    slot: 'pants',
+    isPremium: false,
+    unlockLevel: 80,
+  },
+  {
+    id: 'shoes-legend-high',
+    name: 'Legend High Shoes',
+    description: 'Premium footwear flex.',
+    price: 360,
+    emoji: '🔥',
+    slot: 'feet',
+    isPremium: true,
+    unlockLevel: 70,
+  },
+  {
+    id: 'aura-purple-smoke',
+    name: 'Purple Smoke Aura',
+    description: 'Premium glow effect.',
+    price: 340,
+    emoji: '✨',
+    slot: 'aura',
+    isPremium: true,
+    unlockLevel: 50,
+  },
+  {
+    id: 'aura-mythic-flame',
+    name: 'Mythic Flame Aura',
+    description: 'Late-game mythic aura.',
+    price: 520,
+    emoji: '🔥',
+    slot: 'aura',
+    isPremium: true,
+    unlockLevel: 90,
+  },
+];
+
+export function getItemImage(itemId: string): string | undefined {
+  return findBest(itemModules, [
+    [itemId],
+    [itemId.replace(/-/g, ' ')],
+    [itemId.split('-')[0], itemId.split('-').slice(1).join('-')],
+  ]);
 }
 
-function getOverlayClass(slot?: string) {
-  switch (slot) {
-    case 'aura':
-      return 'absolute inset-[-4%] z-[5] h-[108%] w-[108%] object-contain opacity-95';
-    case 'head':
-      return 'absolute inset-0 z-[30] h-full w-full object-contain';
-    case 'eyes':
-      return 'absolute inset-0 z-[31] h-full w-full object-contain';
-    case 'neck':
-      return 'absolute inset-0 z-[28] h-full w-full object-contain';
-    case 'top':
-      return 'absolute inset-0 z-[24] h-full w-full object-contain';
-    case 'pants':
-      return 'absolute inset-0 z-[22] h-full w-full object-contain';
-    case 'feet':
-      return 'absolute inset-0 z-[21] h-full w-full object-contain';
-    default:
-      return 'absolute inset-0 z-[20] h-full w-full object-contain';
-  }
+export function getItemAsset(itemId?: string) {
+  if (!itemId) return undefined;
+
+  const base = ASSET_SHOP_CATALOG_BASE.find((item) => item.id === itemId);
+  if (!base) return undefined;
+
+  return {
+    ...base,
+    image: getItemImage(itemId),
+  };
 }
 
-export default function EquippedRatPreview({ level, gender, size = 'hero' }: Props) {
-  const variant = mapGenderToVariant(gender);
-  const ratImage = getRatImage(level, variant);
-  const equipped = getEquippedItems();
+export function getItemsForSlot(slot: ItemSlot) {
+  return ASSET_SHOP_CATALOG_BASE.filter((item) => item.slot === slot).map((item) => ({
+    ...item,
+    image: getItemImage(item.id),
+  }));
+}
 
-  const backgroundImage = equipped.background ? getBackgroundImage(equipped.background) : undefined;
-
-  const auraImage = equipped.aura ? getItemImage(equipped.aura) : undefined;
-  const headImage = equipped.head ? getItemImage(equipped.head) : undefined;
-  const eyesImage = equipped.eyes ? getItemImage(equipped.eyes) : undefined;
-  const neckImage = equipped.neck ? getItemImage(equipped.neck) : undefined;
-  const topImage = equipped.top ? getItemImage(equipped.top) : undefined;
-  const pantsImage = equipped.pants ? getItemImage(equipped.pants) : undefined;
-  const feetImage = equipped.feet ? getItemImage(equipped.feet) : undefined;
-
-  const frameClass = getFrameClass(size);
-  const ratPadding = getRatPadding(size);
-
-  return (
-    <div className={`relative ${frameClass}`}>
-      <div className="absolute inset-0 rounded-[2rem] bg-[radial-gradient(circle_at_50%_20%,rgba(74,222,128,0.16),transparent_45%),linear-gradient(180deg,rgba(24,24,27,0.82),rgba(9,9,11,0.96))] shadow-[0_20px_80px_rgba(0,0,0,0.45)]" />
-      <div className="absolute inset-[1px] rounded-[2rem] border border-white/10 bg-white/[0.03]" />
-      <div className="absolute inset-4 rounded-[1.5rem] bg-gradient-to-b from-white/[0.05] via-transparent to-black/20" />
-
-      <div className="absolute inset-0 overflow-hidden rounded-[2rem]">
-        <div className="absolute left-1/2 top-[10%] h-[28%] w-[60%] -translate-x-1/2 rounded-full bg-emerald-400/12 blur-3xl" />
-        <div className="absolute bottom-[12%] left-1/2 h-[22%] w-[72%] -translate-x-1/2 rounded-full bg-lime-300/8 blur-3xl" />
-      </div>
-
-      <div className="absolute inset-[10px] overflow-hidden rounded-[1.6rem]">
-        {backgroundImage ? (
-          <img
-            src={backgroundImage}
-            alt="Background"
-            className="absolute inset-0 z-0 h-full w-full object-cover opacity-90"
-          />
-        ) : (
-          <div className="absolute inset-0 z-0 bg-[radial-gradient(circle_at_top,rgba(34,197,94,0.15),transparent_42%),linear-gradient(180deg,rgba(24,24,27,0.45),rgba(9,9,11,0.86))]" />
-        )}
-
-        <div className="absolute inset-0 z-[1] bg-gradient-to-b from-black/10 via-transparent to-black/35" />
-      </div>
-
-      <div className={`absolute inset-[12px] z-10 ${ratPadding}`}>
-        <div className="relative h-full w-full">
-          {auraImage ? (
-            <img src={auraImage} alt="Aura" className={getOverlayClass('aura')} />
-          ) : null}
-
-          {ratImage ? (
-            <img
-              src={ratImage}
-              alt="Gym Rat"
-              className="absolute inset-0 z-[10] h-full w-full object-contain drop-shadow-[0_22px_40px_rgba(0,0,0,0.42)]"
-            />
-          ) : (
-            <div className="absolute inset-0 z-[10] flex items-center justify-center text-[96px]">
-              🐀
-            </div>
-          )}
-
-          {pantsImage ? <img src={pantsImage} alt="Pants" className={getOverlayClass('pants')} /> : null}
-          {feetImage ? <img src={feetImage} alt="Feet" className={getOverlayClass('feet')} /> : null}
-          {topImage ? <img src={topImage} alt="Top" className={getOverlayClass('top')} /> : null}
-          {neckImage ? <img src={neckImage} alt="Neck" className={getOverlayClass('neck')} /> : null}
-          {headImage ? <img src={headImage} alt="Head" className={getOverlayClass('head')} /> : null}
-          {eyesImage ? <img src={eyesImage} alt="Eyes" className={getOverlayClass('eyes')} /> : null}
-        </div>
-      </div>
-
-      <div className="absolute inset-x-[16%] bottom-3 h-6 rounded-full bg-emerald-300/8 blur-2xl" />
-    </div>
-  );
+export function getBackgroundImage(backgroundId: string): string | undefined {
+  return findBest(backgroundModules, [
+    [backgroundId],
+    [backgroundId.replace(/-/g, ' ')],
+    [backgroundId.split('-').slice(0, 2).join('-')],
+  ]);
 }
