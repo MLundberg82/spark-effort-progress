@@ -13,6 +13,7 @@ import {
 } from '@/lib/shopStore';
 import type { SlotKey } from '@/lib/assetTypes';
 import { getBackgroundImage, getItemImage } from '@/lib/assetRegistry';
+import { getLevelFromXP, getTotalXP } from '@/lib/gamificationStore';
 
 type RatShopProps = {
   onBack?: () => void;
@@ -184,6 +185,8 @@ export default function RatShop({
   const [activeSlot, setActiveSlot] = useState<SlotKey>('top');
   const [refreshKey, setRefreshKey] = useState(0);
 
+  const currentLevel = getLevelFromXP(getTotalXP());
+
   const liveItems = useMemo(() => getShopItems(), [refreshKey]);
 
   const filteredItems = useMemo(() => {
@@ -260,7 +263,7 @@ export default function RatShop({
             </div>
 
             <div className="mt-4">
-              <EquippedRatPreview level={Math.max(1, 1)} />
+              <EquippedRatPreview level={currentLevel} />
             </div>
 
             <div className="mt-5">

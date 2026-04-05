@@ -126,7 +126,8 @@ export default function HomeScreen({
             </h2>
 
             <p className="mt-3 max-w-2xl text-sm text-zinc-300 sm:text-base">
-              Dopamine, progression and premium identity. Train, earn XP, evolve your rat and keep the streak alive.
+              Dopamine, progression and premium identity. Train, earn XP, evolve
+              your rat and keep the streak alive.
             </p>
           </div>
 

@@ -4,7 +4,6 @@ import {
   Crown,
   Dumbbell,
   Flame,
-  Sparkles,
   Target,
   User,
   Weight,
@@ -77,16 +76,6 @@ function OnboardingGate({ onComplete }: { onComplete: () => void }) {
     existing?.trainingLevel ?? 'beginner'
   );
 
-  const shellClass =
-    'min-h-screen bg-[radial-gradient(circle_at_top,_rgba(74,222,128,0.16),_transparent_30%),linear-gradient(180deg,_#09090b_0%,_#111113_100%)] px-4 pb-8 pt-6 text-white';
-  const wrapClass = 'mx-auto max-w-[430px]';
-  const cardClass =
-    'overflow-hidden rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.02))] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.45)]';
-  const inputClass =
-    'mt-2 w-full rounded-2xl border border-white/10 bg-zinc-900 px-4 py-3 text-white outline-none transition focus:border-emerald-400';
-  const optionClass =
-    'w-full rounded-2xl border px-4 py-4 text-left transition';
-
   const canStepOneContinue = age >= 13 && height >= 120 && weight >= 35;
 
   const finish = () => {
@@ -105,9 +94,9 @@ function OnboardingGate({ onComplete }: { onComplete: () => void }) {
   };
 
   return (
-    <div className={shellClass}>
-      <div className={wrapClass}>
-        <div className={cardClass}>
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(74,222,128,0.16),_transparent_30%),linear-gradient(180deg,_#09090b_0%,_#111113_100%)] px-4 pb-8 pt-6 text-white">
+      <div className="mx-auto max-w-[430px]">
+        <div className="overflow-hidden rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.02))] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.45)]">
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-400/15 text-emerald-300">
               <Dumbbell className="h-6 w-6" />
@@ -150,7 +139,7 @@ function OnboardingGate({ onComplete }: { onComplete: () => void }) {
                     type="number"
                     value={age}
                     onChange={(e) => setAge(Number(e.target.value))}
-                    className={inputClass}
+                    className="mt-2 w-full rounded-2xl border border-white/10 bg-zinc-900 px-4 py-3 text-white outline-none transition focus:border-emerald-400"
                   />
                 </div>
 
@@ -162,7 +151,7 @@ function OnboardingGate({ onComplete }: { onComplete: () => void }) {
                     type="number"
                     value={height}
                     onChange={(e) => setHeight(Number(e.target.value))}
-                    className={inputClass}
+                    className="mt-2 w-full rounded-2xl border border-white/10 bg-zinc-900 px-4 py-3 text-white outline-none transition focus:border-emerald-400"
                   />
                 </div>
 
@@ -174,7 +163,7 @@ function OnboardingGate({ onComplete }: { onComplete: () => void }) {
                     type="number"
                     value={weight}
                     onChange={(e) => setWeight(Number(e.target.value))}
-                    className={inputClass}
+                    className="mt-2 w-full rounded-2xl border border-white/10 bg-zinc-900 px-4 py-3 text-white outline-none transition focus:border-emerald-400"
                   />
                 </div>
 
@@ -242,7 +231,7 @@ function OnboardingGate({ onComplete }: { onComplete: () => void }) {
                     key={option.key}
                     type="button"
                     onClick={() => setGoal(option.key)}
-                    className={`${optionClass} ${
+                    className={`w-full rounded-2xl border px-4 py-4 text-left transition ${
                       goal === option.key
                         ? 'border-emerald-400/20 bg-emerald-400/10'
                         : 'border-white/10 bg-white/[0.04]'
@@ -305,7 +294,7 @@ function OnboardingGate({ onComplete }: { onComplete: () => void }) {
                     key={option.key}
                     type="button"
                     onClick={() => setTrainingLevelValue(option.key)}
-                    className={`${optionClass} ${
+                    className={`w-full rounded-2xl border px-4 py-4 text-left transition ${
                       trainingLevel === option.key
                         ? 'border-emerald-400/20 bg-emerald-400/10'
                         : 'border-white/10 bg-white/[0.04]'
@@ -347,142 +336,6 @@ function OnboardingGate({ onComplete }: { onComplete: () => void }) {
             </div>
           )}
         </div>
-      </div>
-    </div>
-  );
-}
-
-function MenuFallback({
-  onClose,
-  onNavigate,
-  onOpenPaywall,
-  isPremium,
-}: {
-  onClose: () => void;
-  onNavigate: (page: AppPage) => void;
-  onOpenPaywall: () => void;
-  isPremium: boolean;
-}) {
-  const items: Array<{ key: AppPage; label: string; premium?: boolean }> = [
-    { key: 'daily', label: 'Daily Check-In' },
-    { key: 'history', label: 'History', premium: true },
-    { key: 'nutrition', label: 'Nutrition', premium: true },
-    { key: 'gallery', label: 'Level Gallery' },
-    { key: 'shop', label: 'Shop' },
-    { key: 'settings', label: 'Settings' },
-  ];
-
-  return (
-    <div className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm">
-      <div className="absolute inset-y-0 left-0 w-[88%] max-w-[360px] border-r border-white/10 bg-[#111113] p-5 shadow-2xl">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">
-              Menu
-            </p>
-            <h2 className="mt-1 text-2xl font-black text-white">GymRat</h2>
-          </div>
-
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-white"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-
-        <div className="mt-6 grid gap-3">
-          {items.map((item) => {
-            const locked = item.premium && !isPremium;
-
-            return (
-              <button
-                key={item.key}
-                type="button"
-                onClick={() => {
-                  if (locked) {
-                    onOpenPaywall();
-                    return;
-                  }
-                  onNavigate(item.key);
-                }}
-                className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-4 text-left transition hover:bg-white/[0.08]"
-              >
-                <span className="font-semibold text-white">{item.label}</span>
-
-                {locked ? (
-                  <span className="rounded-full border border-yellow-300/20 bg-yellow-300/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-yellow-200">
-                    Premium
-                  </span>
-                ) : null}
-              </button>
-            );
-          })}
-        </div>
-
-        <button
-          type="button"
-          onClick={onOpenPaywall}
-          className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-yellow-300 to-amber-300 px-4 py-4 font-black text-black"
-        >
-          <Crown className="h-4 w-4" />
-          {isPremium ? 'Premium active' : 'Unlock Premium'}
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function PremiumFallback({ onClose }: { onClose: () => void }) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/75 px-4 pb-4 pt-10 backdrop-blur-sm sm:items-center">
-      <div className="w-full max-w-md rounded-[32px] border border-white/10 bg-[#111113] p-6 text-white shadow-[0_30px_100px_rgba(0,0,0,0.55)]">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="text-xs uppercase tracking-[0.24em] text-yellow-300">
-              Premium
-            </p>
-            <h2 className="mt-2 text-3xl font-black">Level up harder</h2>
-          </div>
-
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04]"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-
-        <p className="mt-4 text-sm text-zinc-300">
-          Keep the free app clean. Unlock the deeper progression layer when you
-          want more.
-        </p>
-
-        <div className="mt-5 grid gap-3">
-          {[
-            'Nutrition tracking with goals and macro support',
-            'Workout history and deeper progress overview',
-            'Custom workouts and stronger control later',
-            'Premium cosmetics and stronger identity feel',
-          ].map((feature) => (
-            <div
-              key={feature}
-              className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-zinc-200"
-            >
-              {feature}
-            </div>
-          ))}
-        </div>
-
-        <button
-          type="button"
-          onClick={onClose}
-          className="mt-6 w-full rounded-2xl bg-gradient-to-r from-emerald-400 via-lime-300 to-emerald-300 px-4 py-4 font-black text-black"
-        >
-          Continue
-        </button>
       </div>
     </div>
   );
@@ -672,11 +525,6 @@ export default function Index() {
     changePage('workout');
   };
 
-  const navigateFromMenu = (nextPage: AppPage) => {
-    closeMenu();
-    changePage(nextPage);
-  };
-
   const historyHandler = () => {
     maybeOpenHistoryPaywall({
       isPremium: premium,
@@ -707,10 +555,6 @@ export default function Index() {
       />
     );
   }
-
-  const hasAppMenu = typeof AppMenu === 'function';
-  const hasPremiumPaywall = typeof PremiumPaywall === 'function';
-  const hasSettingsScreen = typeof SettingsScreen === 'function';
 
   return (
     <>
@@ -745,9 +589,7 @@ export default function Index() {
         />
       )}
 
-      {page === 'history' && (
-        <HistoryScreen onBack={() => changePage('home')} />
-      )}
+      {page === 'history' && <HistoryScreen onBack={() => changePage('home')} />}
 
       {page === 'nutrition' && (
         <NutritionScreen
@@ -756,13 +598,9 @@ export default function Index() {
         />
       )}
 
-      {page === 'daily' && (
-        <DailyCheckInScreen onBack={() => changePage('home')} />
-      )}
+      {page === 'daily' && <DailyCheckInScreen onBack={() => changePage('home')} />}
 
-      {page === 'gallery' && (
-        <GymRatGallery onBack={() => changePage('home')} />
-      )}
+      {page === 'gallery' && <GymRatGallery onBack={() => changePage('home')} />}
 
       {page === 'shop' && (
         <RatShop
@@ -772,64 +610,48 @@ export default function Index() {
       )}
 
       {page === 'settings' &&
-        (hasSettingsScreen ? (
+        (typeof SettingsScreen === 'function' ? (
           <SettingsScreen onBack={() => changePage('home')} />
         ) : (
           <SettingsFallback onBack={() => changePage('home')} />
         ))}
 
-      {menuOpenLocal &&
-        (hasAppMenu ? (
-          <AppMenu
-            isPremium={premium}
-            onClose={closeMenu}
-            onOpenDaily={() => {
-              closeMenu();
-              changePage('daily');
-            }}
-            onOpenHistory={() => {
-              closeMenu();
-              historyHandler();
-            }}
-            onOpenNutrition={() => {
-              closeMenu();
-              nutritionHandler();
-            }}
-            onOpenGallery={() => {
-              closeMenu();
-              changePage('gallery');
-            }}
-            onOpenShop={() => {
-              closeMenu();
-              changePage('shop');
-            }}
-            onOpenSettings={() => {
-              closeMenu();
-              changePage('settings');
-            }}
-            onOpenPremium={() => {
-              closeMenu();
-              openManualPaywall(openPaywall);
-            }}
-          />
-        ) : (
-          <MenuFallback
-            onClose={closeMenu}
-            onNavigate={navigateFromMenu}
-            onOpenPaywall={() => {
-              closeMenu();
-              openManualPaywall(openPaywall);
-            }}
-            isPremium={premium}
-          />
-        ))}
+      {menuOpenLocal && (
+        <AppMenu
+          isPremium={premium}
+          onClose={closeMenu}
+          onOpenDaily={() => {
+            closeMenu();
+            changePage('daily');
+          }}
+          onOpenHistory={() => {
+            closeMenu();
+            historyHandler();
+          }}
+          onOpenNutrition={() => {
+            closeMenu();
+            nutritionHandler();
+          }}
+          onOpenGallery={() => {
+            closeMenu();
+            changePage('gallery');
+          }}
+          onOpenShop={() => {
+            closeMenu();
+            changePage('shop');
+          }}
+          onOpenSettings={() => {
+            closeMenu();
+            changePage('settings');
+          }}
+          onOpenPremium={() => {
+            closeMenu();
+            openManualPaywall(openPaywall);
+          }}
+        />
+      )}
 
-      {paywallOpenLocal &&
-        (hasPremiumPaywall ? (
-          <PremiumPaywall onClose={closePaywall} />
-        ) : (
-          <PremiumFallback onClose={closePaywall} />
-        ))}
+      {paywallOpenLocal && <PremiumPaywall onClose={closePaywall} />}
     </>
   );
 }

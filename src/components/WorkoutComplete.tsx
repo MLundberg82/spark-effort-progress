@@ -90,12 +90,12 @@ export default function WorkoutComplete({
     }
 
     try {
-      const raw = localStorage.getItem('gymrat-app-store');
+      const raw = localStorage.getItem('gymrat-gamification');
       if (!raw) return Math.max(0, summary.earnedXP);
 
-      const parsed = JSON.parse(raw) as { xp?: number };
-      return typeof parsed.xp === 'number'
-        ? Math.max(0, parsed.xp)
+      const parsed = JSON.parse(raw) as { totalXP?: number };
+      return typeof parsed.totalXP === 'number'
+        ? Math.max(0, parsed.totalXP)
         : Math.max(0, summary.earnedXP);
     } catch {
       return Math.max(0, summary.earnedXP);
