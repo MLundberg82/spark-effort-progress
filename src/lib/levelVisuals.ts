@@ -1,68 +1,38 @@
 export type LevelVisual = {
   tierLabel: string;
-  auraClass: string;
-  glowClass: string;
+  title: string;
+  subtitle: string;
+  milestone: string;
 };
 
+const milestones = [
+  { min: 100, tierLabel: 'Mythic', title: 'Mythic Rat', subtitle: 'Peak form. Fully ascended.', milestone: 'LVL 100' },
+  { min: 90, tierLabel: 'Legend', title: 'Legend Rat', subtitle: 'Elite presence with undeniable aura.', milestone: 'LVL 90' },
+  { min: 80, tierLabel: 'King', title: 'King Rat', subtitle: 'You own the room and the grind.', milestone: 'LVL 80' },
+  { min: 70, tierLabel: 'Dominus', title: 'Dominus Rat', subtitle: 'Dominant, advanced, relentless.', milestone: 'LVL 70' },
+  { min: 60, tierLabel: 'Elite', title: 'Elite Rat', subtitle: 'Sharper look. Stronger identity.', milestone: 'LVL 60' },
+  { min: 50, tierLabel: 'Alpha', title: 'Alpha Rat', subtitle: 'Clear progression. Clear presence.', milestone: 'LVL 50' },
+  { min: 40, tierLabel: 'Beast', title: 'Beast Rat', subtitle: 'Heavy work starts to show.', milestone: 'LVL 40' },
+  { min: 35, tierLabel: 'Advanced', title: 'Advanced Rat', subtitle: 'You are not dabbling anymore.', milestone: 'LVL 35' },
+  { min: 30, tierLabel: 'Strong', title: 'Strong Rat', subtitle: 'Momentum is visible now.', milestone: 'LVL 30' },
+  { min: 25, tierLabel: 'Built', title: 'Built Rat', subtitle: 'More size. More confidence.', milestone: 'LVL 25' },
+  { min: 20, tierLabel: 'Rising', title: 'Rising Rat', subtitle: 'A real base is forming.', milestone: 'LVL 20' },
+  { min: 15, tierLabel: 'Solid', title: 'Solid Rat', subtitle: 'Consistency is paying off.', milestone: 'LVL 15' },
+  { min: 10, tierLabel: 'Rookie+', title: 'Rookie Plus', subtitle: 'Past the beginner energy.', milestone: 'LVL 10' },
+  { min: 5, tierLabel: 'Rookie', title: 'Rookie Rat', subtitle: 'The grind has started to stick.', milestone: 'LVL 5' },
+  { min: 1, tierLabel: 'Starter', title: 'Starter Rat', subtitle: 'Every level begins with one session.', milestone: 'LVL 1' },
+];
+
 export function getLevelVisual(level: number): LevelVisual {
-  if (level >= 100) {
-    return {
-      tierLabel: 'Legend',
-      auraClass:
-        'bg-[radial-gradient(circle_at_center,rgba(217,70,239,0.30),rgba(99,102,241,0.14),transparent_72%)]',
-      glowClass: 'shadow-[0_0_90px_rgba(192,38,211,0.32)]',
-    };
-  }
+  const safeLevel = Math.max(1, Math.floor(level || 1));
+  const match = milestones.find((entry) => safeLevel >= entry.min);
 
-  if (level >= 80) {
-    return {
-      tierLabel: 'Mythic',
-      auraClass:
-        'bg-[radial-gradient(circle_at_center,rgba(168,85,247,0.26),rgba(59,130,246,0.14),transparent_72%)]',
-      glowClass: 'shadow-[0_0_85px_rgba(168,85,247,0.28)]',
-    };
-  }
-
-  if (level >= 60) {
-    return {
-      tierLabel: 'King',
-      auraClass:
-        'bg-[radial-gradient(circle_at_center,rgba(250,204,21,0.24),rgba(245,158,11,0.14),transparent_72%)]',
-      glowClass: 'shadow-[0_0_80px_rgba(245,158,11,0.28)]',
-    };
-  }
-
-  if (level >= 40) {
-    return {
-      tierLabel: 'Elite',
-      auraClass:
-        'bg-[radial-gradient(circle_at_center,rgba(34,211,238,0.24),rgba(59,130,246,0.14),transparent_72%)]',
-      glowClass: 'shadow-[0_0_80px_rgba(34,211,238,0.24)]',
-    };
-  }
-
-  if (level >= 25) {
-    return {
-      tierLabel: 'Alpha',
-      auraClass:
-        'bg-[radial-gradient(circle_at_center,rgba(16,185,129,0.24),rgba(52,211,153,0.14),transparent_72%)]',
-      glowClass: 'shadow-[0_0_75px_rgba(16,185,129,0.24)]',
-    };
-  }
-
-  if (level >= 10) {
-    return {
-      tierLabel: 'Grind',
-      auraClass:
-        'bg-[radial-gradient(circle_at_center,rgba(244,114,182,0.20),rgba(168,85,247,0.10),transparent_72%)]',
-      glowClass: 'shadow-[0_0_70px_rgba(244,114,182,0.18)]',
-    };
-  }
-
-  return {
-    tierLabel: 'Rookie',
-    auraClass:
-      'bg-[radial-gradient(circle_at_center,rgba(74,222,128,0.20),rgba(255,255,255,0.06),transparent_72%)]',
-    glowClass: 'shadow-[0_0_60px_rgba(74,222,128,0.16)]',
-  };
+  return (
+    match ?? {
+      tierLabel: 'Starter',
+      title: 'Starter Rat',
+      subtitle: 'Every level begins with one session.',
+      milestone: 'LVL 1',
+    }
+  );
 }

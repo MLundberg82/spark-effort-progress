@@ -16,6 +16,16 @@ const DEFAULT_STATE: PremiumState = {
   expiresAt: null,
 };
 
+function isPremiumSource(value: unknown): value is PremiumSource {
+  return (
+    value === 'manual' ||
+    value === 'revenuecat' ||
+    value === 'promo' ||
+    value === 'test' ||
+    value === 'unknown'
+  );
+}
+
 function readState(): PremiumState {
   if (typeof window === 'undefined') return DEFAULT_STATE;
 
@@ -30,27 +40,17 @@ function readState(): PremiumState {
         ? parsed.expiresAt
         : null;
 
-    const isExpired =
+    const expired =
       expiresAt !== null && new Date(expiresAt).getTime() < Date.now();
 
-    if (isExpired) {
-      const expiredState: PremiumState = {
-        ...DEFAULT_STATE,
-      };
-      localStorage.setItem(KEY, JSON.stringify(expiredState));
-      return expiredState;
+    if (expired) {
+      localStorage.setItem(KEY, JSON.stringify(DEFAULT_STATE));
+      return DEFAULT_STATE;
     }
 
     return {
       isActive: parsed.isActive === true,
-      source:
-        parsed.source === 'manual' ||
-        parsed.source === 'revenuecat' ||
-        parsed.source === 'promo' ||
-        parsed.source === 'test' ||
-        parsed.source === 'unknown'
-          ? parsed.source
-          : 'unknown',
+      source: isPremiumSource(parsed.source) ? parsed.source : 'unknown',
       activatedAt:
         typeof parsed.activatedAt === 'string' ? parsed.activatedAt : null,
       expiresAt,
@@ -84,9 +84,7 @@ export function subscribePremium(callback: (state: PremiumState) => void) {
     return () => undefined;
   }
 
-  const handler = () => {
-    callback(readState());
-  };
+  const handler = () => callback(readState());
 
   window.addEventListener('premium-updated', handler);
   window.addEventListener('storage', handler);
@@ -111,10 +109,12 @@ export function activatePremium(options?: {
   };
 
   writeState(nextState);
+  return nextState;
 }
 
 export function deactivatePremium() {
   writeState(DEFAULT_STATE);
+  return DEFAULT_STATE;
 }
 
 export function restorePremium() {

@@ -1,159 +1,253 @@
-const XP_PER_LEVEL = 250;
-const APP_KEY = 'gymrat-app-store';
-const HISTORY_KEY = 'gymrat-history-store';
+import { checkPremium } from '@/lib/premiumStore';
 
-type GamificationState = {
-  xp: number;
+export type XPBreakdown = {
+  baseXP: number;
+  volumeXP: number;
+  consistencyXP: number;
+  premiumBoostXP: number;
+  totalXP: number;
 };
 
-type WorkoutHistoryEntry = {
-  workoutName: string;
-  durationMinutes: number;
+export type WorkoutXPInput = {
   exercisesCompleted: number;
   volume: number;
-  completedAt: string;
+  streak?: number;
 };
 
-function readAppState(): GamificationState {
-  if (typeof window === 'undefined') {
-    return { xp: 0 };
-  }
+const STORAGE_KEY = 'gymrat-gamification';
+const XP_PER_LEVEL = 250;
+
+type GamificationState = {
+  totalXP: number;
+  totalWorkouts: number;
+  streak: number;
+  lastWorkoutDate: string | null;
+};
+
+function getDefaultState(): GamificationState {
+  return {
+    totalXP: 0,
+    totalWorkouts: 0,
+    streak: 0,
+    lastWorkoutDate: null,
+  };
+}
+
+function readState(): GamificationState {
+  if (typeof window === 'undefined') return getDefaultState();
 
   try {
-    const raw = localStorage.getItem(APP_KEY);
-    if (!raw) return { xp: 0 };
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return getDefaultState();
 
     const parsed = JSON.parse(raw) as Partial<GamificationState>;
+
     return {
-      xp: typeof parsed.xp === 'number' ? Math.max(0, parsed.xp) : 0,
+      totalXP: typeof parsed.totalXP === 'number' ? parsed.totalXP : 0,
+      totalWorkouts:
+        typeof parsed.totalWorkouts === 'number' ? parsed.totalWorkouts : 0,
+      streak: typeof parsed.streak === 'number' ? parsed.streak : 0,
+      lastWorkoutDate:
+        typeof parsed.lastWorkoutDate === 'string'
+          ? parsed.lastWorkoutDate
+          : null,
     };
   } catch {
-    return { xp: 0 };
+    return getDefaultState();
   }
 }
 
-function writeAppState(next: GamificationState) {
+function writeState(next: GamificationState) {
   if (typeof window === 'undefined') return;
 
-  const currentRaw = localStorage.getItem(APP_KEY);
-  let current: Record<string, unknown> = {};
-
-  try {
-    current = currentRaw ? JSON.parse(currentRaw) : {};
-  } catch {
-    current = {};
-  }
-
-  const merged = {
-    ...current,
-    xp: Math.max(0, Math.round(next.xp)),
-  };
-
-  localStorage.setItem(APP_KEY, JSON.stringify(merged));
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
   window.dispatchEvent(
     new CustomEvent('gamification-updated', {
-      detail: merged,
+      detail: next,
     })
   );
 }
 
-function readHistory(): WorkoutHistoryEntry[] {
-  if (typeof window === 'undefined') return [];
-
-  try {
-    const raw = localStorage.getItem(HISTORY_KEY);
-    if (!raw) return [];
-
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
+function startOfDay(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
 }
 
-export function addXP(amount: number): number {
-  const current = readAppState();
-  const safeAmount = Number.isFinite(amount) ? Math.max(0, Math.round(amount)) : 0;
-  const nextXP = current.xp + safeAmount;
-
-  writeAppState({ xp: nextXP });
-  return nextXP;
+function dayDiff(a: Date, b: Date) {
+  const ms = startOfDay(a).getTime() - startOfDay(b).getTime();
+  return Math.round(ms / 86400000);
 }
 
-export function setXP(amount: number) {
-  writeAppState({ xp: Math.max(0, Math.round(amount)) });
+export function getTotalXP() {
+  return readState().totalXP;
 }
 
-export function getTotalXP(): number {
-  return readAppState().xp;
+export function getTotalWorkouts() {
+  return readState().totalWorkouts;
 }
 
-export function getLevelFromXP(xp: number): number {
-  const safeXP = Math.max(0, Math.floor(xp));
-  return Math.floor(safeXP / XP_PER_LEVEL) + 1;
+export function getStreak() {
+  const state = readState();
+  if (!state.lastWorkoutDate) return state.streak;
+
+  const now = new Date();
+  const last = new Date(state.lastWorkoutDate);
+  const diff = dayDiff(now, last);
+
+  if (diff <= 1) return state.streak;
+  return 0;
 }
 
-export function getCurrentLevelXP(xp: number): number {
+export function getLevelFromXP(xp: number) {
+  if (xp < 0) return 1;
+  return Math.floor(xp / XP_PER_LEVEL) + 1;
+}
+
+export function getXPForLevel(level: number) {
+  if (level <= 1) return 0;
+  return (level - 1) * XP_PER_LEVEL;
+}
+
+export function getCurrentLevelXP(xp: number) {
   const level = getLevelFromXP(xp);
-  const levelStartXP = (level - 1) * XP_PER_LEVEL;
-  return Math.max(0, xp - levelStartXP);
+  const levelStart = getXPForLevel(level);
+  return Math.max(0, xp - levelStart);
 }
 
-export function getNextLevelXP(_xp?: number): number {
-  return XP_PER_LEVEL;
+export function getNextLevelXP(xp: number) {
+  const level = getLevelFromXP(xp);
+  const currentLevelStart = getXPForLevel(level);
+  return getXPForLevel(level + 1) - currentLevelStart;
 }
 
-export function getProgressPercent(xp: number): number {
-  return Math.max(
-    0,
-    Math.min(100, Math.round((getCurrentLevelXP(xp) / XP_PER_LEVEL) * 100))
-  );
+export function getProgressPercent(xp: number) {
+  const level = getLevelFromXP(xp);
+  const currentLevelStart = getXPForLevel(level);
+  const nextLevelStart = getXPForLevel(level + 1);
+  const span = nextLevelStart - currentLevelStart;
+
+  if (span <= 0) return 0;
+
+  const inLevel = xp - currentLevelStart;
+  return Math.max(0, Math.min(100, (inLevel / span) * 100));
 }
 
-export function getTotalWorkouts(): number {
-  return readHistory().length;
+export function getRatTier(levelOrXP: number) {
+  const level = levelOrXP > 100 ? getLevelFromXP(levelOrXP) : levelOrXP;
+
+  if (level >= 100) return 'mythic';
+  if (level >= 80) return 'king';
+  if (level >= 60) return 'legend';
+  if (level >= 40) return 'elite';
+  if (level >= 25) return 'alpha';
+  if (level >= 15) return 'grind';
+  if (level >= 5) return 'regular';
+  return 'underground';
 }
 
-export function getRatTier(level: number): {
-  tier: string;
-  label: string;
-} {
-  if (level >= 100) return { tier: 'mythic', label: 'Mythic' };
-  if (level >= 80) return { tier: 'king', label: 'King' };
-  if (level >= 60) return { tier: 'legend', label: 'Legend' };
-  if (level >= 40) return { tier: 'beast', label: 'Beast' };
-  if (level >= 25) return { tier: 'buff', label: 'Buff' };
-  if (level >= 15) return { tier: 'strong', label: 'Strong' };
-  if (level >= 8) return { tier: 'regular', label: 'Regular' };
-  if (level >= 3) return { tier: 'rookie', label: 'Rookie' };
-  return { tier: 'baby', label: 'Baby' };
+export function isPremium() {
+  return checkPremium().isActive;
 }
 
-export function getStreak(): number {
-  const workouts = readHistory();
-  if (!workouts.length) return 0;
+export function calculateWorkoutXP(input: WorkoutXPInput): XPBreakdown {
+  const currentStreak = input.streak ?? getStreak();
+  const baseXP = Math.max(40, input.exercisesCompleted * 18);
+  const volumeXP = Math.max(0, Math.floor(input.volume / 120));
+  const consistencyXP =
+    currentStreak >= 30
+      ? 40
+      : currentStreak >= 14
+      ? 25
+      : currentStreak >= 7
+      ? 15
+      : currentStreak >= 3
+      ? 8
+      : 0;
 
-  const uniqueDays = new Set(
-    workouts
-      .map((entry) => {
-        if (!entry?.completedAt) return null;
-        const date = new Date(entry.completedAt);
-        if (Number.isNaN(date.getTime())) return null;
-        return date.toISOString().slice(0, 10);
-      })
-      .filter(Boolean) as string[]
-  );
+  const subtotal = baseXP + volumeXP + consistencyXP;
+  const premiumBoostXP = isPremium() ? Math.floor(subtotal * 0.15) : 0;
+  const totalXP = subtotal + premiumBoostXP;
 
-  let streak = 0;
-  const cursor = new Date();
-  cursor.setHours(0, 0, 0, 0);
+  return {
+    baseXP,
+    volumeXP,
+    consistencyXP,
+    premiumBoostXP,
+    totalXP,
+  };
+}
 
-  while (true) {
-    const iso = cursor.toISOString().slice(0, 10);
-    if (!uniqueDays.has(iso)) break;
-    streak += 1;
-    cursor.setDate(cursor.getDate() - 1);
+export function addWorkoutXP(input: WorkoutXPInput) {
+  const state = readState();
+  const xp = calculateWorkoutXP(input);
+  const now = new Date();
+
+  let nextStreak = 1;
+
+  if (state.lastWorkoutDate) {
+    const last = new Date(state.lastWorkoutDate);
+    const diff = dayDiff(now, last);
+
+    if (diff <= 0) {
+      nextStreak = state.streak || 1;
+    } else if (diff === 1) {
+      nextStreak = Math.max(1, state.streak + 1);
+    } else {
+      nextStreak = 1;
+    }
   }
 
-  return streak;
+  const next: GamificationState = {
+    totalXP: state.totalXP + xp.totalXP,
+    totalWorkouts: state.totalWorkouts + 1,
+    streak: nextStreak,
+    lastWorkoutDate: now.toISOString(),
+  };
+
+  writeState(next);
+
+  return {
+    ...xp,
+    previousXP: state.totalXP,
+    newXP: next.totalXP,
+    previousLevel: getLevelFromXP(state.totalXP),
+    newLevel: getLevelFromXP(next.totalXP),
+    streak: next.streak,
+  };
+}
+
+export function addXP(amount: number) {
+  const state = readState();
+  const safeAmount = Math.max(0, Math.floor(amount));
+
+  const next: GamificationState = {
+    ...state,
+    totalXP: state.totalXP + safeAmount,
+  };
+
+  writeState(next);
+
+  return {
+    previousXP: state.totalXP,
+    newXP: next.totalXP,
+    previousLevel: getLevelFromXP(state.totalXP),
+    newLevel: getLevelFromXP(next.totalXP),
+  };
+}
+
+export function setTotalXP(totalXP: number) {
+  const state = readState();
+
+  const next: GamificationState = {
+    ...state,
+    totalXP: Math.max(0, Math.floor(totalXP)),
+  };
+
+  writeState(next);
+  return next;
+}
+
+export function resetGamification() {
+  const next = getDefaultState();
+  writeState(next);
+  return next;
 }

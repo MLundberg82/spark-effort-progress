@@ -4,7 +4,6 @@ import {
   Crown,
   Dumbbell,
   Flame,
-  Menu,
   Sparkles,
   Target,
   User,
@@ -18,6 +17,9 @@ import WorkoutFlow from '../components/WorkoutFlow';
 import WorkoutComplete from '../components/WorkoutComplete';
 import HistoryScreen from '../components/HistoryScreen';
 import NutritionScreen from '../components/NutritionScreen';
+import SettingsScreen from '../components/SettingsScreen';
+import AppMenu from '../components/AppMenu';
+import PremiumPaywall from '../components/PremiumPaywall';
 import DailyCheckInScreen from '../components/DailyCheckInScreen';
 import GymRatGallery from '../components/GymRatGallery';
 import RatShop from '../components/RatShop';
@@ -47,7 +49,12 @@ import {
 
 import { addWorkoutHistory } from '../lib/historyStore';
 import { clearWorkoutDraft, saveWorkoutDraft } from '../lib/workoutStore';
-import { checkPremium, isPremiumUnlocked, subscribePremium } from '../lib/premiumStore';
+import { checkPremium, subscribePremium } from '../lib/premiumStore';
+import {
+  maybeOpenHistoryPaywall,
+  maybeOpenNutritionPaywall,
+  openManualPaywall,
+} from '../lib/paywallTriggers';
 
 type FinishedWorkout = {
   workoutName: string;
@@ -78,7 +85,7 @@ function OnboardingGate({ onComplete }: { onComplete: () => void }) {
   const inputClass =
     'mt-2 w-full rounded-2xl border border-white/10 bg-zinc-900 px-4 py-3 text-white outline-none transition focus:border-emerald-400';
   const optionClass =
-    'rounded-2xl border px-4 py-4 text-left transition w-full';
+    'w-full rounded-2xl border px-4 py-4 text-left transition';
 
   const canStepOneContinue = age >= 13 && height >= 120 && weight >= 35;
 
@@ -115,7 +122,8 @@ function OnboardingGate({ onComplete }: { onComplete: () => void }) {
           </div>
 
           <p className="mt-4 text-sm text-zinc-300">
-            Quick setup once. Then straight into the app with a premium feel from start.
+            Quick setup once. Then straight into the app with a premium feel from
+            start.
           </p>
 
           <div className="mt-5 flex gap-2">
@@ -314,8 +322,8 @@ function OnboardingGate({ onComplete }: { onComplete: () => void }) {
                   Nutrition will auto-follow your goal
                 </div>
                 <p className="mt-2 text-sm text-zinc-300">
-                  Goal + body data carry into nutrition automatically, so the app feels
-                  connected from day one.
+                  Goal + body data carry into nutrition automatically, so the app
+                  feels connected from day one.
                 </p>
               </div>
 
@@ -344,7 +352,7 @@ function OnboardingGate({ onComplete }: { onComplete: () => void }) {
   );
 }
 
-function MenuSheet({
+function MenuFallback({
   onClose,
   onNavigate,
   onOpenPaywall,
@@ -355,11 +363,7 @@ function MenuSheet({
   onOpenPaywall: () => void;
   isPremium: boolean;
 }) {
-  const items: Array<{
-    key: AppPage;
-    label: string;
-    premium?: boolean;
-  }> = [
+  const items: Array<{ key: AppPage; label: string; premium?: boolean }> = [
     { key: 'daily', label: 'Daily Check-In' },
     { key: 'history', label: 'History', premium: true },
     { key: 'nutrition', label: 'Nutrition', premium: true },
@@ -373,7 +377,9 @@ function MenuSheet({
       <div className="absolute inset-y-0 left-0 w-[88%] max-w-[360px] border-r border-white/10 bg-[#111113] p-5 shadow-2xl">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">Menu</p>
+            <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">
+              Menu
+            </p>
             <h2 className="mt-1 text-2xl font-black text-white">GymRat</h2>
           </div>
 
@@ -399,7 +405,6 @@ function MenuSheet({
                     onOpenPaywall();
                     return;
                   }
-
                   onNavigate(item.key);
                 }}
                 className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-4 text-left transition hover:bg-white/[0.08]"
@@ -429,11 +434,7 @@ function MenuSheet({
   );
 }
 
-function PremiumModal({
-  onClose,
-}: {
-  onClose: () => void;
-}) {
+function PremiumFallback({ onClose }: { onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/75 px-4 pb-4 pt-10 backdrop-blur-sm sm:items-center">
       <div className="w-full max-w-md rounded-[32px] border border-white/10 bg-[#111113] p-6 text-white shadow-[0_30px_100px_rgba(0,0,0,0.55)]">
@@ -455,8 +456,8 @@ function PremiumModal({
         </div>
 
         <p className="mt-4 text-sm text-zinc-300">
-          Keep the free app clean. Unlock the deeper progression layer when you want
-          more.
+          Keep the free app clean. Unlock the deeper progression layer when you
+          want more.
         </p>
 
         <div className="mt-5 grid gap-3">
@@ -475,16 +476,6 @@ function PremiumModal({
           ))}
         </div>
 
-        <div className="mt-6 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 p-4">
-          <p className="text-xs uppercase tracking-[0.18em] text-emerald-300">
-            Temporary build note
-          </p>
-          <p className="mt-2 text-sm text-zinc-200">
-            This modal is only the stable shell for now so the app can run while we fix
-            the dedicated premium flow and purchase logic.
-          </p>
-        </div>
-
         <button
           type="button"
           onClick={onClose}
@@ -497,7 +488,7 @@ function PremiumModal({
   );
 }
 
-function SettingsPlaceholder({ onBack }: { onBack: () => void }) {
+function SettingsFallback({ onBack }: { onBack: () => void }) {
   const profile = getProfile();
 
   return (
@@ -527,11 +518,17 @@ function SettingsPlaceholder({ onBack }: { onBack: () => void }) {
 
           <div className="mt-6 grid gap-3 sm:grid-cols-2">
             <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-              <p className="text-xs uppercase tracking-[0.18em] text-zinc-500">Gender</p>
-              <p className="mt-2 font-semibold text-white">{profile?.gender ?? '-'}</p>
+              <p className="text-xs uppercase tracking-[0.18em] text-zinc-500">
+                Gender
+              </p>
+              <p className="mt-2 font-semibold text-white">
+                {profile?.gender ?? '-'}
+              </p>
             </div>
             <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-              <p className="text-xs uppercase tracking-[0.18em] text-zinc-500">Goal</p>
+              <p className="text-xs uppercase tracking-[0.18em] text-zinc-500">
+                Goal
+              </p>
               <p className="mt-2 font-semibold text-white">{profile?.goal ?? '-'}</p>
             </div>
             <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
@@ -543,7 +540,9 @@ function SettingsPlaceholder({ onBack }: { onBack: () => void }) {
               </p>
             </div>
             <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-              <p className="text-xs uppercase tracking-[0.18em] text-zinc-500">Weight</p>
+              <p className="text-xs uppercase tracking-[0.18em] text-zinc-500">
+                Weight
+              </p>
               <p className="mt-2 font-semibold text-white">
                 {profile?.weight ? `${profile.weight} kg` : '-'}
               </p>
@@ -551,8 +550,8 @@ function SettingsPlaceholder({ onBack }: { onBack: () => void }) {
           </div>
 
           <p className="mt-6 text-sm text-zinc-400">
-            Full settings screen comes next. This placeholder keeps navigation stable so
-            the app remains runnable while we finish the remaining files.
+            Full settings screen can be polished later. This fallback keeps the app
+            runnable now.
           </p>
         </div>
       </div>
@@ -568,8 +567,10 @@ export default function Index() {
   );
   const [menuOpenLocal, setMenuOpenLocal] = useState(getUIState().menuOpen);
   const [paywallOpenLocal, setPaywallOpenLocal] = useState(getUIState().paywallOpen);
-  const [finishedWorkout, setFinishedWorkout] = useState<FinishedWorkout | null>(null);
-  const [premium, setPremium] = useState(isPremiumUnlocked());
+  const [finishedWorkout, setFinishedWorkout] = useState<FinishedWorkout | null>(
+    null
+  );
+  const [premium, setPremium] = useState(checkPremium().isActive);
 
   const stats = useMemo(
     () => getAppStats(),
@@ -590,19 +591,19 @@ export default function Index() {
   }, []);
 
   useEffect(() => {
-    const handleStorageRefresh = () => {
+    const handleRefresh = () => {
       setPage(getCurrentPage());
       setMenuOpenLocal(getUIState().menuOpen);
       setPaywallOpenLocal(getUIState().paywallOpen);
       setPremium(checkPremium().isActive);
     };
 
-    window.addEventListener('app-store-updated', handleStorageRefresh);
-    window.addEventListener('storage', handleStorageRefresh);
+    window.addEventListener('app-store-updated', handleRefresh);
+    window.addEventListener('storage', handleRefresh);
 
     return () => {
-      window.removeEventListener('app-store-updated', handleStorageRefresh);
-      window.removeEventListener('storage', handleStorageRefresh);
+      window.removeEventListener('app-store-updated', handleRefresh);
+      window.removeEventListener('storage', handleRefresh);
     };
   }, []);
 
@@ -660,8 +661,7 @@ export default function Index() {
 
     setWorkoutSummary(summary);
     setFinishedWorkout(summary);
-    setCurrentPage('complete');
-    setPage('complete');
+    changePage('complete');
   };
 
   const startWorkout = () => {
@@ -675,6 +675,22 @@ export default function Index() {
   const navigateFromMenu = (nextPage: AppPage) => {
     closeMenu();
     changePage(nextPage);
+  };
+
+  const historyHandler = () => {
+    maybeOpenHistoryPaywall({
+      isPremium: premium,
+      openPaywall,
+      onAllowed: () => changePage('history'),
+    });
+  };
+
+  const nutritionHandler = () => {
+    maybeOpenNutritionPaywall({
+      isPremium: premium,
+      openPaywall,
+      onAllowed: () => changePage('nutrition'),
+    });
   };
 
   if (showSplash) {
@@ -691,6 +707,10 @@ export default function Index() {
       />
     );
   }
+
+  const hasAppMenu = typeof AppMenu === 'function';
+  const hasPremiumPaywall = typeof PremiumPaywall === 'function';
+  const hasSettingsScreen = typeof SettingsScreen === 'function';
 
   return (
     <>
@@ -719,45 +739,97 @@ export default function Index() {
             setFinishedWorkout(null);
             changePage('home');
           }}
-          onOpenPaywall={openPaywall}
+          onOpenPaywall={() => {
+            openManualPaywall(openPaywall);
+          }}
         />
       )}
 
-      {page === 'history' && <HistoryScreen onBack={() => changePage('home')} />}
+      {page === 'history' && (
+        <HistoryScreen onBack={() => changePage('home')} />
+      )}
 
       {page === 'nutrition' && (
         <NutritionScreen
           onBack={() => changePage('home')}
-          onOpenPaywall={openPaywall}
+          onOpenPaywall={nutritionHandler}
         />
       )}
 
-      {page === 'daily' && <DailyCheckInScreen onBack={() => changePage('home')} />}
+      {page === 'daily' && (
+        <DailyCheckInScreen onBack={() => changePage('home')} />
+      )}
 
-      {page === 'gallery' && <GymRatGallery onBack={() => changePage('home')} />}
+      {page === 'gallery' && (
+        <GymRatGallery onBack={() => changePage('home')} />
+      )}
 
       {page === 'shop' && (
         <RatShop
           onBack={() => changePage('home')}
-          onOpenPremium={openPaywall}
+          onOpenPremium={() => openManualPaywall(openPaywall)}
         />
       )}
 
-      {page === 'settings' && <SettingsPlaceholder onBack={() => changePage('home')} />}
+      {page === 'settings' &&
+        (hasSettingsScreen ? (
+          <SettingsScreen onBack={() => changePage('home')} />
+        ) : (
+          <SettingsFallback onBack={() => changePage('home')} />
+        ))}
 
-      {menuOpenLocal && (
-        <MenuSheet
-          onClose={closeMenu}
-          onNavigate={navigateFromMenu}
-          onOpenPaywall={() => {
-            closeMenu();
-            openPaywall();
-          }}
-          isPremium={premium}
-        />
-      )}
+      {menuOpenLocal &&
+        (hasAppMenu ? (
+          <AppMenu
+            isPremium={premium}
+            onClose={closeMenu}
+            onOpenDaily={() => {
+              closeMenu();
+              changePage('daily');
+            }}
+            onOpenHistory={() => {
+              closeMenu();
+              historyHandler();
+            }}
+            onOpenNutrition={() => {
+              closeMenu();
+              nutritionHandler();
+            }}
+            onOpenGallery={() => {
+              closeMenu();
+              changePage('gallery');
+            }}
+            onOpenShop={() => {
+              closeMenu();
+              changePage('shop');
+            }}
+            onOpenSettings={() => {
+              closeMenu();
+              changePage('settings');
+            }}
+            onOpenPremium={() => {
+              closeMenu();
+              openManualPaywall(openPaywall);
+            }}
+          />
+        ) : (
+          <MenuFallback
+            onClose={closeMenu}
+            onNavigate={navigateFromMenu}
+            onOpenPaywall={() => {
+              closeMenu();
+              openManualPaywall(openPaywall);
+            }}
+            isPremium={premium}
+          />
+        ))}
 
-      {paywallOpenLocal && <PremiumModal onClose={closePaywall} />}
+      {paywallOpenLocal &&
+        (hasPremiumPaywall ? (
+          <PremiumPaywall onClose={closePaywall} />
+        ) : (
+          <PremiumFallback onClose={closePaywall} />
+        ))}
     </>
   );
 }

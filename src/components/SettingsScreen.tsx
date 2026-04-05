@@ -7,23 +7,11 @@ import {
   RefreshCw,
   RotateCcw,
   Settings,
-  Sparkles,
   User,
 } from 'lucide-react';
 import { getProfile } from '../lib/profileStore';
-import {
-  clearPremiumPreview,
-  getPremiumState,
-  restorePremiumPurchases,
-  purchasePremium,
-  subscribePremium,
-  unlockPremiumPreview,
-} from '../lib/premiumStore';
-import {
-  getTimerSettings,
-  resetTimerSettings,
-  saveTimerSettings,
-} from '../lib/timerStore';
+import { activatePremium, checkPremium, deactivatePremium, subscribePremium } from '../lib/premiumStore';
+import { getTimerSettings, resetTimerSettings, saveTimerSettings } from '../lib/timerStore';
 
 type SettingsScreenProps = {
   onBack: () => void;
@@ -37,12 +25,10 @@ function clampSeconds(value: string | number, fallback: number) {
 
 export default function SettingsScreen({ onBack }: SettingsScreenProps) {
   const profile = getProfile();
-
   const [timerEnabled, setTimerEnabled] = useState(true);
   const [setSeconds, setSetSeconds] = useState(45);
   const [restSeconds, setRestSeconds] = useState(90);
-  const [premiumState, setPremiumState] = useState(getPremiumState());
-  const [premiumLoading, setPremiumLoading] = useState(false);
+  const [premiumState, setPremiumState] = useState(checkPremium());
   const [message, setMessage] = useState('');
 
   useEffect(() => {
@@ -76,9 +62,6 @@ export default function SettingsScreen({ onBack }: SettingsScreenProps) {
 
   const premiumLabel = useMemo(() => {
     if (!premiumState.isActive) return 'Free';
-    if (premiumState.plan === 'yearly') return 'Premium Yearly';
-    if (premiumState.plan === 'monthly') return 'Premium Monthly';
-    if (premiumState.plan === 'lifetime') return 'Premium Lifetime';
     return 'Premium Active';
   }, [premiumState]);
 
@@ -90,7 +73,7 @@ export default function SettingsScreen({ onBack }: SettingsScreenProps) {
   const inputClass =
     'mt-2 w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-white outline-none transition focus:border-emerald-400/50';
   const buttonClass =
-    'rounded-2xl px-4 py-3 text-sm font-bold transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-50';
+    'rounded-2xl px-4 py-3 text-sm font-bold transition hover:scale-[1.01]';
 
   const handleSaveTimer = () => {
     saveTimerSettings({
@@ -110,143 +93,82 @@ export default function SettingsScreen({ onBack }: SettingsScreenProps) {
     setMessage('Timer settings reset to default.');
   };
 
-  const handlePurchase = async (plan: 'monthly' | 'yearly') => {
-    setPremiumLoading(true);
-    setMessage('');
-
-    const result = await purchasePremium(plan);
-
-    setPremiumLoading(false);
-
-    if (result.ok) {
-      setMessage(plan === 'yearly' ? 'Yearly premium activated.' : 'Monthly premium activated.');
-      return;
-    }
-
-    if (result.reason === 'preview-only') {
-      setMessage('No native purchase environment found. Use preview unlock in browser.');
-      return;
-    }
-
-    if (result.reason === 'package-not-found') {
-      setMessage('Could not find the RevenueCat package. Check offering identifiers.');
-      return;
-    }
-
-    setMessage('Premium purchase failed.');
+  const handleActivatePremium = () => {
+    activatePremium({ source: 'test' });
+    setMessage('Preview premium activated.');
   };
 
-  const handleRestore = async () => {
-    setPremiumLoading(true);
-    setMessage('');
-
-    const result = await restorePremiumPurchases();
-
-    setPremiumLoading(false);
-
-    if (result.ok) {
-      setMessage('Purchases restored successfully.');
-      return;
-    }
-
-    setMessage('No active premium entitlement found to restore.');
+  const handleClearPremium = () => {
+    deactivatePremium();
+    setMessage('Preview premium cleared.');
   };
 
   return (
-    <div className="min-h-screen bg-[#09090b] px-4 pb-8 pt-6 text-white">
-      <div className="mx-auto max-w-[430px]">
-        <div className="mb-5 flex items-center justify-between">
-          <button
-            type="button"
-            onClick={onBack}
-            className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] transition hover:bg-white/[0.08]"
-            aria-label="Back"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </button>
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(74,222,128,0.16),_transparent_30%),linear-gradient(180deg,_#09090b_0%,_#111113_100%)] px-4 py-5 text-white">
+      <div className="mx-auto flex w-full max-w-4xl flex-col gap-4">
+        <button
+          type="button"
+          onClick={onBack}
+          className="inline-flex w-fit items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-semibold"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back
+        </button>
 
-          <div className="rounded-2xl border border-emerald-400/10 bg-emerald-400/10 px-3 py-2 text-right">
-            <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-300/80">
-              Settings
-            </div>
-            <div className="text-lg font-black leading-none">Control</div>
+        <div className="rounded-[34px] border border-white/10 bg-white/[0.04] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.4)]">
+          <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.24em] text-zinc-400">
+            <Settings className="h-4 w-4 text-emerald-300" />
+            Control
           </div>
+
+          <h1 className="mt-3 text-3xl font-black sm:text-4xl">
+            Profile, timer and premium
+          </h1>
+
+          <p className="mt-3 max-w-3xl text-sm text-zinc-300 sm:text-base">
+            Clean control over your workout flow, recovery timing and premium progression.
+          </p>
         </div>
 
-        <div className="space-y-4">
+        <div className="grid gap-4 lg:grid-cols-2">
           <div className={cardClass}>
-            <div className="flex items-center gap-3">
-              <div className="inline-flex rounded-2xl bg-white/[0.05] p-3">
-                <Settings className="h-5 w-5 text-emerald-300" />
-              </div>
-              <div>
-                <div className={smallLabelClass}>Settings</div>
-                <h1 className="mt-1 text-2xl font-black">Profile, timer and premium</h1>
-              </div>
+            <div className="flex items-center gap-2">
+              <User className="h-4 w-4 text-emerald-300" />
+              <p className={smallLabelClass}>Profile</p>
             </div>
 
-            <p className="mt-4 text-sm text-zinc-400">
-              Clean control over your workout flow, recovery timing and premium progression.
-            </p>
-          </div>
-
-          <div className={cardClass}>
-            <div className="mb-4 flex items-center gap-3">
-              <div className="inline-flex rounded-2xl bg-white/[0.05] p-3">
-                <User className="h-5 w-5 text-emerald-300" />
+            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+              <div>
+                <p className={smallLabelClass}>Identity</p>
+                <p className={valueClass}>{identityLabel}</p>
               </div>
               <div>
-                <div className={smallLabelClass}>Profile</div>
-                <div className="mt-1 text-lg font-bold">Current setup</div>
+                <p className={smallLabelClass}>Training level</p>
+                <p className={valueClass}>{trainingLabel}</p>
               </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
               <div>
-                <div className={smallLabelClass}>Identity</div>
-                <div className={valueClass}>{identityLabel}</div>
+                <p className={smallLabelClass}>Age</p>
+                <p className={valueClass}>{profile?.age ?? '-'}</p>
               </div>
-
               <div>
-                <div className={smallLabelClass}>Training level</div>
-                <div className={valueClass}>{trainingLabel}</div>
-              </div>
-
-              <div>
-                <div className={smallLabelClass}>Age</div>
-                <div className={valueClass}>{profile?.age ?? '-'}</div>
-              </div>
-
-              <div>
-                <div className={smallLabelClass}>Weight</div>
-                <div className={valueClass}>{profile?.weight ?? '-'} kg</div>
+                <p className={smallLabelClass}>Weight</p>
+                <p className={valueClass}>{profile?.weight ?? '-'} kg</p>
               </div>
             </div>
           </div>
 
           <div className={cardClass}>
-            <div className="mb-4 flex items-center gap-3">
-              <div className="inline-flex rounded-2xl bg-white/[0.05] p-3">
-                <Clock3 className="h-5 w-5 text-emerald-300" />
-              </div>
-              <div>
-                <div className={smallLabelClass}>Workout timer</div>
-                <div className="mt-1 text-lg font-bold">Saved workout timing</div>
-              </div>
+            <div className="flex items-center gap-2">
+              <Clock3 className="h-4 w-4 text-emerald-300" />
+              <p className={smallLabelClass}>Workout timer</p>
             </div>
 
-            <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-black/20 p-4">
-              <div>
-                <div className="text-sm font-semibold text-white">Enable workout timer</div>
-                <div className="mt-1 text-sm text-zinc-400">
-                  Uses the same saved timer config during workouts.
-                </div>
-              </div>
-
+            <div className="mt-5">
+              <p className={smallLabelClass}>Enable workout timer</p>
               <button
                 type="button"
                 onClick={() => setTimerEnabled((current) => !current)}
-                className={`relative h-8 w-14 rounded-full transition ${
+                className={`relative mt-2 h-8 w-14 rounded-full transition ${
                   timerEnabled ? 'bg-emerald-400/80' : 'bg-white/15'
                 }`}
               >
@@ -258,145 +180,96 @@ export default function SettingsScreen({ onBack }: SettingsScreenProps) {
               </button>
             </div>
 
-            <div className="mt-4 grid grid-cols-2 gap-3">
-              <label className="block">
-                <span className={smallLabelClass}>Set time (seconds)</span>
+            <div className="mt-5 grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className={smallLabelClass}>Set time (seconds)</label>
                 <input
                   type="number"
                   value={setSeconds}
                   onChange={(e) => setSetSeconds(clampSeconds(e.target.value, setSeconds))}
                   className={inputClass}
                 />
-              </label>
+              </div>
 
-              <label className="block">
-                <span className={smallLabelClass}>Rest time (seconds)</span>
+              <div>
+                <label className={smallLabelClass}>Rest time (seconds)</label>
                 <input
                   type="number"
                   value={restSeconds}
                   onChange={(e) => setRestSeconds(clampSeconds(e.target.value, restSeconds))}
                   className={inputClass}
                 />
-              </label>
+              </div>
             </div>
 
-            <div className="mt-4 grid grid-cols-2 gap-3">
+            <div className="mt-5 flex gap-3">
               <button
                 type="button"
                 onClick={handleSaveTimer}
-                className={`${buttonClass} bg-emerald-400 text-black`}
+                className={`${buttonClass} flex-1 bg-emerald-400 text-black`}
               >
+                <Check className="mr-2 inline h-4 w-4" />
                 Save timer
               </button>
+
               <button
                 type="button"
                 onClick={handleResetTimer}
-                className={`${buttonClass} border border-white/10 bg-white/[0.04] text-white`}
+                className={`${buttonClass} flex-1 border border-white/10 bg-white/[0.04] text-white`}
               >
+                <RotateCcw className="mr-2 inline h-4 w-4" />
                 Reset default
               </button>
             </div>
           </div>
+        </div>
 
-          <div className={cardClass}>
-            <div className="mb-4 flex items-center gap-3">
-              <div className="inline-flex rounded-2xl bg-white/[0.05] p-3">
-                <Crown className="h-5 w-5 text-amber-200" />
-              </div>
-              <div>
-                <div className={smallLabelClass}>Premium</div>
-                <div className="mt-1 text-lg font-bold">Status and access</div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-3 gap-3">
-              <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
-                <div className={smallLabelClass}>Status</div>
-                <div className="mt-2 font-semibold text-white">
-                  {premiumState.isActive ? 'Active' : 'Free'}
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
-                <div className={smallLabelClass}>Plan</div>
-                <div className="mt-2 font-semibold text-white">{premiumState.plan ?? '-'}</div>
-              </div>
-
-              <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
-                <div className={smallLabelClass}>Tier</div>
-                <div className="mt-2 font-semibold text-white">{premiumLabel}</div>
-              </div>
-            </div>
-
-            <div className="mt-4 grid gap-3">
-              <button
-                type="button"
-                onClick={() => handlePurchase('monthly')}
-                disabled={premiumLoading}
-                className={`${buttonClass} bg-emerald-400 text-black`}
-              >
-                Monthly premium
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handlePurchase('yearly')}
-                disabled={premiumLoading}
-                className={`${buttonClass} bg-emerald-400 text-black`}
-              >
-                Yearly premium
-              </button>
-
-              <button
-                type="button"
-                onClick={handleRestore}
-                disabled={premiumLoading}
-                className={`${buttonClass} border border-white/10 bg-white/[0.04] text-white`}
-              >
-                <span className="inline-flex items-center gap-2">
-                  <RefreshCw className="h-4 w-4" />
-                  Restore purchases
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  unlockPremiumPreview('monthly');
-                  setMessage('Preview premium activated.');
-                }}
-                className={`${buttonClass} border border-amber-400/20 bg-amber-400/10 text-amber-100`}
-              >
-                <span className="inline-flex items-center gap-2">
-                  <Sparkles className="h-4 w-4" />
-                  Preview unlock
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  clearPremiumPreview();
-                  setMessage('Preview premium cleared.');
-                }}
-                className={`${buttonClass} border border-white/10 bg-transparent text-zinc-300`}
-              >
-                <span className="inline-flex items-center gap-2">
-                  <RotateCcw className="h-4 w-4" />
-                  Clear preview premium
-                </span>
-              </button>
-            </div>
-
-            {message ? (
-              <div className="mt-4 rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-zinc-300">
-                <div className="inline-flex items-center gap-2 text-white">
-                  <Check className="h-4 w-4 text-emerald-300" />
-                  <span>{message}</span>
-                </div>
-              </div>
-            ) : null}
+        <div className={cardClass}>
+          <div className="flex items-center gap-2">
+            <Crown className="h-4 w-4 text-yellow-300" />
+            <p className={smallLabelClass}>Premium</p>
           </div>
+
+          <div className="mt-5 grid gap-3 sm:grid-cols-3">
+            <div>
+              <p className={smallLabelClass}>Status</p>
+              <p className={valueClass}>{premiumState.isActive ? 'Active' : 'Free'}</p>
+            </div>
+            <div>
+              <p className={smallLabelClass}>Source</p>
+              <p className={valueClass}>{premiumState.source}</p>
+            </div>
+            <div>
+              <p className={smallLabelClass}>Tier</p>
+              <p className={valueClass}>{premiumLabel}</p>
+            </div>
+          </div>
+
+          <div className="mt-5 flex flex-wrap gap-3">
+            <button
+              type="button"
+              onClick={handleActivatePremium}
+              className={`${buttonClass} bg-emerald-400 text-black`}
+            >
+              <Crown className="mr-2 inline h-4 w-4" />
+              Preview unlock
+            </button>
+
+            <button
+              type="button"
+              onClick={handleClearPremium}
+              className={`${buttonClass} border border-white/10 bg-transparent text-zinc-300`}
+            >
+              <RefreshCw className="mr-2 inline h-4 w-4" />
+              Clear preview
+            </button>
+          </div>
+
+          {message ? (
+            <div className="mt-4 rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-zinc-200">
+              {message}
+            </div>
+          ) : null}
         </div>
       </div>
     </div>

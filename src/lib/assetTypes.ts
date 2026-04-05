@@ -1,145 +1,159 @@
-import type { AssetLookupResult } from '@/lib/assetTypes';
+export type UserGender = 'male' | 'female' | 'non-binary';
+export type TrainingLevel = 'beginner' | 'intermediate' | 'advanced';
+export type TrainingGoal = 'lose' | 'maintain' | 'build';
 
-type AssetModule = {
-  default: string;
+export type UserProfile = {
+  age: number;
+  height: number;
+  weight: number;
+  gender: UserGender;
+  goal: TrainingGoal;
+  trainingLevel: TrainingLevel;
 };
 
-const assetModules = import.meta.glob<AssetModule>(
-  [
-    '/src/assets/**/*.png',
-    '/src/assets/**/*.webp',
-    '/src/assets/**/*.jpg',
-    '/src/assets/**/*.jpeg',
-  ],
-  { eager: true }
-);
-
-type IndexedAsset = AssetLookupResult & {
-  normalizedId: string;
-  normalizedFileName: string;
+type ProfileState = {
+  onboardingComplete: boolean;
+  profile: UserProfile | null;
 };
 
-function stripExtension(fileName: string) {
-  return fileName.replace(/\.(png|webp|jpg|jpeg)$/i, '');
+const KEY = 'gymrat-profile-store';
+
+const DEFAULT_PROFILE: UserProfile = {
+  age: 25,
+  height: 180,
+  weight: 75,
+  gender: 'male',
+  goal: 'maintain',
+  trainingLevel: 'beginner',
+};
+
+function migrateLegacyProfile(input: unknown): UserProfile | null {
+  if (!input || typeof input !== 'object') return null;
+
+  const source = input as Partial<UserProfile>;
+
+  return {
+    age: typeof source.age === 'number' ? source.age : DEFAULT_PROFILE.age,
+    height:
+      typeof source.height === 'number' ? source.height : DEFAULT_PROFILE.height,
+    weight:
+      typeof source.weight === 'number' ? source.weight : DEFAULT_PROFILE.weight,
+    gender:
+      source.gender === 'female' ||
+      source.gender === 'non-binary' ||
+      source.gender === 'male'
+        ? source.gender
+        : DEFAULT_PROFILE.gender,
+    goal:
+      source.goal === 'lose' ||
+      source.goal === 'maintain' ||
+      source.goal === 'build'
+        ? source.goal
+        : DEFAULT_PROFILE.goal,
+    trainingLevel:
+      source.trainingLevel === 'intermediate' ||
+      source.trainingLevel === 'advanced' ||
+      source.trainingLevel === 'beginner'
+        ? source.trainingLevel
+        : DEFAULT_PROFILE.trainingLevel,
+  };
 }
 
-function normalize(value: string) {
-  return value
-    .toLowerCase()
-    .replace(/\.(png|webp|jpg|jpeg)$/i, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '');
-}
+function read(): ProfileState {
+  if (typeof window === 'undefined') {
+    return { onboardingComplete: false, profile: null };
+  }
 
-const indexedAssets: IndexedAsset[] = Object.entries(assetModules).map(
-  ([path, mod]) => {
-    const fileName = path.split('/').pop() ?? path;
-    const id = stripExtension(fileName);
+  const raw = localStorage.getItem(KEY);
+  if (!raw) {
+    return { onboardingComplete: false, profile: null };
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as Partial<ProfileState>;
 
     return {
-      id,
-      src: mod.default,
-      fileName,
-      path,
-      normalizedId: normalize(id),
-      normalizedFileName: normalize(fileName),
+      onboardingComplete: parsed.onboardingComplete === true,
+      profile: migrateLegacyProfile(parsed.profile),
     };
+  } catch {
+    return { onboardingComplete: false, profile: null };
   }
-);
-
-function scoreAssetMatch(asset: IndexedAsset, query: string, preferredFolder?: string) {
-  const normalizedQuery = normalize(query);
-  let score = 0;
-
-  if (asset.normalizedId === normalizedQuery) score += 1000;
-  if (asset.normalizedFileName === normalizedQuery) score += 950;
-
-  if (asset.normalizedId.startsWith(normalizedQuery)) score += 300;
-  if (asset.normalizedFileName.startsWith(normalizedQuery)) score += 250;
-
-  if (asset.normalizedId.includes(normalizedQuery)) score += 120;
-  if (asset.normalizedFileName.includes(normalizedQuery)) score += 90;
-
-  if (preferredFolder && asset.path.toLowerCase().includes(preferredFolder.toLowerCase())) {
-    score += 80;
-  }
-
-  return score;
 }
 
-function findBestAsset(query: string, preferredFolder?: string) {
-  const ranked = indexedAssets
-    .map((asset) => ({
-      asset,
-      score: scoreAssetMatch(asset, query, preferredFolder),
-    }))
-    .filter((entry) => entry.score > 0)
-    .sort((a, b) => b.score - a.score);
+function write(state: ProfileState) {
+  if (typeof window === 'undefined') return;
 
-  return ranked[0]?.asset ?? null;
-}
-
-export function getAllAssets() {
-  return indexedAssets.map(({ normalizedId, normalizedFileName, ...asset }) => asset);
-}
-
-export function getAssetById(id: string) {
-  const hit = findBestAsset(id);
-  if (!hit) return null;
-
-  const { normalizedId, normalizedFileName, ...asset } = hit;
-  return asset;
-}
-
-export function getAssetSrc(id: string) {
-  return getAssetById(id)?.src ?? null;
-}
-
-export function getItemImage(id: string) {
-  return (
-    getAssetSrc(id) ??
-    getAssetSrc(`${id}.png`) ??
-    getAssetSrc(`${id}.webp`) ??
-    null
+  localStorage.setItem(KEY, JSON.stringify(state));
+  window.dispatchEvent(
+    new CustomEvent('profile-updated', {
+      detail: state,
+    })
   );
 }
 
-export function getBackgroundImage(id: string) {
-  const hit =
-    findBestAsset(id, '/background') ??
-    findBestAsset(id, '/backgrounds') ??
-    findBestAsset(id, '/bg') ??
-    findBestAsset(id);
-
-  if (!hit) return null;
-
-  const { src } = hit;
-  return src;
+export function getProfile() {
+  return read().profile;
 }
 
-export function getRatImage(id: string) {
-  const hit =
-    findBestAsset(id, '/rats') ??
-    findBestAsset(id, '/rat') ??
-    findBestAsset(id);
+export function saveProfile(profile: UserProfile) {
+  const state = read();
 
-  if (!hit) return null;
-
-  return hit.src;
+  write({
+    ...state,
+    profile: migrateLegacyProfile(profile),
+  });
 }
 
-export function debugFindAssets(term: string) {
-  const normalizedTerm = normalize(term);
+export function updateProfile(partial: Partial<UserProfile>) {
+  const state = read();
+  const current = state.profile ?? DEFAULT_PROFILE;
 
-  return indexedAssets
-    .map((asset) => ({
-      id: asset.id,
-      fileName: asset.fileName,
-      path: asset.path,
-      src: asset.src,
-      score: scoreAssetMatch(asset, normalizedTerm),
-    }))
-    .filter((entry) => entry.score > 0)
-    .sort((a, b) => b.score - a.score);
+  write({
+    ...state,
+    profile: migrateLegacyProfile({
+      ...current,
+      ...partial,
+    }),
+  });
+}
+
+export function completeOnboarding() {
+  const state = read();
+  write({ ...state, onboardingComplete: true });
+}
+
+export function isOnboardingComplete() {
+  return read().onboardingComplete;
+}
+
+export function resetProfile() {
+  write({
+    onboardingComplete: false,
+    profile: null,
+  });
+}
+
+export function getNutritionTargets(profile: UserProfile | null) {
+  const current = profile ?? DEFAULT_PROFILE;
+  const weight = Math.max(40, current.weight);
+
+  const protein =
+    current.goal === 'build'
+      ? Math.round(weight * 2.2)
+      : current.goal === 'lose'
+      ? Math.round(weight * 2.4)
+      : Math.round(weight * 2.0);
+
+  const calories =
+    current.goal === 'build'
+      ? Math.round(weight * 33)
+      : current.goal === 'lose'
+      ? Math.round(weight * 27)
+      : Math.round(weight * 30);
+
+  return {
+    protein,
+    calories,
+  };
 }

@@ -1,4 +1,6 @@
-import { ChevronLeft, Crown, Flame, Lock, Target, Zap } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { ArrowLeft, Crown, Flame, Target, Zap } from 'lucide-react';
+import { getNutritionOverview, getTodayNutrition, saveTodayNutrition } from '@/lib/nutritionStore';
 
 type NutritionScreenProps = {
   onBack: () => void;
@@ -15,12 +17,12 @@ function MacroCard({
   hint: string;
 }) {
   return (
-    <div className="rounded-[1.4rem] border border-white/10 bg-white/[0.04] p-4">
-      <p className="text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-white/45">
+    <div className="rounded-[24px] border border-white/10 bg-white/[0.04] p-4">
+      <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-zinc-500">
         {label}
       </p>
-      <p className="mt-2 text-2xl font-black tracking-tight text-white">{value}</p>
-      <p className="mt-1 text-sm text-white/55">{hint}</p>
+      <p className="mt-2 text-2xl font-black text-white">{value}</p>
+      <p className="mt-2 text-sm text-zinc-400">{hint}</p>
     </div>
   );
 }
@@ -29,117 +31,167 @@ export default function NutritionScreen({
   onBack,
   onOpenPaywall,
 }: NutritionScreenProps) {
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [draft, setDraft] = useState(getTodayNutrition());
+
+  useEffect(() => {
+    const handler = () => {
+      setDraft(getTodayNutrition());
+      setRefreshKey((value) => value + 1);
+    };
+
+    window.addEventListener('nutrition-updated', handler);
+    return () => window.removeEventListener('nutrition-updated', handler);
+  }, []);
+
+  const overview = useMemo(() => getNutritionOverview(), [refreshKey]);
+
+  const saveField = (field: keyof typeof draft, value: number) => {
+    const next = {
+      ...draft,
+      [field]: Math.max(0, Number.isFinite(value) ? value : 0),
+    };
+    setDraft(next);
+    saveTodayNutrition(next);
+  };
+
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(16,185,129,0.14),transparent_30%),linear-gradient(180deg,#07110d_0%,#0b1511_38%,#050806_100%)] px-4 pb-8 pt-5 text-white">
-      <div className="mx-auto max-w-md">
-        <div className="mb-4 flex items-center justify-between">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(74,222,128,0.16),_transparent_30%),linear-gradient(180deg,_#09090b_0%,_#111113_100%)] px-4 py-5 text-white">
+      <div className="mx-auto flex w-full max-w-4xl flex-col gap-4">
+        <div className="flex items-center justify-between gap-3">
           <button
+            type="button"
             onClick={onBack}
-            className="flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.05] px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/[0.08]"
+            className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-semibold"
           >
-            <ChevronLeft className="h-4 w-4" />
+            <ArrowLeft className="h-4 w-4" />
             Back
           </button>
 
-          <div className="rounded-full border border-yellow-400/20 bg-yellow-400/10 px-3 py-1 text-[0.68rem] font-black uppercase tracking-[0.18em] text-yellow-300">
+          <button
+            type="button"
+            onClick={onOpenPaywall}
+            className="inline-flex items-center gap-2 rounded-2xl border border-yellow-300/20 bg-yellow-300/10 px-4 py-3 text-sm font-black text-yellow-100"
+          >
+            <Crown className="h-4 w-4" />
             Premium
+          </button>
+        </div>
+
+        <div className="rounded-[34px] border border-white/10 bg-white/[0.04] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.42)]">
+          <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">
+            Nutrition system
+          </p>
+          <h1 className="mt-3 text-3xl font-black sm:text-4xl">Fuel the progress</h1>
+          <p className="mt-3 max-w-3xl text-sm text-zinc-300 sm:text-base">
+            Nutrition is part of the deeper progression layer. Keep the free app clean, then unlock food tracking,
+            macro goals and consistency tools when you want more.
+          </p>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-3">
+          <MacroCard
+            label="Calories target"
+            value={`${overview.targets.calories}`}
+            hint="Estimated from your current profile and goal."
+          />
+          <MacroCard
+            label="Protein target"
+            value={`${overview.targets.protein} g`}
+            hint="High-protein anchor for better recovery and body comp."
+          />
+          <MacroCard
+            label="Water target"
+            value={`${overview.targets.waterMl} ml`}
+            hint="Simple hydration baseline to support training quality."
+          />
+        </div>
+
+        <div className="rounded-[30px] border border-white/10 bg-white/[0.04] p-5 shadow-[0_18px_50px_rgba(0,0,0,0.3)]">
+          <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+            <Target className="h-4 w-4 text-emerald-300" />
+            Today
+          </div>
+
+          <div className="mt-5 grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className="text-xs uppercase tracking-[0.18em] text-zinc-400">
+                Calories
+              </label>
+              <input
+                type="number"
+                value={draft.calories}
+                onChange={(e) => saveField('calories', Number(e.target.value))}
+                className="mt-2 w-full rounded-2xl border border-white/10 bg-zinc-900 px-4 py-3 text-white outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs uppercase tracking-[0.18em] text-zinc-400">
+                Protein (g)
+              </label>
+              <input
+                type="number"
+                value={draft.protein}
+                onChange={(e) => saveField('protein', Number(e.target.value))}
+                className="mt-2 w-full rounded-2xl border border-white/10 bg-zinc-900 px-4 py-3 text-white outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs uppercase tracking-[0.18em] text-zinc-400">
+                Carbs (g)
+              </label>
+              <input
+                type="number"
+                value={draft.carbs}
+                onChange={(e) => saveField('carbs', Number(e.target.value))}
+                className="mt-2 w-full rounded-2xl border border-white/10 bg-zinc-900 px-4 py-3 text-white outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs uppercase tracking-[0.18em] text-zinc-400">
+                Fat (g)
+              </label>
+              <input
+                type="number"
+                value={draft.fat}
+                onChange={(e) => saveField('fat', Number(e.target.value))}
+                className="mt-2 w-full rounded-2xl border border-white/10 bg-zinc-900 px-4 py-3 text-white outline-none"
+              />
+            </div>
+
+            <div className="sm:col-span-2">
+              <label className="text-xs uppercase tracking-[0.18em] text-zinc-400">
+                Water (ml)
+              </label>
+              <input
+                type="number"
+                value={draft.waterMl}
+                onChange={(e) => saveField('waterMl', Number(e.target.value))}
+                className="mt-2 w-full rounded-2xl border border-white/10 bg-zinc-900 px-4 py-3 text-white outline-none"
+              />
+            </div>
           </div>
         </div>
 
-        <div className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.03))] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.42)] backdrop-blur-md">
-          <div className="absolute inset-x-0 top-0 h-36 bg-[radial-gradient(circle_at_top,rgba(250,204,21,0.16),transparent_70%)]" />
-
-          <div className="relative">
-            <div className="inline-flex items-center gap-2 rounded-full border border-yellow-400/20 bg-yellow-400/10 px-3 py-1 text-[0.68rem] font-black uppercase tracking-[0.18em] text-yellow-300">
-              <Crown className="h-3.5 w-3.5" />
-              <span>Nutrition system</span>
-            </div>
-
-            <h1 className="mt-4 text-3xl font-black tracking-tight text-white">
-              Fuel the progress
-            </h1>
-
-            <p className="mt-3 text-sm leading-6 text-white/65">
-              Nutrition is part of the deeper progression layer. Keep the free app clean,
-              then unlock food tracking, macro goals and consistency tools when you want more.
-            </p>
-
-            <div className="mt-6 grid grid-cols-2 gap-3">
-              <MacroCard
-                label="Calories"
-                value="2,450"
-                hint="Daily target example"
-              />
-              <MacroCard
-                label="Protein"
-                value="180g"
-                hint="Muscle-focused target"
-              />
-              <MacroCard
-                label="Carbs"
-                value="240g"
-                hint="Training support"
-              />
-              <MacroCard
-                label="Fat"
-                value="70g"
-                hint="Recovery + balance"
-              />
-            </div>
-
-            <div className="mt-6 rounded-[1.5rem] border border-white/10 bg-black/20 p-4">
-              <div className="flex items-start gap-3">
-                <div className="rounded-full border border-yellow-400/20 bg-yellow-400/10 p-2">
-                  <Lock className="h-4 w-4 text-yellow-300" />
-                </div>
-
-                <div>
-                  <p className="text-base font-bold text-white">
-                    Included in Premium
-                  </p>
-                  <p className="mt-2 text-sm leading-6 text-white/62">
-                    Unlock nutrition targets based on your goal, better daily tracking,
-                    macro follow-up and more complete progress support.
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-4 grid grid-cols-3 gap-2">
-                <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-3 text-center">
-                  <Target className="mx-auto h-4 w-4 text-emerald-300" />
-                  <p className="mt-2 text-[0.62rem] font-semibold uppercase tracking-[0.14em] text-white/45">
-                    Goal based
-                  </p>
-                </div>
-
-                <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-3 text-center">
-                  <Flame className="mx-auto h-4 w-4 text-orange-300" />
-                  <p className="mt-2 text-[0.62rem] font-semibold uppercase tracking-[0.14em] text-white/45">
-                    Daily streak
-                  </p>
-                </div>
-
-                <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-3 text-center">
-                  <Zap className="mx-auto h-4 w-4 text-yellow-300" />
-                  <p className="mt-2 text-[0.62rem] font-semibold uppercase tracking-[0.14em] text-white/45">
-                    Macro focus
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <button
-              onClick={onOpenPaywall}
-              className="mt-6 flex w-full items-center justify-center gap-3 rounded-[1.4rem] border border-yellow-300/20 bg-[linear-gradient(90deg,rgba(250,204,21,0.95),rgba(253,224,71,0.95))] px-5 py-4 text-base font-black tracking-[0.04em] text-black shadow-[0_18px_45px_rgba(250,204,21,0.18)] transition-transform duration-200 hover:scale-[1.01] active:scale-[0.99]"
-            >
-              <Crown className="h-5 w-5" />
-              <span>Unlock Premium</span>
-            </button>
-
-            <p className="mt-3 text-center text-xs text-white/42">
-              Premium should feel like a deeper layer — not friction for the free user.
-            </p>
-          </div>
+        <div className="grid gap-3 sm:grid-cols-3">
+          <MacroCard
+            label="Goal based"
+            value="Smart"
+            hint="Targets adapt to your selected goal."
+          />
+          <MacroCard
+            label="Daily streak"
+            value="Ready"
+            hint="Consistency should feel connected to the app."
+          />
+          <MacroCard
+            label="Macro focus"
+            value="Protein"
+            hint="Protein stays the strongest anchor for most users."
+          />
         </div>
       </div>
     </div>

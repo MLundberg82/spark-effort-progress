@@ -27,26 +27,34 @@ const DEFAULT_PROFILE: UserProfile = {
   trainingLevel: 'beginner',
 };
 
-function migrateLegacyProfile(input: any): UserProfile | null {
+function migrateLegacyProfile(input: unknown): UserProfile | null {
   if (!input || typeof input !== 'object') return null;
 
+  const source = input as Partial<UserProfile>;
+
   return {
-    age: typeof input.age === 'number' ? input.age : DEFAULT_PROFILE.age,
-    height: typeof input.height === 'number' ? input.height : DEFAULT_PROFILE.height,
-    weight: typeof input.weight === 'number' ? input.weight : DEFAULT_PROFILE.weight,
+    age: typeof source.age === 'number' ? source.age : DEFAULT_PROFILE.age,
+    height:
+      typeof source.height === 'number' ? source.height : DEFAULT_PROFILE.height,
+    weight:
+      typeof source.weight === 'number' ? source.weight : DEFAULT_PROFILE.weight,
     gender:
-      input.gender === 'female' || input.gender === 'non-binary' || input.gender === 'male'
-        ? input.gender
+      source.gender === 'female' ||
+      source.gender === 'non-binary' ||
+      source.gender === 'male'
+        ? source.gender
         : DEFAULT_PROFILE.gender,
     goal:
-      input.goal === 'lose' || input.goal === 'maintain' || input.goal === 'build'
-        ? input.goal
+      source.goal === 'lose' ||
+      source.goal === 'maintain' ||
+      source.goal === 'build'
+        ? source.goal
         : DEFAULT_PROFILE.goal,
     trainingLevel:
-      input.trainingLevel === 'intermediate' ||
-      input.trainingLevel === 'advanced' ||
-      input.trainingLevel === 'beginner'
-        ? input.trainingLevel
+      source.trainingLevel === 'intermediate' ||
+      source.trainingLevel === 'advanced' ||
+      source.trainingLevel === 'beginner'
+        ? source.trainingLevel
         : DEFAULT_PROFILE.trainingLevel,
   };
 }
@@ -57,13 +65,13 @@ function read(): ProfileState {
   }
 
   const raw = localStorage.getItem(KEY);
-
   if (!raw) {
     return { onboardingComplete: false, profile: null };
   }
 
   try {
-    const parsed = JSON.parse(raw) ?? {};
+    const parsed = JSON.parse(raw) as Partial<ProfileState>;
+
     return {
       onboardingComplete: parsed.onboardingComplete === true,
       profile: migrateLegacyProfile(parsed.profile),
@@ -75,8 +83,13 @@ function read(): ProfileState {
 
 function write(state: ProfileState) {
   if (typeof window === 'undefined') return;
+
   localStorage.setItem(KEY, JSON.stringify(state));
-  window.dispatchEvent(new CustomEvent('profile-updated', { detail: state }));
+  window.dispatchEvent(
+    new CustomEvent('profile-updated', {
+      detail: state,
+    })
+  );
 }
 
 export function getProfile() {
@@ -85,6 +98,7 @@ export function getProfile() {
 
 export function saveProfile(profile: UserProfile) {
   const state = read();
+
   write({
     ...state,
     profile: migrateLegacyProfile(profile),

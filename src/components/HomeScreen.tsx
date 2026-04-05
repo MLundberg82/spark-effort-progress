@@ -101,9 +101,7 @@ export default function HomeScreen({
             <p className="text-xs font-bold uppercase tracking-[0.24em] text-zinc-400">
               {visual.tierLabel}
             </p>
-            <h1 className="mt-1 text-3xl font-black sm:text-4xl">
-              GymRat
-            </h1>
+            <h1 className="mt-1 text-3xl font-black sm:text-4xl">GymRat</h1>
           </div>
 
           <button
@@ -150,7 +148,7 @@ export default function HomeScreen({
               </div>
 
               <div className="relative">
-                <GymRatStage level={stats.level} />
+                <GymRatStage level={stats.level} compact />
               </div>
 
               <div className="mt-4">

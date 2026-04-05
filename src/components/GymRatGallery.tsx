@@ -19,17 +19,12 @@ function StatBadge({
   value: string | number;
 }) {
   return (
-    <div className="rounded-[1.4rem] border border-white/10 bg-white/[0.05] p-4 shadow-[0_12px_35px_rgba(0,0,0,0.22)]">
-      <div className="mb-2 flex items-center gap-2 text-white/55">
-        <div className="rounded-full border border-white/10 bg-black/20 p-2">
-          {icon}
-        </div>
-        <span className="text-[0.68rem] font-semibold uppercase tracking-[0.16em]">
-          {label}
-        </span>
+    <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+      <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-500">
+        {icon}
+        <span>{label}</span>
       </div>
-
-      <p className="text-xl font-black tracking-tight text-white">{value}</p>
+      <div className="mt-2 text-lg font-black text-white">{value}</div>
     </div>
   );
 }
@@ -40,196 +35,167 @@ export default function GymRatGallery({ onBack }: GymRatGalleryProps) {
   const currentVisual = getLevelVisual(currentLevel);
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(16,185,129,0.16),transparent_28%),linear-gradient(180deg,#07110d_0%,#0b1511_38%,#050806_100%)] px-4 pb-8 pt-5 text-white">
-      <div className="mx-auto max-w-md">
-        <div className="mb-4 flex items-center justify-between">
-          <button
-            onClick={onBack}
-            className="flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.05] px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/[0.08]"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back
-          </button>
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(74,222,128,0.16),_transparent_30%),linear-gradient(180deg,_#09090b_0%,_#111113_100%)] px-4 py-5 text-white">
+      <div className="mx-auto flex w-full max-w-5xl flex-col gap-4">
+        <button
+          type="button"
+          onClick={onBack}
+          className="inline-flex w-fit items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-semibold"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back
+        </button>
 
-          <div className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-[0.68rem] font-black uppercase tracking-[0.18em] text-emerald-300">
-            Level Gallery
-          </div>
-        </div>
-
-        <div className="rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.03))] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.42)] backdrop-blur-md">
-          <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-[0.68rem] font-black uppercase tracking-[0.18em] text-white/75">
-            <Sparkles className="h-3.5 w-3.5" />
+        <div className="rounded-[34px] border border-white/10 bg-white/[0.04] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.4)]">
+          <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.24em] text-emerald-300">
+            <Sparkles className="h-4 w-4" />
             <span>Progression archive</span>
           </div>
 
-          <h1 className="mt-4 text-3xl font-black tracking-tight text-white">
+          <h1 className="mt-3 text-3xl font-black sm:text-4xl">
             Your GymRat evolution
           </h1>
 
-          <p className="mt-3 text-sm leading-6 text-white/65">
+          <p className="mt-3 max-w-3xl text-sm text-zinc-300 sm:text-base">
             Every form should feel earned. This gallery shows the long-term path,
             while your current hero reflects your active identity, gear and background.
           </p>
 
-          <div className="mt-5 grid grid-cols-2 gap-3">
+          <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <StatBadge
-              icon={<Zap className="h-4 w-4" />}
+              icon={<Zap className="h-4 w-4 text-emerald-300" />}
               label="Current level"
               value={`LVL ${currentLevel}`}
             />
             <StatBadge
-              icon={<Trophy className="h-4 w-4" />}
+              icon={<Star className="h-4 w-4 text-yellow-300" />}
               label="Current tier"
               value={currentVisual.tierLabel}
             />
+            <StatBadge
+              icon={<Trophy className="h-4 w-4 text-orange-300" />}
+              label="Total XP"
+              value={totalXP}
+            />
+          </div>
+        </div>
+
+        <div className="rounded-[30px] border border-white/10 bg-white/[0.04] p-5 shadow-[0_18px_50px_rgba(0,0,0,0.3)]">
+          <div className="mb-4">
+            <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
+              Current hero
+            </p>
+            <h2 className="mt-2 text-2xl font-black">Live preview with active equipment and background</h2>
+            <p className="mt-2 text-sm text-zinc-400">
+              Active form · {currentVisual.title} · {currentVisual.subtitle}
+            </p>
           </div>
 
-          <div className="mt-5 overflow-hidden rounded-[1.8rem] border border-white/10 bg-black/20 p-4">
-            <div className="mb-3 flex items-center justify-between">
-              <div>
-                <p className="text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-white/45">
-                  Current hero
-                </p>
-                <p className="mt-1 text-sm font-bold text-white">
-                  Live preview with active equipment and background
-                </p>
-              </div>
+          <div className="mx-auto max-w-md">
+            <EquippedRatPreview level={currentLevel} />
+          </div>
+        </div>
 
-              <div className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-[0.62rem] font-black uppercase tracking-[0.14em] text-emerald-300">
-                Active
-              </div>
-            </div>
-
-            <div className={`rounded-[1.6rem] border border-white/10 p-3 ${currentVisual.backgroundClass}`}>
-              <div className="mx-auto max-w-[14rem]">
-                <EquippedRatPreview level={currentLevel} />
-              </div>
-            </div>
-
-            <div className="mt-3 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
-              <p className={`text-sm font-black ${currentVisual.accentClass}`}>
-                {currentVisual.title}
-              </p>
-              <p className="mt-1 text-sm leading-6 text-white/62">
-                {currentVisual.subtitle}
-              </p>
-            </div>
+        <div className="rounded-[30px] border border-white/10 bg-white/[0.04] p-5 shadow-[0_18px_50px_rgba(0,0,0,0.3)]">
+          <div className="mb-4">
+            <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
+              Archive
+            </p>
+            <h2 className="mt-2 text-2xl font-black">Milestones</h2>
+            <p className="mt-2 text-sm text-zinc-400">
+              These are the forms your GymRat grows through over time.
+            </p>
           </div>
 
-          <div className="mt-6">
-            <div className="mb-3 flex items-center justify-between">
-              <div>
-                <h2 className="text-lg font-black text-white">Milestones</h2>
-                <p className="mt-1 text-sm text-white/55">
-                  These are the forms your GymRat grows through over time.
-                </p>
-              </div>
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {milestoneLevels.map((level) => {
+              const unlocked = currentLevel >= level;
+              const current = currentLevel === level;
+              const visual = getLevelVisual(level);
 
-              <div className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[0.62rem] font-semibold uppercase tracking-[0.14em] text-white/45">
-                Archive
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              {milestoneLevels.map((level) => {
-                const unlocked = currentLevel >= level;
-                const current = currentLevel === level;
-                const visual = getLevelVisual(level);
-
-                return (
-                  <div
-                    key={level}
-                    className="overflow-hidden rounded-[1.6rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.02))] p-4 shadow-[0_12px_35px_rgba(0,0,0,0.20)]"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-white/45">
-                          Level milestone
-                        </p>
-                        <h3 className="mt-1 text-lg font-black tracking-tight text-white">
-                          LVL {level}
-                        </h3>
-                      </div>
-
-                      <div
-                        className={`rounded-full px-3 py-1 text-[0.62rem] font-black uppercase tracking-[0.14em] ${
-                          current
-                            ? 'border border-emerald-400/20 bg-emerald-400/10 text-emerald-300'
-                            : unlocked
-                            ? 'border border-white/10 bg-white/[0.06] text-white'
-                            : 'border border-yellow-400/20 bg-yellow-400/10 text-yellow-300'
-                        }`}
-                      >
-                        {current ? 'Current' : unlocked ? 'Unlocked' : 'Locked'}
-                      </div>
+              return (
+                <div
+                  key={level}
+                  className={`rounded-[26px] border p-4 ${
+                    current
+                      ? 'border-emerald-400/30 bg-emerald-400/10'
+                      : 'border-white/10 bg-black/20'
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-500">
+                        Level milestone
+                      </p>
+                      <h3 className="mt-2 text-xl font-black text-white">
+                        LVL {level}
+                      </h3>
                     </div>
 
-                    <div className="mt-4 grid grid-cols-[96px_1fr] gap-4">
-                      <div
-                        className={`relative overflow-hidden rounded-[1.2rem] border border-white/10 p-2 ${visual.backgroundClass}`}
-                      >
-                        <div className="mx-auto max-w-[5rem]">
-                          {unlocked ? (
-                            <EquippedRatPreview level={level} />
-                          ) : (
-                            <div className="flex aspect-square items-center justify-center rounded-[1rem] border border-dashed border-white/10 bg-black/20">
-                              <Lock className="h-5 w-5 text-yellow-300" />
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="min-w-0">
-                        <p className={`text-base font-black ${visual.accentClass}`}>
-                          {unlocked ? visual.title : `Unlock at level ${level}`}
-                        </p>
-
-                        <p className="mt-2 text-sm leading-6 text-white/60">
-                          {unlocked
-                            ? 'Reached. Your GymRat has already crossed this stage.'
-                            : 'Still ahead. Keep training and stacking XP to reach this form.'}
-                        </p>
-
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[0.62rem] font-semibold uppercase tracking-[0.14em] text-white/45">
-                            {visual.tierLabel}
-                          </span>
-
-                          <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[0.62rem] font-semibold uppercase tracking-[0.14em] text-white/45">
-                            milestone {visual.milestone}
-                          </span>
-
-                          {current ? (
-                            <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-2.5 py-1 text-[0.62rem] font-black uppercase tracking-[0.14em] text-emerald-300">
-                              current form
-                            </span>
-                          ) : null}
-                        </div>
-                      </div>
+                    <div
+                      className={`rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] ${
+                        current
+                          ? 'bg-emerald-400 text-black'
+                          : unlocked
+                          ? 'bg-white text-black'
+                          : 'bg-white/10 text-zinc-300'
+                      }`}
+                    >
+                      {current ? 'Current' : unlocked ? 'Unlocked' : 'Locked'}
                     </div>
                   </div>
-                );
-              })}
-            </div>
-          </div>
 
-          <div className="mt-6 rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-4">
-            <div className="flex items-start gap-3">
-              <div className="rounded-full border border-emerald-400/20 bg-emerald-400/10 p-2">
-                <Star className="h-4 w-4 text-emerald-300" />
-              </div>
+                  <div className="mt-4 overflow-hidden rounded-[24px] border border-white/10 bg-white/[0.03]">
+                    {unlocked ? (
+                      <EquippedRatPreview level={level} className="border-0 bg-transparent" />
+                    ) : (
+                      <div className="flex aspect-square items-center justify-center bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.01))] text-zinc-500">
+                        <div className="text-center">
+                          <Lock className="mx-auto h-10 w-10" />
+                          <p className="mt-3 text-sm font-semibold">Locked form</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
 
-              <div>
-                <p className="text-base font-bold text-white">
-                  Real progression should stay visible
-                </p>
-                <p className="mt-2 text-sm leading-6 text-white/62">
-                  The point of this gallery is to make the long journey feel real.
-                  You are not just gaining XP. You are evolving your identity.
-                </p>
-              </div>
-            </div>
+                  <div className="mt-4">
+                    <p className="font-bold text-white">
+                      {unlocked ? visual.title : `Unlock at level ${level}`}
+                    </p>
+                    <p className="mt-2 text-sm text-zinc-400">
+                      {unlocked
+                        ? 'Reached. Your GymRat has already crossed this stage.'
+                        : 'Still ahead. Keep training and stacking XP to reach this form.'}
+                    </p>
+                  </div>
+
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-300">
+                      {visual.tierLabel}
+                    </span>
+                    <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-300">
+                      {visual.milestone}
+                    </span>
+                    {current ? (
+                      <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-emerald-300">
+                        Current form
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
+              );
+            })}
           </div>
+        </div>
+
+        <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-5 text-zinc-300">
+          <h3 className="text-lg font-black text-white">
+            Real progression should stay visible
+          </h3>
+          <p className="mt-2 text-sm">
+            The point of this gallery is to make the long journey feel real. You are not just gaining XP.
+            You are evolving your identity.
+          </p>
         </div>
       </div>
     </div>

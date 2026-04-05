@@ -1,146 +1,119 @@
-import { ChevronLeft, Crown, Flame, Lock, Target, Zap } from 'lucide-react';
+import { Crown, Flame, Images, Settings, ShoppingBag, X } from 'lucide-react';
 
-type NutritionScreenProps = {
-  onBack: () => void;
-  onOpenPaywall: () => void;
+type AppMenuProps = {
+  isPremium: boolean;
+  onClose: () => void;
+  onOpenDaily: () => void;
+  onOpenHistory: () => void;
+  onOpenNutrition: () => void;
+  onOpenGallery: () => void;
+  onOpenShop: () => void;
+  onOpenSettings: () => void;
+  onOpenPremium: () => void;
 };
 
-function MacroCard({
+function MenuButton({
   label,
-  value,
-  hint,
+  onClick,
+  badge,
 }: {
   label: string;
-  value: string;
-  hint: string;
+  onClick: () => void;
+  badge?: string;
 }) {
   return (
-    <div className="rounded-[1.4rem] border border-white/10 bg-white/[0.04] p-4">
-      <p className="text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-white/45">
-        {label}
-      </p>
-      <p className="mt-2 text-2xl font-black tracking-tight text-white">{value}</p>
-      <p className="mt-1 text-sm text-white/55">{hint}</p>
-    </div>
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-4 text-left transition hover:bg-white/[0.08]"
+    >
+      <span className="font-semibold text-white">{label}</span>
+      {badge ? (
+        <span className="rounded-full border border-yellow-300/20 bg-yellow-300/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-yellow-200">
+          {badge}
+        </span>
+      ) : null}
+    </button>
   );
 }
 
-export default function NutritionScreen({
-  onBack,
-  onOpenPaywall,
-}: NutritionScreenProps) {
+export default function AppMenu({
+  isPremium,
+  onClose,
+  onOpenDaily,
+  onOpenHistory,
+  onOpenNutrition,
+  onOpenGallery,
+  onOpenShop,
+  onOpenSettings,
+  onOpenPremium,
+}: AppMenuProps) {
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(16,185,129,0.14),transparent_30%),linear-gradient(180deg,#07110d_0%,#0b1511_38%,#050806_100%)] px-4 pb-8 pt-5 text-white">
-      <div className="mx-auto max-w-md">
-        <div className="mb-4 flex items-center justify-between">
+    <div className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm">
+      <div className="absolute inset-y-0 left-0 w-[88%] max-w-[360px] border-r border-white/10 bg-[#111113] p-5 shadow-2xl">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">
+              Menu
+            </p>
+            <h2 className="mt-1 text-2xl font-black text-white">GymRat</h2>
+          </div>
+
           <button
-            onClick={onBack}
-            className="flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.05] px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/[0.08]"
+            type="button"
+            onClick={onClose}
+            className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-white"
           >
-            <ChevronLeft className="h-4 w-4" />
-            Back
+            <X className="h-5 w-5" />
           </button>
-
-          <div className="rounded-full border border-yellow-400/20 bg-yellow-400/10 px-3 py-1 text-[0.68rem] font-black uppercase tracking-[0.18em] text-yellow-300">
-            Premium
-          </div>
         </div>
 
-        <div className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.03))] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.42)] backdrop-blur-md">
-          <div className="absolute inset-x-0 top-0 h-36 bg-[radial-gradient(circle_at_top,rgba(250,204,21,0.16),transparent_70%)]" />
+        <div className="mt-6 grid gap-3">
+          <MenuButton label="Daily Check-In" onClick={onOpenDaily} />
+          <MenuButton
+            label="History"
+            onClick={onOpenHistory}
+            badge={isPremium ? undefined : 'Premium'}
+          />
+          <MenuButton
+            label="Nutrition"
+            onClick={onOpenNutrition}
+            badge={isPremium ? undefined : 'Premium'}
+          />
+          <MenuButton label="Level Gallery" onClick={onOpenGallery} />
+          <MenuButton label="Shop" onClick={onOpenShop} />
+          <MenuButton label="Settings" onClick={onOpenSettings} />
+        </div>
 
-          <div className="relative">
-            <div className="inline-flex items-center gap-2 rounded-full border border-yellow-400/20 bg-yellow-400/10 px-3 py-1 text-[0.68rem] font-black uppercase tracking-[0.18em] text-yellow-300">
-              <Crown className="h-3.5 w-3.5" />
-              <span>Nutrition system</span>
-            </div>
-
-            <h1 className="mt-4 text-3xl font-black tracking-tight text-white">
-              Fuel the progress
-            </h1>
-
-            <p className="mt-3 text-sm leading-6 text-white/65">
-              Nutrition is part of the deeper progression layer. Keep the free app clean,
-              then unlock food tracking, macro goals and consistency tools when you want more.
+        <div className="mt-6 grid grid-cols-3 gap-3">
+          <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3 text-center">
+            <Flame className="mx-auto h-4 w-4 text-orange-300" />
+            <p className="mt-2 text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-400">
+              Daily
             </p>
-
-            <div className="mt-6 grid grid-cols-2 gap-3">
-              <MacroCard
-                label="Calories"
-                value="2,450"
-                hint="Daily target example"
-              />
-              <MacroCard
-                label="Protein"
-                value="180g"
-                hint="Muscle-focused target"
-              />
-              <MacroCard
-                label="Carbs"
-                value="240g"
-                hint="Training support"
-              />
-              <MacroCard
-                label="Fat"
-                value="70g"
-                hint="Recovery + balance"
-              />
-            </div>
-
-            <div className="mt-6 rounded-[1.5rem] border border-white/10 bg-black/20 p-4">
-              <div className="flex items-start gap-3">
-                <div className="rounded-full border border-yellow-400/20 bg-yellow-400/10 p-2">
-                  <Lock className="h-4 w-4 text-yellow-300" />
-                </div>
-
-                <div>
-                  <p className="text-base font-bold text-white">
-                    Included in Premium
-                  </p>
-                  <p className="mt-2 text-sm leading-6 text-white/62">
-                    Unlock nutrition targets based on your goal, better daily tracking,
-                    macro follow-up and more complete progress support.
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-4 grid grid-cols-3 gap-2">
-                <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-3 text-center">
-                  <Target className="mx-auto h-4 w-4 text-emerald-300" />
-                  <p className="mt-2 text-[0.62rem] font-semibold uppercase tracking-[0.14em] text-white/45">
-                    Goal based
-                  </p>
-                </div>
-
-                <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-3 text-center">
-                  <Flame className="mx-auto h-4 w-4 text-orange-300" />
-                  <p className="mt-2 text-[0.62rem] font-semibold uppercase tracking-[0.14em] text-white/45">
-                    Daily streak
-                  </p>
-                </div>
-
-                <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-3 text-center">
-                  <Zap className="mx-auto h-4 w-4 text-yellow-300" />
-                  <p className="mt-2 text-[0.62rem] font-semibold uppercase tracking-[0.14em] text-white/45">
-                    Macro focus
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <button
-              onClick={onOpenPaywall}
-              className="mt-6 flex w-full items-center justify-center gap-3 rounded-[1.4rem] border border-yellow-300/20 bg-[linear-gradient(90deg,rgba(250,204,21,0.95),rgba(253,224,71,0.95))] px-5 py-4 text-base font-black tracking-[0.04em] text-black shadow-[0_18px_45px_rgba(250,204,21,0.18)] transition-transform duration-200 hover:scale-[1.01] active:scale-[0.99]"
-            >
-              <Crown className="h-5 w-5" />
-              <span>Unlock Premium</span>
-            </button>
-
-            <p className="mt-3 text-center text-xs text-white/42">
-              Premium should feel like a deeper layer — not friction for the free user.
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3 text-center">
+            <Images className="mx-auto h-4 w-4 text-zinc-200" />
+            <p className="mt-2 text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-400">
+              Style
+            </p>
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3 text-center">
+            <ShoppingBag className="mx-auto h-4 w-4 text-zinc-200" />
+            <p className="mt-2 text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-400">
+              Shop
             </p>
           </div>
         </div>
+
+        <button
+          type="button"
+          onClick={onOpenPremium}
+          className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-yellow-300 to-amber-300 px-4 py-4 font-black text-black"
+        >
+          <Crown className="h-4 w-4" />
+          {isPremium ? 'Premium active' : 'Unlock Premium'}
+        </button>
       </div>
     </div>
   );

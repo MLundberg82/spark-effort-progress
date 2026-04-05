@@ -158,7 +158,7 @@ export function getAppStats(): AppStats {
     totalXP,
     currentLevelXP: getCurrentLevelXP(totalXP),
     nextLevelXP: getNextLevelXP(totalXP),
-    progressPercent: getProgressPercent(totalXP),
+    progressPercent: Math.round(getProgressPercent(totalXP)),
     totalWorkouts: getTotalWorkouts(),
     streak: getStreak(),
   };

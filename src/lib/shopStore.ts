@@ -1,329 +1,184 @@
-import { checkPremium } from '@/lib/premiumStore';
-import type { ItemSlot } from '@/lib/assetTypes';
+import type { RatVariant } from '@/lib/assetTypes';
 
-export type ShopItem = {
-  id: string;
-  name: string;
-  description: string;
-  slot: ItemSlot | 'background';
-  owned: boolean;
-  isPremium: boolean;
-  accessible: boolean;
-  price: number;
-  priceLabel?: string;
-  icon?: string;
-  emoji?: string;
-  unlockLevel?: number;
+function svgToDataUri(svg: string) {
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+}
+
+function tierColor(levelBucket: number) {
+  if (levelBucket >= 100) return '#f59e0b';
+  if (levelBucket >= 90) return '#eab308';
+  if (levelBucket >= 80) return '#f97316';
+  if (levelBucket >= 70) return '#ef4444';
+  if (levelBucket >= 60) return '#8b5cf6';
+  if (levelBucket >= 50) return '#3b82f6';
+  if (levelBucket >= 40) return '#06b6d4';
+  if (levelBucket >= 35) return '#14b8a6';
+  if (levelBucket >= 30) return '#22c55e';
+  if (levelBucket >= 25) return '#84cc16';
+  if (levelBucket >= 20) return '#a3e635';
+  if (levelBucket >= 15) return '#d9f99d';
+  if (levelBucket >= 10) return '#86efac';
+  if (levelBucket >= 5) return '#bbf7d0';
+  return '#d4d4d8';
+}
+
+function levelFromRatId(id: string) {
+  const match = id.match(/(\d{1,3})/);
+  if (!match) return 1;
+  return Number(match[1]);
+}
+
+function normalizeVariant(variant: RatVariant) {
+  if (variant === 'non-binary') return 'NB';
+  if (variant === 'female') return 'F';
+  return 'M';
+}
+
+function makeRatSvg(levelBucket: number, variant: RatVariant) {
+  const fill = tierColor(levelBucket);
+  const badge = normalizeVariant(variant);
+
+  return svgToDataUri(`
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 420">
+      <defs>
+        <radialGradient id="bg" cx="50%" cy="28%" r="70%">
+          <stop offset="0%" stop-color="rgba(255,255,255,0.14)" />
+          <stop offset="100%" stop-color="rgba(255,255,255,0)" />
+        </radialGradient>
+      </defs>
+      <rect width="420" height="420" rx="56" fill="url(#bg)" />
+      <ellipse cx="210" cy="360" rx="118" ry="26" fill="rgba(0,0,0,0.22)" />
+      <circle cx="145" cy="110" r="48" fill="${fill}" opacity="0.92" />
+      <circle cx="275" cy="110" r="48" fill="${fill}" opacity="0.92" />
+      <ellipse cx="210" cy="212" rx="112" ry="128" fill="${fill}" />
+      <ellipse cx="210" cy="224" rx="86" ry="100" fill="rgba(255,255,255,0.12)" />
+      <circle cx="175" cy="185" r="10" fill="#111827" />
+      <circle cx="245" cy="185" r="10" fill="#111827" />
+      <ellipse cx="210" cy="205" rx="18" ry="12" fill="#fda4af" />
+      <path d="M180 238 Q210 262 240 238" fill="none" stroke="#111827" stroke-width="8" stroke-linecap="round" />
+      <text x="210" y="344" font-family="Arial, sans-serif" font-size="42" font-weight="800" text-anchor="middle" fill="white">LVL ${levelBucket}</text>
+      <text x="210" y="76" font-family="Arial, sans-serif" font-size="22" font-weight="700" text-anchor="middle" fill="rgba(255,255,255,0.88)">${badge}</text>
+    </svg>
+  `);
+}
+
+function makeBackgroundSvg(label: string, colors: [string, string, string]) {
+  return svgToDataUri(`
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1200">
+      <defs>
+        <radialGradient id="glow1" cx="30%" cy="20%" r="45%">
+          <stop offset="0%" stop-color="${colors[1]}" stop-opacity="0.65"/>
+          <stop offset="100%" stop-color="${colors[1]}" stop-opacity="0"/>
+        </radialGradient>
+        <radialGradient id="glow2" cx="75%" cy="80%" r="42%">
+          <stop offset="0%" stop-color="${colors[2]}" stop-opacity="0.55"/>
+          <stop offset="100%" stop-color="${colors[2]}" stop-opacity="0"/>
+        </radialGradient>
+        <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+          <stop offset="0%" stop-color="${colors[0]}"/>
+          <stop offset="55%" stop-color="${colors[1]}"/>
+          <stop offset="100%" stop-color="${colors[2]}"/>
+        </linearGradient>
+      </defs>
+      <rect width="1200" height="1200" fill="url(#bg)" />
+      <circle cx="320" cy="240" r="260" fill="url(#glow1)" />
+      <circle cx="920" cy="900" r="280" fill="url(#glow2)" />
+      <text x="600" y="1080" font-family="Arial, sans-serif" font-size="74" font-weight="800" fill="rgba(255,255,255,0.16)" text-anchor="middle">${label}</text>
+    </svg>
+  `);
+}
+
+function makeOverlaySvg(id: string) {
+  const lower = id.toLowerCase();
+
+  if (lower.includes('aura')) {
+    return svgToDataUri(`
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 420">
+        <circle cx="210" cy="210" r="164" fill="none" stroke="rgba(52,211,153,0.34)" stroke-width="26"/>
+        <circle cx="210" cy="210" r="138" fill="none" stroke="rgba(196,181,253,0.22)" stroke-width="16"/>
+      </svg>
+    `);
+  }
+
+  if (lower.includes('head') || lower.includes('cap') || lower.includes('crown')) {
+    return svgToDataUri(`
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 420">
+        <path d="M124 128 L162 82 L210 122 L258 82 L296 128 L286 162 H134 Z" fill="rgba(250,204,21,0.92)" stroke="rgba(255,255,255,0.28)" stroke-width="8"/>
+        <circle cx="162" cy="108" r="8" fill="white"/>
+        <circle cx="210" cy="102" r="8" fill="white"/>
+        <circle cx="258" cy="108" r="8" fill="white"/>
+      </svg>
+    `);
+  }
+
+  if (lower.includes('eyes')) {
+    return svgToDataUri(`
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 420">
+        <rect x="140" y="160" width="56" height="28" rx="14" fill="rgba(17,24,39,0.82)" />
+        <rect x="224" y="160" width="56" height="28" rx="14" fill="rgba(17,24,39,0.82)" />
+        <rect x="194" y="170" width="32" height="8" rx="4" fill="rgba(17,24,39,0.82)" />
+      </svg>
+    `);
+  }
+
+  if (lower.includes('neck')) {
+    return svgToDataUri(`
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 420">
+        <rect x="160" y="238" width="100" height="18" rx="9" fill="rgba(250,204,21,0.92)" />
+      </svg>
+    `);
+  }
+
+  if (lower.includes('pants')) {
+    return svgToDataUri(`
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 420">
+        <path d="M152 266 H268 L258 344 H218 L210 300 L202 344 H162 Z" fill="rgba(37,99,235,0.88)" />
+      </svg>
+    `);
+  }
+
+  if (lower.includes('feet') || lower.includes('shoe')) {
+    return svgToDataUri(`
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 420">
+        <rect x="150" y="334" width="62" height="18" rx="9" fill="rgba(245,245,245,0.94)" />
+        <rect x="208" y="334" width="62" height="18" rx="9" fill="rgba(245,245,245,0.94)" />
+      </svg>
+    `);
+  }
+
+  return svgToDataUri(`
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 420">
+      <path d="M136 198 C154 154 190 138 210 138 C230 138 266 154 284 198 L270 286 H150 Z" fill="rgba(255,255,255,0.18)" stroke="rgba(255,255,255,0.28)" stroke-width="8"/>
+    </svg>
+  `);
+}
+
+const backgroundMap: Record<string, string> = {
+  'bg-underground-1': makeBackgroundSvg('UNDERGROUND', ['#09090b', '#14532d', '#052e16']),
+  'bg-grind-1': makeBackgroundSvg('GRIND', ['#111827', '#0f766e', '#022c22']),
+  'bg-alpha-1': makeBackgroundSvg('ALPHA', ['#172554', '#2563eb', '#0f172a']),
+  'bg-elite-1': makeBackgroundSvg('ELITE', ['#1e1b4b', '#7c3aed', '#111827']),
+  'bg-king-1': makeBackgroundSvg('KING', ['#451a03', '#f59e0b', '#111827']),
+  'bg-mythic-1': makeBackgroundSvg('MYTHIC', ['#3f0d2e', '#ec4899', '#1f2937']),
 };
 
-type EquippedState = Partial<Record<ItemSlot | 'background', string>>;
-type ShopState = {
-  ownedItemIds: string[];
-  equipped: EquippedState;
-};
-
-const STORAGE_KEY = 'gymrat-shop-state';
-
-const BASE_ITEMS: Omit<ShopItem, 'owned' | 'accessible'>[] = [
-  {
-    id: 'cap-black-core',
-    name: 'Black Core Cap',
-    description: 'Clean starter head item.',
-    slot: 'head',
-    isPremium: false,
-    price: 9,
-    priceLabel: '9 kr',
-    icon: '🧢',
-    unlockLevel: 1,
-  },
-  {
-    id: 'hoodie-black-core',
-    name: 'Black Core Hoodie',
-    description: 'Classic gym-rat top.',
-    slot: 'top',
-    isPremium: false,
-    price: 9,
-    priceLabel: '9 kr',
-    icon: '🖤',
-    unlockLevel: 1,
-  },
-  {
-    id: 'joggers-core-grey',
-    name: 'Core Grey Joggers',
-    description: 'Starter lower-body cosmetic.',
-    slot: 'pants',
-    isPremium: false,
-    price: 9,
-    priceLabel: '9 kr',
-    icon: '👖',
-    unlockLevel: 1,
-  },
-  {
-    id: 'shoes-street-core',
-    name: 'Street Core Shoes',
-    description: 'Starter shoe cosmetic.',
-    slot: 'feet',
-    isPremium: false,
-    price: 9,
-    priceLabel: '9 kr',
-    icon: '👟',
-    unlockLevel: 1,
-  },
-  {
-    id: 'chain-gold-heavy',
-    name: 'Gold Heavy Chain',
-    description: 'Extra alpha energy.',
-    slot: 'neck',
-    isPremium: false,
-    price: 9,
-    priceLabel: '9 kr',
-    icon: '⛓️',
-    unlockLevel: 30,
-  },
-  {
-    id: 'shades-alpha',
-    name: 'Alpha Shades',
-    description: 'Clean upper-tier look.',
-    slot: 'eyes',
-    isPremium: false,
-    price: 9,
-    priceLabel: '9 kr',
-    icon: '🕶️',
-    unlockLevel: 35,
-  },
-  {
-    id: 'tank-alpha-gold',
-    name: 'Alpha Tank Gold',
-    description: 'High-visibility alpha tank.',
-    slot: 'top',
-    isPremium: false,
-    price: 9,
-    priceLabel: '9 kr',
-    icon: '🏆',
-    unlockLevel: 35,
-  },
-  {
-    id: 'legend-pants-black',
-    name: 'Legend Black Pants',
-    description: 'Late-game lower-body flex.',
-    slot: 'pants',
-    isPremium: false,
-    price: 9,
-    priceLabel: '9 kr',
-    icon: '⚫',
-    unlockLevel: 80,
-  },
-  {
-    id: 'shoes-legend-high',
-    name: 'Legend High Shoes',
-    description: 'Premium footwear flex.',
-    slot: 'feet',
-    isPremium: true,
-    price: 9,
-    priceLabel: 'Premium',
-    icon: '👑',
-    unlockLevel: 70,
-  },
-  {
-    id: 'aura-purple-smoke',
-    name: 'Purple Smoke Aura',
-    description: 'Premium glow effect.',
-    slot: 'aura',
-    isPremium: true,
-    price: 9,
-    priceLabel: 'Premium',
-    icon: '✨',
-    unlockLevel: 50,
-  },
-  {
-    id: 'aura-mythic-flame',
-    name: 'Mythic Flame Aura',
-    description: 'Late-game mythic aura.',
-    slot: 'aura',
-    isPremium: true,
-    price: 9,
-    priceLabel: 'Premium',
-    icon: '🔥',
-    unlockLevel: 90,
-  },
-  {
-    id: 'bg-underground-1',
-    name: 'Underground Background',
-    description: 'Dark starter background.',
-    slot: 'background',
-    isPremium: false,
-    price: 9,
-    priceLabel: '9 kr',
-    icon: '🌆',
-    unlockLevel: 1,
-  },
-  {
-    id: 'bg-alpha-1',
-    name: 'Alpha Background',
-    description: 'Higher-tier alpha environment.',
-    slot: 'background',
-    isPremium: true,
-    price: 9,
-    priceLabel: 'Premium',
-    icon: '⚡',
-    unlockLevel: 35,
-  },
-];
-
-const listeners = new Set<() => void>();
-
-function getDefaultState(): ShopState {
-  return {
-    ownedItemIds: [
-      'cap-black-core',
-      'hoodie-black-core',
-      'joggers-core-grey',
-      'shoes-street-core',
-      'bg-underground-1',
-    ],
-    equipped: {
-      head: 'cap-black-core',
-      top: 'hoodie-black-core',
-      pants: 'joggers-core-grey',
-      feet: 'shoes-street-core',
-      background: 'bg-underground-1',
-    },
-  };
+export function getBackgroundImage(id: string) {
+  return backgroundMap[id] ?? makeBackgroundSvg(id.toUpperCase(), ['#111827', '#1f2937', '#0a0a0a']);
 }
 
-function readState(): ShopState {
-  if (typeof window === 'undefined') return getDefaultState();
+export function getRatImage(id: string) {
+  const levelBucket = levelFromRatId(id);
+  const lower = id.toLowerCase();
 
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return getDefaultState();
-
-    const parsed = JSON.parse(raw) as Partial<ShopState>;
-
-    return {
-      ownedItemIds: Array.isArray(parsed.ownedItemIds)
-        ? parsed.ownedItemIds
-        : getDefaultState().ownedItemIds,
-      equipped:
-        parsed.equipped && typeof parsed.equipped === 'object'
-          ? parsed.equipped
-          : getDefaultState().equipped,
-    };
-  } catch {
-    return getDefaultState();
-  }
-}
-
-function writeState(next: ShopState) {
-  if (typeof window === 'undefined') return;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-}
-
-function emit() {
-  listeners.forEach((listener) => listener());
-}
-
-export function subscribeShop(listener: () => void) {
-  listeners.add(listener);
-  return () => {
-    listeners.delete(listener);
-  };
-}
-
-export function getShopItems(): ShopItem[] {
-  const state = readState();
-  const hasPremium = checkPremium();
-
-  return BASE_ITEMS.map((item) => {
-    const owned = state.ownedItemIds.includes(item.id);
-    const accessible = item.isPremium ? hasPremium : true;
-
-    return {
-      ...item,
-      owned,
-      accessible,
-    };
-  });
-}
-
-export function getEquippedItemIdForSlot(slot: ItemSlot | 'background') {
-  const state = readState();
-  return state.equipped[slot];
-}
-
-export function ownItem(itemId: string) {
-  const state = readState();
-
-  if (state.ownedItemIds.includes(itemId)) {
-    return state;
+  let variant: RatVariant = 'male';
+  if (lower.includes('female')) variant = 'female';
+  if (lower.includes('non-binary') || lower.includes('nonbinary') || lower.includes('nb')) {
+    variant = 'non-binary';
   }
 
-  const next: ShopState = {
-    ...state,
-    ownedItemIds: [...state.ownedItemIds, itemId],
-  };
-
-  writeState(next);
-  emit();
-  return next;
+  return makeRatSvg(levelBucket, variant);
 }
 
-export function equipItem(itemId: string) {
-  const item = BASE_ITEMS.find((entry) => entry.id === itemId);
-  if (!item) return readState();
-
-  const state = readState();
-
-  if (!state.ownedItemIds.includes(itemId) && !item.isPremium) {
-    return state;
-  }
-
-  if (item.isPremium && !checkPremium()) {
-    return state;
-  }
-
-  const next: ShopState = {
-    ...state,
-    equipped: {
-      ...state.equipped,
-      [item.slot]: itemId,
-    },
-  };
-
-  if (!next.ownedItemIds.includes(itemId) && item.isPremium && checkPremium()) {
-    next.ownedItemIds = [...next.ownedItemIds, itemId];
-  }
-
-  writeState(next);
-  emit();
-  return next;
-}
-
-export function canAccessShopItem(item: Pick<ShopItem, 'isPremium'>) {
-  if (!item.isPremium) return true;
-  return checkPremium();
-}
-
-export function clearEquippedItem(slot: ItemSlot | 'background') {
-  const state = readState();
-  const next: ShopState = {
-    ...state,
-    equipped: {
-      ...state.equipped,
-    },
-  };
-
-  delete next.equipped[slot];
-
-  writeState(next);
-  emit();
-  return next;
-}
-
-export function getOwnedItemIds() {
-  return readState().ownedItemIds;
-}
-
-export function getEquippedState() {
-  return readState().equipped;
+export function getItemImage(id: string) {
+  return makeOverlaySvg(id);
 }

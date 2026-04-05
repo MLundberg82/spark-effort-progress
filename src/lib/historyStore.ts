@@ -1,4 +1,5 @@
 export type WorkoutHistoryEntry = {
+  id: string;
   workoutName: string;
   durationMinutes: number;
   exercisesCompleted: number;
@@ -8,13 +9,20 @@ export type WorkoutHistoryEntry = {
 
 const KEY = 'gymrat-history-store';
 
-function readState(): WorkoutHistoryEntry[] {
+function createId() {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+    return crypto.randomUUID();
+  }
+
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+}
+
+function read(): WorkoutHistoryEntry[] {
   if (typeof window === 'undefined') return [];
 
   try {
     const raw = localStorage.getItem(KEY);
     if (!raw) return [];
-
     const parsed = JSON.parse(raw);
     return Array.isArray(parsed) ? parsed : [];
   } catch {
@@ -22,7 +30,7 @@ function readState(): WorkoutHistoryEntry[] {
   }
 }
 
-function writeState(entries: WorkoutHistoryEntry[]) {
+function write(entries: WorkoutHistoryEntry[]) {
   if (typeof window === 'undefined') return;
 
   localStorage.setItem(KEY, JSON.stringify(entries));
@@ -34,17 +42,25 @@ function writeState(entries: WorkoutHistoryEntry[]) {
 }
 
 export function getWorkoutHistory(): WorkoutHistoryEntry[] {
-  return readState().sort(
+  return read().sort(
     (a, b) =>
       new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime()
   );
 }
 
-export function addWorkoutHistory(entry: WorkoutHistoryEntry) {
-  const current = readState();
-  writeState([entry, ...current]);
+export function addWorkoutHistory(
+  entry: Omit<WorkoutHistoryEntry, 'id'>
+): WorkoutHistoryEntry {
+  const next: WorkoutHistoryEntry = {
+    id: createId(),
+    ...entry,
+  };
+
+  const current = read();
+  write([next, ...current]);
+  return next;
 }
 
 export function clearWorkoutHistory() {
-  writeState([]);
+  write([]);
 }
