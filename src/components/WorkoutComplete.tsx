@@ -1,13 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import {
-  ArrowRight,
-  Crown,
-  Dumbbell,
-  Flame,
-  Sparkles,
-  Trophy,
-  Zap,
-} from 'lucide-react';
+import { ArrowRight, Crown, Dumbbell, Flame, Sparkles, Trophy, Zap } from 'lucide-react';
 
 type WorkoutCompleteSummary = {
   workoutName: string;
@@ -19,7 +11,7 @@ type WorkoutCompleteSummary = {
 
 type WorkoutCompleteProps = {
   summary: WorkoutCompleteSummary;
-  onGoHome: () => void;
+  onContinue: () => void;
   onOpenPaywall: () => void;
 };
 
@@ -45,9 +37,16 @@ function vibrate(pattern: number | number[]) {
   }
 }
 
+function formatMinutes(minutes: number) {
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
+}
+
 export default function WorkoutComplete({
   summary,
-  onGoHome,
+  onContinue,
   onOpenPaywall,
 }: WorkoutCompleteProps) {
   const currentTotalXP = useMemo(() => {
@@ -56,6 +55,7 @@ export default function WorkoutComplete({
     try {
       const raw = localStorage.getItem('gymrat-app-store');
       if (!raw) return summary.earnedXP;
+
       const parsed = JSON.parse(raw) as { xp?: number };
       return typeof parsed?.xp === 'number' ? parsed.xp : summary.earnedXP;
     } catch {
@@ -81,6 +81,7 @@ export default function WorkoutComplete({
     let raf = 0;
     let startTime = 0;
 
+    previousLevelRef.current = startLevel;
     setDisplayXP(previousTotalXP);
     setDisplayLevel(startLevel);
     setAnimationDone(false);
@@ -92,10 +93,11 @@ export default function WorkoutComplete({
 
     const step = (timestamp: number) => {
       if (!startTime) startTime = timestamp;
+
       const elapsed = timestamp - startTime;
       const progress = clamp(elapsed / duration, 0, 1);
-
       const eased = 1 - Math.pow(1 - progress, 3);
+
       const nextXP = Math.round(
         previousTotalXP + (currentTotalXP - previousTotalXP) * eased
       );
@@ -136,199 +138,150 @@ export default function WorkoutComplete({
   const currentLevelXP = getLevelProgressXP(displayXP);
   const progressPercent = clamp((currentLevelXP / XP_PER_LEVEL) * 100, 0, 100);
   const coinsEarned = Math.max(10, Math.floor(summary.earnedXP / 5));
-
   const ratScaleClass = levelFlash ? 'scale-[1.08]' : 'scale-100';
   const xpBarScaleClass = levelFlash ? 'scale-y-[1.12]' : 'scale-y-100';
 
   return (
-    <div className="min-h-screen bg-[#0a0d12] px-4 pb-10 pt-5 text-white">
-      <div className="mx-auto flex w-full max-w-4xl flex-col gap-4">
-        <div className="rounded-[34px] border border-white/10 bg-[linear-gradient(135deg,rgba(16,185,129,0.18),rgba(245,158,11,0.12),rgba(255,255,255,0.03))] p-6 shadow-[0_18px_70px_rgba(0,0,0,0.35)]">
-          <div className="flex flex-col items-center text-center">
-            <div className="inline-flex items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.22em] text-emerald-300">
-              <Zap size={14} />
-              Workout complete
+    <div className="min-h-screen bg-[#09090b] px-4 pb-8 pt-6 text-white">
+      <div className="mx-auto max-w-[430px]">
+        <div className="rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.02))] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.45)]">
+          <div className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-300/80">
+            Workout complete
+          </div>
+
+          <div className="relative mt-4 flex min-h-[220px] items-center justify-center overflow-hidden rounded-[1.75rem] border border-white/10 bg-black/20">
+            {showExplosion ? (
+              <div className="absolute inset-0 flex items-center justify-center text-4xl">
+                <span className="animate-pulse">✨</span>
+                <span className="mx-3 animate-pulse">⚡</span>
+                <span className="animate-pulse">✨</span>
+              </div>
+            ) : null}
+
+            {showLevelUpText && levelsGained > 0 ? (
+              <div className="absolute top-4 rounded-full border border-amber-400/20 bg-amber-400/10 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-amber-200">
+                LEVEL UP
+              </div>
+            ) : null}
+
+            <div
+              className={`flex h-36 w-36 items-center justify-center rounded-full border border-emerald-400/20 bg-emerald-400/10 text-6xl transition ${ratScaleClass}`}
+            >
+              🐀
+            </div>
+          </div>
+
+          <h1 className="mt-5 text-3xl font-black tracking-tight">
+            Real effort. Real progress.
+          </h1>
+          <p className="mt-2 text-sm text-zinc-400">
+            {summary.workoutName} is done. Your effort turned into XP, progression and a stronger GymRat identity.
+          </p>
+
+          <div className="mt-5 grid grid-cols-2 gap-3">
+            <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+              <div className="mb-2 inline-flex rounded-xl bg-white/[0.05] p-2">
+                <Zap className="h-4 w-4 text-emerald-300" />
+              </div>
+              <div className="text-xs text-zinc-400">XP gained</div>
+              <div className="mt-1 text-xl font-black">+{summary.earnedXP}</div>
             </div>
 
-            <div className="relative mt-6 flex min-h-[220px] w-full items-center justify-center overflow-hidden">
-              {showExplosion ? (
-                <>
-                  <span className="absolute h-40 w-40 animate-ping rounded-full bg-emerald-400/15" />
-                  <span className="absolute h-56 w-56 animate-pulse rounded-full bg-amber-300/10" />
-                  <span className="absolute left-[20%] top-[26%] text-2xl animate-bounce">✨</span>
-                  <span className="absolute right-[22%] top-[24%] text-2xl animate-bounce delay-75">💥</span>
-                  <span className="absolute left-[24%] bottom-[24%] text-2xl animate-bounce delay-100">⚡</span>
-                  <span className="absolute right-[24%] bottom-[26%] text-2xl animate-bounce delay-150">🔥</span>
-                </>
-              ) : null}
-
-              <div
-                className={`relative flex h-40 w-40 items-center justify-center rounded-full border border-white/10 bg-[radial-gradient(circle,rgba(16,185,129,0.18),rgba(255,255,255,0.04),rgba(0,0,0,0.1))] shadow-[0_0_60px_rgba(16,185,129,0.18)] transition-transform duration-300 ${ratScaleClass}`}
-              >
-                <div className="absolute inset-0 rounded-full border border-amber-300/10" />
-                <div className="text-[72px] leading-none">🐀</div>
+            <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+              <div className="mb-2 inline-flex rounded-xl bg-white/[0.05] p-2">
+                <Trophy className="h-4 w-4 text-emerald-300" />
               </div>
+              <div className="text-xs text-zinc-400">Coins earned</div>
+              <div className="mt-1 text-xl font-black">+{coinsEarned}</div>
+            </div>
+          </div>
 
-              {showLevelUpText && levelsGained > 0 ? (
-                <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 rounded-full border border-amber-300/20 bg-amber-300/10 px-4 py-2 text-sm font-black uppercase tracking-[0.18em] text-amber-200 shadow-[0_0_30px_rgba(251,191,36,0.15)] animate-bounce">
-                  LEVEL UP
+          <div className="mt-4 rounded-3xl border border-white/10 bg-white/[0.04] p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="text-sm font-semibold text-white">Level progression</div>
+                <div className="mt-1 text-xs text-zinc-400">
+                  XP flows from the previous level state into the new one.
                 </div>
-              ) : null}
-            </div>
-
-            <h1 className="mt-2 text-4xl font-black tracking-tight">
-              Real effort. Real progress.
-            </h1>
-
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-white/65">
-              {summary.workoutName} is done. Your effort turned into XP, progression and a stronger GymRat identity.
-            </p>
-
-            <div className="mt-5 text-5xl font-black tracking-tight text-emerald-300">
-              +{summary.earnedXP} XP
-            </div>
-
-            {levelsGained > 0 ? (
-              <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-amber-300/20 bg-amber-300/10 px-4 py-2 text-sm font-bold text-amber-200">
-                <Crown size={16} />
-                You went from level {startLevel} to level {finalLevel}
               </div>
-            ) : (
-              <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-semibold text-white/70">
-                <Sparkles size={16} />
-                Level {displayLevel} progression updated
-              </div>
-            )}
-          </div>
-        </div>
 
-        <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-5 shadow-[0_10px_40px_rgba(0,0,0,0.24)]">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <div className="text-lg font-bold text-white">Level progression</div>
-              <div className="mt-1 text-sm text-white/55">
-                XP flows from the previous level state into the new one.
+              <div className="rounded-2xl border border-emerald-400/10 bg-emerald-400/10 px-3 py-2 text-right">
+                <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-emerald-300/80">
+                  Level
+                </div>
+                <div className="text-lg font-black">{displayLevel}</div>
               </div>
             </div>
 
-            <div className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-4 py-2 text-sm font-bold text-emerald-300">
-              Level {displayLevel}
-            </div>
-          </div>
-
-          <div className="mt-5">
-            <div className="mb-2 flex items-center justify-between text-sm">
-              <span className="font-semibold text-white/70">
-                {currentLevelXP} / {XP_PER_LEVEL} XP
-              </span>
-              <span className="font-semibold text-white/50">
-                Total XP: {displayXP}
-              </span>
-            </div>
-
-            <div className="h-5 overflow-hidden rounded-full border border-white/10 bg-black/25">
+            <div
+              className={`mt-4 h-3 overflow-hidden rounded-full bg-white/10 transition ${xpBarScaleClass}`}
+            >
               <div
-                className={`h-full rounded-full bg-[linear-gradient(90deg,rgba(16,185,129,1),rgba(250,204,21,0.95))] shadow-[0_0_25px_rgba(16,185,129,0.35)] transition-[width,transform] duration-300 ${xpBarScaleClass}`}
+                className="h-full rounded-full bg-emerald-400 transition-all duration-300"
                 style={{ width: `${progressPercent}%` }}
               />
             </div>
 
-            <div className="mt-3 flex items-center justify-between text-xs uppercase tracking-[0.18em] text-white/45">
-              <span>Level {displayLevel}</span>
-              <span>Next threshold</span>
+            <div className="mt-2 flex items-center justify-between text-xs text-zinc-400">
+              <span>
+                {currentLevelXP} / {XP_PER_LEVEL} XP
+              </span>
+              <span>Total XP: {displayXP}</span>
             </div>
-          </div>
-        </div>
 
-        <div className="grid gap-4 md:grid-cols-4">
-          <div className="rounded-[24px] border border-white/10 bg-white/[0.04] p-5 shadow-[0_10px_30px_rgba(0,0,0,0.18)]">
-            <div className="flex items-center gap-2 text-white/70">
-              <Dumbbell size={16} />
-              <span className="text-xs font-bold uppercase tracking-[0.18em]">Exercises</span>
-            </div>
-            <div className="mt-3 text-3xl font-black text-white">
-              {summary.exercisesCompleted}
+            <div className="mt-3 text-sm text-zinc-300">
+              {levelsGained > 0
+                ? `You went from level ${startLevel} to level ${finalLevel}.`
+                : `Level ${displayLevel} progression updated.`}
             </div>
           </div>
 
-          <div className="rounded-[24px] border border-white/10 bg-white/[0.04] p-5 shadow-[0_10px_30px_rgba(0,0,0,0.18)]">
-            <div className="flex items-center gap-2 text-white/70">
-              <Flame size={16} />
-              <span className="text-xs font-bold uppercase tracking-[0.18em]">Minutes</span>
-            </div>
-            <div className="mt-3 text-3xl font-black text-white">
-              {summary.durationMinutes}
-            </div>
-          </div>
-
-          <div className="rounded-[24px] border border-white/10 bg-white/[0.04] p-5 shadow-[0_10px_30px_rgba(0,0,0,0.18)]">
-            <div className="flex items-center gap-2 text-white/70">
-              <Trophy size={16} />
-              <span className="text-xs font-bold uppercase tracking-[0.18em]">Volume</span>
-            </div>
-            <div className="mt-3 text-3xl font-black text-white">
-              {summary.volume}
-            </div>
-          </div>
-
-          <div className="rounded-[24px] border border-white/10 bg-white/[0.04] p-5 shadow-[0_10px_30px_rgba(0,0,0,0.18)]">
-            <div className="flex items-center gap-2 text-white/70">
-              <Sparkles size={16} />
-              <span className="text-xs font-bold uppercase tracking-[0.18em]">Coins earned</span>
-            </div>
-            <div className="mt-3 text-3xl font-black text-amber-200">
-              +{coinsEarned}
-            </div>
-          </div>
-        </div>
-
-        <div className="rounded-[28px] border border-amber-300/10 bg-amber-300/[0.06] p-5 shadow-[0_10px_40px_rgba(0,0,0,0.2)]">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div>
-              <div className="text-lg font-bold text-white">
-                Make progression feel even bigger
+          <div className="mt-4 grid grid-cols-2 gap-3">
+            <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+              <div className="mb-2 inline-flex rounded-xl bg-white/[0.05] p-2">
+                <Dumbbell className="h-4 w-4 text-emerald-300" />
               </div>
-              <div className="mt-2 max-w-2xl text-sm leading-6 text-white/65">
-                Premium should amplify the feeling of momentum with stronger feedback, cleaner visuals and more identity value.
-              </div>
+              <div className="text-xs text-zinc-400">Exercises</div>
+              <div className="mt-1 text-lg font-bold">{summary.exercisesCompleted}</div>
             </div>
 
+            <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+              <div className="mb-2 inline-flex rounded-xl bg-white/[0.05] p-2">
+                <Flame className="h-4 w-4 text-emerald-300" />
+              </div>
+              <div className="text-xs text-zinc-400">Duration</div>
+              <div className="mt-1 text-lg font-bold">{formatMinutes(summary.durationMinutes)}</div>
+            </div>
+          </div>
+
+          <div className="mt-3 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+            <div className="mb-2 inline-flex rounded-xl bg-white/[0.05] p-2">
+              <Sparkles className="h-4 w-4 text-emerald-300" />
+            </div>
+            <div className="text-xs text-zinc-400">Volume</div>
+            <div className="mt-1 text-lg font-bold">{summary.volume} kg</div>
+          </div>
+
+          <button
+            type="button"
+            onClick={onContinue}
+            className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-400 px-4 py-4 text-sm font-black uppercase tracking-[0.14em] text-black transition hover:scale-[1.01]"
+          >
+            Continue
+            <ArrowRight className="h-4 w-4" />
+          </button>
+
+          {animationDone ? (
             <button
               type="button"
               onClick={onOpenPaywall}
-              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-amber-300 px-5 py-3 text-sm font-black text-black transition hover:brightness-105"
+              className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-amber-400/20 bg-amber-400/10 px-4 py-4 text-sm font-bold text-amber-100 transition hover:bg-amber-400/15"
             >
-              <Crown size={16} />
-              Unlock XP Boost
+              <Crown className="h-4 w-4" />
+              Unlock Premium
             </button>
-          </div>
+          ) : null}
         </div>
-
-        <div className="flex flex-col gap-3 sm:flex-row">
-          <button
-            type="button"
-            onClick={onGoHome}
-            className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl bg-emerald-400 px-5 py-4 text-sm font-black text-black transition hover:brightness-105"
-          >
-            Back home
-            <ArrowRight size={16} />
-          </button>
-
-          <button
-            type="button"
-            onClick={onOpenPaywall}
-            className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.05] px-5 py-4 text-sm font-bold text-white transition hover:bg-white/[0.09]"
-          >
-            <Crown size={16} />
-            Premium rewards
-          </button>
-        </div>
-
-        {!animationDone ? (
-          <div className="text-center text-xs font-semibold uppercase tracking-[0.2em] text-white/40">
-            Animating progression…
-          </div>
-        ) : null}
       </div>
     </div>
   );

@@ -1,170 +1,355 @@
-export type UserGender = 'male' | 'female' | 'non-binary';
-export type TrainingGoal = 'lose' | 'maintain' | 'build';
-export type TrainingLevel = 'beginner' | 'intermediate' | 'advanced';
+import { checkPremium } from './premiumStore';
+import type { EquippedItems, ItemSlot } from './assetTypes';
 
-export type UserProfile = {
-  age: number;
-  height: number;
-  weight: number;
-  gender: UserGender;
-  goal: TrainingGoal;
-  trainingLevel: TrainingLevel;
+export type ShopCategory = 'cosmetic' | 'glow' | 'background' | 'premium';
+
+export type ShopItem = {
+  id: string;
+  name: string;
+  description: string;
+  category: ShopCategory;
+  icon: string;
+  premiumOnly?: boolean;
+  requiresPremiumAccess?: boolean;
+  productId?: string;
+  priceLabel?: string;
+  slot?: ItemSlot | 'background';
 };
 
-type ProfileState = {
-  onboardingComplete: boolean;
-  profile: UserProfile | null;
-};
+type EquippedState = EquippedItems;
 
-const KEY = 'gymrat-profile-store';
+const SHOP_ITEMS_KEY = 'gymrat-shop-items-owned';
+const SHOP_EQUIPPED_KEY = 'gymrat-shop-equipped-v2';
 
-const defaultState: ProfileState = {
-  onboardingComplete: false,
-  profile: null,
-};
+export const shopItems: ShopItem[] = [
+  {
+    id: 'cap-black-core',
+    name: 'Black Core Cap',
+    description: 'Clean starter head item.',
+    category: 'cosmetic',
+    icon: '🧢',
+    slot: 'head',
+    productId: 'item_cap_black_core',
+    priceLabel: '9 kr',
+  },
+  {
+    id: 'shades-alpha',
+    name: 'Alpha Shades',
+    description: 'Sharp upper-tier face detail.',
+    category: 'cosmetic',
+    icon: '🕶️',
+    slot: 'eyes',
+    productId: 'item_shades_alpha',
+    priceLabel: '9 kr',
+  },
+  {
+    id: 'chain-gold-heavy',
+    name: 'Gold Heavy Chain',
+    description: 'Extra alpha energy around the neck.',
+    category: 'cosmetic',
+    icon: '⛓️',
+    slot: 'neck',
+    productId: 'item_chain_gold_heavy',
+    priceLabel: '9 kr',
+  },
+  {
+    id: 'hoodie-black-core',
+    name: 'Black Core Hoodie',
+    description: 'Classic gym-rat top.',
+    category: 'cosmetic',
+    icon: '🧥',
+    slot: 'top',
+    productId: 'item_hoodie_black_core',
+    priceLabel: '9 kr',
+  },
+  {
+    id: 'tank-alpha-gold',
+    name: 'Alpha Tank Gold',
+    description: 'Higher-tier premium-looking top.',
+    category: 'cosmetic',
+    icon: '🎽',
+    slot: 'top',
+    productId: 'item_tank_alpha_gold',
+    priceLabel: '9 kr',
+  },
+  {
+    id: 'joggers-core-grey',
+    name: 'Core Grey Joggers',
+    description: 'Starter lower-body cosmetic.',
+    category: 'cosmetic',
+    icon: '👖',
+    slot: 'pants',
+    productId: 'item_joggers_core_grey',
+    priceLabel: '9 kr',
+  },
+  {
+    id: 'legend-pants-black',
+    name: 'Legend Black Pants',
+    description: 'Late-game lower-body flex.',
+    category: 'cosmetic',
+    icon: '⚫',
+    slot: 'pants',
+    productId: 'item_legend_pants_black',
+    priceLabel: '9 kr',
+  },
+  {
+    id: 'shoes-street-core',
+    name: 'Street Core Shoes',
+    description: 'Starter shoe cosmetic.',
+    category: 'cosmetic',
+    icon: '👟',
+    slot: 'feet',
+    productId: 'item_shoes_street_core',
+    priceLabel: '9 kr',
+  },
+  {
+    id: 'shoes-legend-high',
+    name: 'Legend High Shoes',
+    description: 'Premium footwear flex.',
+    category: 'premium',
+    icon: '👑',
+    slot: 'feet',
+    premiumOnly: true,
+    requiresPremiumAccess: true,
+    productId: 'item_shoes_legend_high',
+    priceLabel: 'Included in Premium',
+  },
+  {
+    id: 'aura-purple-smoke',
+    name: 'Purple Smoke Aura',
+    description: 'Premium glow effect around the hero.',
+    category: 'glow',
+    icon: '✨',
+    slot: 'aura',
+    premiumOnly: true,
+    requiresPremiumAccess: true,
+    productId: 'item_aura_purple_smoke',
+    priceLabel: 'Included in Premium',
+  },
+  {
+    id: 'aura-mythic-flame',
+    name: 'Mythic Flame Aura',
+    description: 'Late-game mythic aura.',
+    category: 'premium',
+    icon: '🔥',
+    slot: 'aura',
+    premiumOnly: true,
+    requiresPremiumAccess: true,
+    productId: 'item_aura_mythic_flame',
+    priceLabel: 'Included in Premium',
+  },
+  {
+    id: 'bg-underground-1',
+    name: 'Underground Scene',
+    description: 'Dark grind atmosphere behind your rat.',
+    category: 'background',
+    icon: '🏙️',
+    slot: 'background',
+    productId: 'item_bg_underground_1',
+    priceLabel: '9 kr',
+  },
+  {
+    id: 'bg-grind-1',
+    name: 'Grind Scene',
+    description: 'Clean progression backdrop.',
+    category: 'background',
+    icon: '🌆',
+    slot: 'background',
+    productId: 'item_bg_grind_1',
+    priceLabel: '9 kr',
+  },
+  {
+    id: 'bg-king-1',
+    name: 'King Backdrop',
+    description: 'Elite premium hero background.',
+    category: 'premium',
+    icon: '👑',
+    slot: 'background',
+    premiumOnly: true,
+    requiresPremiumAccess: true,
+    productId: 'item_bg_king_1',
+    priceLabel: 'Included in Premium',
+  },
+];
 
-function safeNumber(value: unknown, fallback = 0) {
-  const next = Number(value);
-  return Number.isFinite(next) ? next : fallback;
+function emitShopUpdate() {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(new CustomEvent('shop-updated'));
 }
 
-function read(): ProfileState {
-  if (typeof window === 'undefined') {
-    return defaultState;
-  }
-
-  const raw = localStorage.getItem(KEY);
-  if (!raw) {
-    return defaultState;
-  }
+export function getOwnedItems(): string[] {
+  if (typeof window === 'undefined') return [];
 
   try {
-    const parsed = JSON.parse(raw) as Partial<ProfileState> & {
-      profile?: Partial<UserProfile> | null;
-    };
-
-    const incomingProfile = parsed.profile;
-    const profile =
-      incomingProfile && typeof incomingProfile === 'object'
-        ? {
-            age: safeNumber(incomingProfile.age),
-            height: safeNumber(incomingProfile.height),
-            weight: safeNumber(incomingProfile.weight),
-            gender: (incomingProfile.gender ?? 'male') as UserGender,
-            goal: (incomingProfile.goal ?? 'maintain') as TrainingGoal,
-            trainingLevel: (incomingProfile.trainingLevel ?? 'beginner') as TrainingLevel,
-          }
-        : null;
-
-    return {
-      onboardingComplete: Boolean(parsed.onboardingComplete),
-      profile,
-    };
+    const raw = localStorage.getItem(SHOP_ITEMS_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
   } catch {
-    return defaultState;
+    return [];
   }
 }
 
-function write(state: ProfileState) {
+export function ownItem(itemId: string): void {
   if (typeof window === 'undefined') return;
-  localStorage.setItem(KEY, JSON.stringify(state));
+
+  const current = getOwnedItems();
+  if (current.includes(itemId)) return;
+
+  localStorage.setItem(SHOP_ITEMS_KEY, JSON.stringify([...current, itemId]));
+  emitShopUpdate();
 }
 
-export function getProfile(): UserProfile | null {
-  return read().profile;
+function getDefaultEquippedState(): EquippedState {
+  return {};
 }
 
-export function saveProfile(profile: UserProfile) {
-  const state = read();
+export function getEquippedItems(): EquippedState {
+  if (typeof window === 'undefined') return getDefaultEquippedState();
 
-  write({
-    ...state,
-    profile: {
-      age: safeNumber(profile.age),
-      height: safeNumber(profile.height),
-      weight: safeNumber(profile.weight),
-      gender: profile.gender,
-      goal: profile.goal,
-      trainingLevel: profile.trainingLevel,
-    },
-  });
+  try {
+    const raw = localStorage.getItem(SHOP_EQUIPPED_KEY);
+    if (!raw) return getDefaultEquippedState();
+
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') return getDefaultEquippedState();
+
+    return parsed as EquippedState;
+  } catch {
+    return getDefaultEquippedState();
+  }
 }
 
-export function updateProfile(patch: Partial<UserProfile>) {
-  const current = getProfile();
-
-  const next: UserProfile = {
-    age: safeNumber(patch.age ?? current?.age ?? 0),
-    height: safeNumber(patch.height ?? current?.height ?? 0),
-    weight: safeNumber(patch.weight ?? current?.weight ?? 0),
-    gender: (patch.gender ?? current?.gender ?? 'male') as UserGender,
-    goal: (patch.goal ?? current?.goal ?? 'maintain') as TrainingGoal,
-    trainingLevel: (patch.trainingLevel ?? current?.trainingLevel ?? 'beginner') as TrainingLevel,
-  };
-
-  saveProfile(next);
-}
-
-export function completeOnboarding() {
-  const state = read();
-  write({
-    ...state,
-    onboardingComplete: true,
-  });
-}
-
-export function resetOnboarding() {
-  const state = read();
-  write({
-    ...state,
-    onboardingComplete: false,
-  });
-}
-
-export function isOnboardingComplete() {
-  const state = read();
-  return state.onboardingComplete && Boolean(state.profile);
-}
-
-export function clearProfileStore() {
+function writeEquippedItems(next: EquippedState) {
   if (typeof window === 'undefined') return;
-  localStorage.removeItem(KEY);
+  localStorage.setItem(SHOP_EQUIPPED_KEY, JSON.stringify(next));
+  emitShopUpdate();
 }
 
-export function getNutritionTargets(profile?: UserProfile | null) {
-  const activeProfile = profile ?? getProfile();
+export function getEquippedItem(): string | null {
+  const equipped = getEquippedItems();
 
-  if (!activeProfile) {
+  return (
+    equipped.head ??
+    equipped.eyes ??
+    equipped.neck ??
+    equipped.top ??
+    equipped.pants ??
+    equipped.feet ??
+    equipped.aura ??
+    equipped.background ??
+    null
+  );
+}
+
+export function getEquippedItemIds(): string[] {
+  const equipped = getEquippedItems();
+
+  return [
+    equipped.head,
+    equipped.eyes,
+    equipped.neck,
+    equipped.top,
+    equipped.pants,
+    equipped.feet,
+    equipped.aura,
+    equipped.background,
+  ].filter(Boolean) as string[];
+}
+
+export function isOwned(itemId: string): boolean {
+  return getOwnedItems().includes(itemId);
+}
+
+export function canAccessShopItem(item: ShopItem): boolean {
+  if (!item.requiresPremiumAccess) return true;
+  return checkPremium();
+}
+
+export function isItemOwnedOrIncluded(item: ShopItem): boolean {
+  if (item.requiresPremiumAccess || item.premiumOnly) {
+    return checkPremium();
+  }
+
+  return isOwned(item.id);
+}
+
+export function equipItem(itemId: string): void {
+  const item = shopItems.find((entry) => entry.id === itemId);
+  if (!item || !item.slot) return;
+  if (!isItemOwnedOrIncluded(item)) return;
+
+  const current = getEquippedItems();
+  const next: EquippedState = { ...current };
+
+  if (item.slot === 'background') {
+    next.background = item.id;
+  } else {
+    next[item.slot] = item.id;
+  }
+
+  writeEquippedItems(next);
+}
+
+export function unequipSlot(slot: ItemSlot | 'background'): void {
+  const current = getEquippedItems();
+  const next: EquippedState = { ...current };
+
+  if (slot === 'background') {
+    delete next.background;
+  } else {
+    delete next[slot];
+  }
+
+  writeEquippedItems(next);
+}
+
+export function getEquippedItemIdForSlot(slot: ItemSlot | 'background'): string | undefined {
+  const equipped = getEquippedItems();
+
+  if (slot === 'background') {
+    return equipped.background;
+  }
+
+  return equipped[slot];
+}
+
+export function getShopItems() {
+  const premium = checkPremium();
+  const ownedItems = getOwnedItems();
+  const equipped = getEquippedItems();
+
+  return shopItems.map((item) => {
+    const premiumIncluded = !!item.requiresPremiumAccess || !!item.premiumOnly;
+    const owned = premiumIncluded ? premium : ownedItems.includes(item.id);
+    const equippedForSlot =
+      item.slot === 'background'
+        ? equipped.background === item.id
+        : item.slot
+        ? equipped[item.slot] === item.id
+        : false;
+
     return {
-      calories: 2400,
-      protein: 170,
-      carbs: 250,
-      fat: 75,
+      ...item,
+      isPremium: premiumIncluded,
+      accessible: canAccessShopItem(item),
+      owned,
+      equipped: equippedForSlot,
     };
+  });
+}
+
+export function subscribeShop(listener: () => void) {
+  if (typeof window === 'undefined') {
+    return () => {};
   }
 
-  const weight = Math.max(40, safeNumber(activeProfile.weight, 75));
+  const handler = () => listener();
 
-  let caloriesPerKg = 31;
-  if (activeProfile.goal === 'lose') caloriesPerKg = 27;
-  if (activeProfile.goal === 'maintain') caloriesPerKg = 31;
-  if (activeProfile.goal === 'build') caloriesPerKg = 35;
+  window.addEventListener('shop-updated', handler);
+  window.addEventListener('premium-updated', handler);
 
-  let proteinPerKg = 2.0;
-  if (activeProfile.goal === 'lose') proteinPerKg = 2.2;
-  if (activeProfile.goal === 'maintain') proteinPerKg = 2.0;
-  if (activeProfile.goal === 'build') proteinPerKg = 2.1;
-
-  const calories = Math.round(weight * caloriesPerKg);
-  const protein = Math.round(weight * proteinPerKg);
-  const fat = Math.max(50, Math.round(weight * 0.9));
-  const remainingCalories = calories - protein * 4 - fat * 9;
-  const carbs = Math.max(80, Math.round(remainingCalories / 4));
-
-  return {
-    calories,
-    protein,
-    carbs,
-    fat,
+  return () => {
+    window.removeEventListener('shop-updated', handler);
+    window.removeEventListener('premium-updated', handler);
   };
 }

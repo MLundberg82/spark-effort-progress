@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  ArrowLeft,
   Dumbbell,
   Flame,
   Ruler,
@@ -20,6 +19,8 @@ import SettingsScreen from '../components/SettingsScreen';
 import AppMenu from '../components/AppMenu';
 import PremiumPaywall from '../components/PremiumPaywall';
 import DailyCheckInScreen from '../components/DailyCheckInScreen';
+import GymRatGallery from '../components/GymRatGallery';
+import RatShop from '../components/RatShop';
 
 import {
   completeOnboarding,
@@ -69,20 +70,15 @@ function OnboardingGate({ onComplete }: { onComplete: () => void }) {
     existing?.trainingLevel ?? 'beginner'
   );
 
-  const shellClass =
-    'min-h-screen bg-[#09090b] px-4 pb-8 pt-6 text-white';
+  const shellClass = 'min-h-screen bg-[#09090b] px-4 pb-8 pt-6 text-white';
   const wrapClass = 'mx-auto max-w-[430px]';
   const cardClass =
     'overflow-hidden rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.02))] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.45)]';
   const inputClass =
     'mt-2 w-full rounded-2xl border border-white/10 bg-zinc-900 px-4 py-3 text-white outline-none transition focus:border-emerald-400';
-  const optionClass =
-    'rounded-2xl border px-4 py-4 text-left transition';
+  const optionClass = 'rounded-2xl border px-4 py-4 text-left transition';
 
-  const canStepOneContinue =
-    age >= 13 &&
-    height >= 120 &&
-    weight >= 35;
+  const canStepOneContinue = age >= 13 && height >= 120 && weight >= 35;
 
   const finish = () => {
     const nextProfile: UserProfile = {
@@ -102,90 +98,94 @@ function OnboardingGate({ onComplete }: { onComplete: () => void }) {
   return (
     <div className={shellClass}>
       <div className={wrapClass}>
+        <div className="mb-6 flex items-center justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-emerald-300/80">
+              First launch setup
+            </p>
+            <h1 className="mt-2 text-3xl font-black tracking-tight">GymRat</h1>
+            <p className="mt-2 max-w-sm text-sm text-zinc-400">
+              Quick setup once. Then straight into the app with a premium feel from start.
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3">
+            <Sparkles className="h-5 w-5 text-emerald-300" />
+          </div>
+        </div>
+
+        <div className="mb-6 flex gap-2">
+          {[1, 2, 3].map((entry) => (
+            <div
+              key={entry}
+              className={`h-2 flex-1 rounded-full ${
+                step >= entry ? 'bg-emerald-400' : 'bg-white/10'
+              }`}
+            />
+          ))}
+        </div>
+
         <div className={cardClass}>
-          <div className="mb-3 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-300">
-            <Sparkles className="h-4 w-4" />
-            First launch setup
-          </div>
-
-          <h1 className="text-[2rem] font-black tracking-[-0.04em]">GymRat</h1>
-          <p className="mt-2 text-sm text-white/68">
-            Quick setup once. Then straight into the app with a premium feel from start.
-          </p>
-
-          <div className="mt-4 flex gap-2">
-            {[1, 2, 3].map((entry) => (
-              <div
-                key={entry}
-                className={`h-2 flex-1 rounded-full ${
-                  step >= entry ? 'bg-emerald-400' : 'bg-white/10'
-                }`}
-              />
-            ))}
-          </div>
-
           {step === 1 && (
-            <div className="mt-6">
-              <div className="mb-4 text-sm font-semibold uppercase tracking-[0.14em] text-white/45">
-                Base profile
+            <div>
+              <div className="mb-5 flex items-center gap-3">
+                <div className="rounded-2xl bg-emerald-400/10 p-3">
+                  <User className="h-5 w-5 text-emerald-300" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold">Base profile</h2>
+                </div>
               </div>
 
-              <label className="block">
-                <div className="flex items-center gap-2 text-sm text-white/70">
-                  <User className="h-4 w-4 text-emerald-300" />
-                  Age
-                </div>
-                <input
-                  type="number"
-                  value={age}
-                  onChange={(e) => setAge(Number(e.target.value))}
-                  className={inputClass}
-                />
-              </label>
+              <div className="space-y-4">
+                <label className="block">
+                  <span className="text-sm text-zinc-300">Age</span>
+                  <input
+                    type="number"
+                    value={age}
+                    onChange={(e) => setAge(Number(e.target.value))}
+                    className={inputClass}
+                  />
+                </label>
 
-              <label className="mt-4 block">
-                <div className="flex items-center gap-2 text-sm text-white/70">
-                  <Ruler className="h-4 w-4 text-emerald-300" />
-                  Height (cm)
-                </div>
-                <input
-                  type="number"
-                  value={height}
-                  onChange={(e) => setHeight(Number(e.target.value))}
-                  className={inputClass}
-                />
-              </label>
+                <label className="block">
+                  <span className="text-sm text-zinc-300">Height (cm)</span>
+                  <input
+                    type="number"
+                    value={height}
+                    onChange={(e) => setHeight(Number(e.target.value))}
+                    className={inputClass}
+                  />
+                </label>
 
-              <label className="mt-4 block">
-                <div className="flex items-center gap-2 text-sm text-white/70">
-                  <Weight className="h-4 w-4 text-emerald-300" />
-                  Weight (kg)
-                </div>
-                <input
-                  type="number"
-                  value={weight}
-                  onChange={(e) => setWeight(Number(e.target.value))}
-                  className={inputClass}
-                />
-              </label>
+                <label className="block">
+                  <span className="text-sm text-zinc-300">Weight (kg)</span>
+                  <input
+                    type="number"
+                    value={weight}
+                    onChange={(e) => setWeight(Number(e.target.value))}
+                    className={inputClass}
+                  />
+                </label>
 
-              <div className="mt-4">
-                <div className="mb-2 text-sm text-white/70">Gender</div>
-                <div className="grid grid-cols-3 gap-2">
-                  {(['male', 'female', 'non-binary'] as const).map((option) => (
-                    <button
-                      key={option}
-                      type="button"
-                      onClick={() => setGender(option)}
-                      className={`rounded-2xl px-3 py-3 text-sm capitalize transition ${
-                        gender === option
-                          ? 'bg-emerald-400 font-semibold text-black'
-                          : 'border border-white/10 bg-white/[0.04] text-white'
-                      }`}
-                    >
-                      {option}
-                    </button>
-                  ))}
+                <div>
+                  <span className="text-sm text-zinc-300">Gender</span>
+                  <div className="mt-2 grid grid-cols-3 gap-2">
+                    {(['male', 'female', 'non-binary'] as const).map((option) => (
+                      <button
+                        key={option}
+                        type="button"
+                        onClick={() => setGender(option)}
+                        className={`rounded-2xl px-3 py-3 text-sm capitalize transition ${
+                          gender === option
+                            ? 'bg-emerald-400 font-semibold text-black'
+                            : 'border border-white/10 bg-white/[0.04] text-white'
+                        }`}
+                      >
+                        {option}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
 
@@ -201,9 +201,14 @@ function OnboardingGate({ onComplete }: { onComplete: () => void }) {
           )}
 
           {step === 2 && (
-            <div className="mt-6">
-              <div className="mb-4 text-sm font-semibold uppercase tracking-[0.14em] text-white/45">
-                Training goal
+            <div>
+              <div className="mb-5 flex items-center gap-3">
+                <div className="rounded-2xl bg-emerald-400/10 p-3">
+                  <Target className="h-5 w-5 text-emerald-300" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold">Training goal</h2>
+                </div>
               </div>
 
               <div className="space-y-3">
@@ -234,11 +239,8 @@ function OnboardingGate({ onComplete }: { onComplete: () => void }) {
                         : 'border-white/10 bg-white/[0.04]'
                     }`}
                   >
-                    <div className="flex items-center gap-2 text-base font-bold">
-                      <Target className="h-4 w-4 text-emerald-300" />
-                      {option.title}
-                    </div>
-                    <div className="mt-1 text-sm text-white/60">{option.desc}</div>
+                    <div className="text-base font-bold">{option.title}</div>
+                    <div className="mt-1 text-sm text-zinc-400">{option.desc}</div>
                   </button>
                 ))}
               </div>
@@ -263,9 +265,14 @@ function OnboardingGate({ onComplete }: { onComplete: () => void }) {
           )}
 
           {step === 3 && (
-            <div className="mt-6">
-              <div className="mb-4 text-sm font-semibold uppercase tracking-[0.14em] text-white/45">
-                Training level
+            <div>
+              <div className="mb-5 flex items-center gap-3">
+                <div className="rounded-2xl bg-emerald-400/10 p-3">
+                  <Dumbbell className="h-5 w-5 text-emerald-300" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold">Training level</h2>
+                </div>
               </div>
 
               <div className="space-y-3">
@@ -296,21 +303,17 @@ function OnboardingGate({ onComplete }: { onComplete: () => void }) {
                         : 'border-white/10 bg-white/[0.04]'
                     }`}
                   >
-                    <div className="flex items-center gap-2 text-base font-bold">
-                      <Dumbbell className="h-4 w-4 text-emerald-300" />
-                      {option.label}
-                    </div>
-                    <div className="mt-1 text-sm text-white/60">{option.desc}</div>
+                    <div className="text-base font-bold">{option.label}</div>
+                    <div className="mt-1 text-sm text-zinc-400">{option.desc}</div>
                   </button>
                 ))}
               </div>
 
-              <div className="mt-5 rounded-[1.5rem] border border-white/10 bg-black/20 p-4">
-                <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-emerald-300">
-                  <Flame className="h-4 w-4" />
+              <div className="mt-5 rounded-2xl border border-emerald-400/10 bg-emerald-400/5 p-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-300/80">
                   Nutrition will auto-follow your goal
-                </div>
-                <p className="text-sm text-white/60">
+                </p>
+                <p className="mt-2 text-sm text-zinc-300">
                   Goal + body data carry into nutrition automatically, so the app feels connected from day one.
                 </p>
               </div>
@@ -321,15 +324,12 @@ function OnboardingGate({ onComplete }: { onComplete: () => void }) {
                   onClick={() => setStep(2)}
                   className="flex-1 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 font-semibold"
                 >
-                  <span className="inline-flex items-center gap-2">
-                    <ArrowLeft className="h-4 w-4" />
-                    Back
-                  </span>
+                  Back
                 </button>
                 <button
                   type="button"
                   onClick={finish}
-                  className="flex-1 rounded-2xl bg-white px-4 py-3 font-black uppercase tracking-[0.14em] text-black"
+                  className="flex-1 rounded-2xl bg-emerald-400 px-4 py-3 font-black uppercase tracking-[0.14em] text-black"
                 >
                   Start app
                 </button>
@@ -344,7 +344,7 @@ function OnboardingGate({ onComplete }: { onComplete: () => void }) {
 
 export default function Index() {
   const [showSplash, setShowSplash] = useState(true);
-  const [page, setPage] = useState(() => getCurrentPage() as AppPage);
+  const [page, setPage] = useState<AppPage>(() => getCurrentPage() as AppPage);
   const [profileReady, setProfileReady] = useState(
     isOnboardingComplete() && Boolean(getProfile())
   );
@@ -433,6 +433,7 @@ export default function Index() {
     saveWorkoutDraft({
       startedAt: new Date().toISOString(),
     });
+
     changePage('workout');
   };
 
@@ -458,12 +459,8 @@ export default function Index() {
           stats={stats}
           onOpenMenu={openMenu}
           onStartWorkout={startWorkout}
-          onOpenGallery={() => {
-            changePage('gallery');
-          }}
-          onOpenShop={() => {
-            changePage('shop');
-          }}
+          onOpenGallery={() => changePage('gallery')}
+          onOpenShop={() => changePage('shop')}
         />
       )}
 
@@ -477,19 +474,16 @@ export default function Index() {
       {page === 'complete' && finishedWorkout && (
         <WorkoutComplete
           summary={finishedWorkout}
-          onGoHome={() => {
+          onContinue={() => {
             setCurrentPage('home');
             setPage('home');
+            setFinishedWorkout(null);
           }}
           onOpenPaywall={openPaywall}
         />
       )}
 
-      {page === 'history' && (
-        <HistoryScreen
-          onBack={() => changePage('home')}
-        />
-      )}
+      {page === 'history' && <HistoryScreen onBack={() => changePage('home')} />}
 
       {page === 'nutrition' && (
         <NutritionScreen
@@ -498,69 +492,21 @@ export default function Index() {
         />
       )}
 
-      {page === 'settings' && (
-        <SettingsScreen
-          onBack={() => changePage('home')}
-        />
-      )}
+      {page === 'settings' && <SettingsScreen onBack={() => changePage('home')} />}
 
-      {page === 'daily' && (
-        <DailyCheckInScreen
-          onBack={() => changePage('home')}
-        />
-      )}
+      {page === 'daily' && <DailyCheckInScreen onBack={() => changePage('home')} />}
 
-      {page === 'gallery' && (
-        <div className="min-h-screen bg-[#09090b] px-4 py-4 text-white">
-          <div className="mx-auto max-w-[430px]">
-            <button
-              type="button"
-              onClick={() => changePage('home')}
-              className="mb-4 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/[0.08]"
-            >
-              Back
-            </button>
-
-            <div className="rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.02))] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.45)]">
-              <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-300">
-                Gallery
-              </div>
-              <h1 className="text-[2rem] font-black tracking-[-0.04em]">Rat evolution</h1>
-              <p className="mt-2 text-sm text-white/65">
-                Placeholder page until your full gallery component is wired to this route.
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
+      {page === 'gallery' && <GymRatGallery onBack={() => changePage('home')} />}
 
       {page === 'shop' && (
-        <div className="min-h-screen bg-[#09090b] px-4 py-4 text-white">
-          <div className="mx-auto max-w-[430px]">
-            <button
-              type="button"
-              onClick={() => changePage('home')}
-              className="mb-4 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/[0.08]"
-            >
-              Back
-            </button>
-
-            <div className="rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.02))] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.45)]">
-              <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-300">
-                Shop
-              </div>
-              <h1 className="text-[2rem] font-black tracking-[-0.04em]">Cosmetic loadout</h1>
-              <p className="mt-2 text-sm text-white/65">
-                Wire your main shop screen here if it is already present in the repo.
-              </p>
-            </div>
-          </div>
-        </div>
+        <RatShop
+          onBack={() => changePage('home')}
+          onOpenPremium={openPaywall}
+        />
       )}
 
       <AppMenu
-        open={menuOpenLocal}
-        currentPage={page}
+        isOpen={menuOpenLocal}
         onClose={closeMenu}
         onNavigate={(nextPage) => {
           closeMenu();
@@ -573,10 +519,7 @@ export default function Index() {
       />
 
       {paywallOpenLocal && (
-        <PremiumPaywall
-          open={paywallOpenLocal}
-          onClose={closePaywall}
-        />
+        <PremiumPaywall isOpen={paywallOpenLocal} onClose={closePaywall} />
       )}
     </>
   );

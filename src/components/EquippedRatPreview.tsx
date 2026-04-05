@@ -10,10 +10,13 @@ const itemModules = import.meta.glob('../assets/items/**/*.{png,jpg,jpeg,webp}',
   import: 'default',
 }) as Record<string, string>;
 
-const backgroundModules = import.meta.glob('../assets/backgrounds/**/*.{png,jpg,jpeg,webp}', {
-  eager: true,
-  import: 'default',
-}) as Record<string, string>;
+const backgroundModules = import.meta.glob(
+  '../assets/backgrounds/**/*.{png,jpg,jpeg,webp}',
+  {
+    eager: true,
+    import: 'default',
+  }
+) as Record<string, string>;
 
 function normalize(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, '-');
@@ -30,11 +33,12 @@ function nearestMilestone(level: number) {
 
 function scoreMatch(path: string, tokens: string[]) {
   const normalizedPath = normalize(path);
-
   let score = 0;
+
   for (const token of tokens) {
     const normalizedToken = normalize(token);
     if (!normalizedToken) continue;
+
     if (normalizedPath.includes(normalizedToken)) {
       score += normalizedToken.length;
     } else {
@@ -51,7 +55,6 @@ function scoreMatch(path: string, tokens: string[]) {
 
 function findBest(modules: Record<string, string>, tokenSets: string[][]) {
   const entries = Object.entries(modules);
-
   let bestPath: string | undefined;
   let bestValue: string | undefined;
   let bestScore = -1;
@@ -94,7 +97,7 @@ export function getRatImage(level: number, variant: RatVariant): string | undefi
   ]);
 }
 
-export const ASSET_SHOP_CATALOG_BASE: Omit<AssetShopItem, 'owned' | 'image'>[] = [
+export const ASSET_SHOP_CATALOG_BASE: Omit<AssetShopItem, 'image'>[] = [
   {
     id: 'cap-black-core',
     name: 'Black Core Cap',
@@ -110,7 +113,7 @@ export const ASSET_SHOP_CATALOG_BASE: Omit<AssetShopItem, 'owned' | 'image'>[] =
     name: 'Black Core Hoodie',
     description: 'Classic gym-rat top.',
     price: 90,
-    emoji: '🖤',
+    emoji: '🧥',
     slot: 'top',
     isPremium: false,
     unlockLevel: 1,
@@ -160,7 +163,7 @@ export const ASSET_SHOP_CATALOG_BASE: Omit<AssetShopItem, 'owned' | 'image'>[] =
     name: 'Alpha Tank Gold',
     description: 'High-visibility alpha tank.',
     price: 260,
-    emoji: '💪',
+    emoji: '🎽',
     slot: 'top',
     isPremium: false,
     unlockLevel: 35,
@@ -180,7 +183,7 @@ export const ASSET_SHOP_CATALOG_BASE: Omit<AssetShopItem, 'owned' | 'image'>[] =
     name: 'Legend High Shoes',
     description: 'Premium footwear flex.',
     price: 360,
-    emoji: '🔥',
+    emoji: '👑',
     slot: 'feet',
     isPremium: true,
     unlockLevel: 70,

@@ -1,27 +1,16 @@
 import { useEffect, useMemo, useState } from 'react';
-import {
-  ArrowLeft,
-  Check,
-  Crown,
-  Lock,
-  ShoppingBag,
-  Sparkles,
-} from 'lucide-react';
-
+import { ArrowLeft, Crown, Lock, ShoppingBag } from 'lucide-react';
 import EquippedRatPreview from '@/components/EquippedRatPreview';
-import { getProfile } from '@/lib/profileStore';
 import {
   canAccessShopItem,
   equipItem,
   getEquippedItemIdForSlot,
   getShopItems,
   ownItem,
-  shopItems,
   subscribeShop,
-  type ShopItem,
 } from '@/lib/shopStore';
 import type { ItemSlot } from '@/lib/assetTypes';
-import { getItemImage, getBackgroundImage } from '@/lib/assetRegistry';
+import { getBackgroundImage, getItemImage } from '@/lib/assetRegistry';
 
 type SlotKey = ItemSlot | 'background';
 
@@ -52,26 +41,16 @@ const slotOrder: SlotKey[] = [
   'background',
 ];
 
-function getDisplayAsset(item: ShopItem) {
+function getDisplayAsset(item: { id: string; slot?: SlotKey }) {
   if (item.slot === 'background') {
     return getBackgroundImage(item.id);
   }
   return getItemImage(item.id);
 }
 
-function getBadge(item: ReturnType<typeof getShopItems>[number]) {
-  if (item.equipped) return 'Equipped';
-  if (item.owned) return item.isPremium ? 'Premium owned' : 'Owned';
-  if (!item.accessible) return 'Premium';
-  return item.priceLabel ?? '9 kr';
-}
-
 export default function RatShop({ onBack, onOpenPremium }: RatShopProps) {
   const [activeSlot, setActiveSlot] = useState<SlotKey>('top');
   const [refreshKey, setRefreshKey] = useState(0);
-
-  const profile = getProfile();
-  const level = 1;
 
   const liveItems = useMemo(() => getShopItems(), [refreshKey]);
 
@@ -85,7 +64,7 @@ export default function RatShop({ onBack, onOpenPremium }: RatShopProps) {
     });
   }, []);
 
-  const handleBuyOrEquip = (item: ReturnType<typeof getShopItems>[number]) => {
+  const handleBuyOrEquip = (item: (typeof filteredItems)[number]) => {
     if (!canAccessShopItem(item)) {
       onOpenPremium?.();
       return;
@@ -103,137 +82,136 @@ export default function RatShop({ onBack, onOpenPremium }: RatShopProps) {
   const currentSlotEquipped = getEquippedItemIdForSlot(activeSlot);
 
   return (
-    <div className="min-h-screen bg-[#09090b] px-4 pb-8 pt-4 text-white">
+    <div className="min-h-screen bg-[#09090b] px-4 pb-8 pt-6 text-white">
       <div className="mx-auto max-w-[430px]">
-        <div className="mb-4 flex items-center justify-between">
+        <div className="mb-5 flex items-center justify-between">
           <button
             type="button"
             onClick={onBack}
-            className="flex h-11 items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-4 text-sm font-semibold text-white/75 transition hover:bg-white/[0.08]"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] transition hover:bg-white/[0.08]"
+            aria-label="Back"
           >
-            <ArrowLeft className="h-4 w-4" />
-            Back
+            <ArrowLeft className="h-5 w-5" />
           </button>
 
-          <div className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-300">
-            Rat Shop
+          <div className="rounded-2xl border border-emerald-400/10 bg-emerald-400/10 px-3 py-2 text-right">
+            <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-300/80">
+              Rat Shop
+            </div>
+            <div className="text-lg font-black leading-none">Cosmetics</div>
           </div>
         </div>
 
-        <div className="rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.02))] p-4 shadow-[0_24px_80px_rgba(0,0,0,0.45)]">
-          <div className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-300">
-            <Sparkles className="h-4 w-4" />
+        <div className="rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.02))] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.45)]">
+          <div className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-300/80">
             Cosmetic loadout
           </div>
-
-          <h1 className="text-[2rem] font-black tracking-[-0.04em]">Build your look</h1>
-          <p className="mt-2 text-sm text-white/68">
+          <h1 className="mt-2 text-3xl font-black tracking-tight">Build your look</h1>
+          <p className="mt-2 text-sm text-zinc-400">
             Equip backgrounds, aura and item layers directly on your rat.
           </p>
 
-          <div className="mt-5 flex justify-center">
-            <EquippedRatPreview level={level} gender={profile?.gender} size="hero" />
-          </div>
-        </div>
+          <div className="mt-5 rounded-3xl border border-white/10 bg-white/[0.04] p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <div className="text-sm font-semibold text-white">Live Preview</div>
+              <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-200">
+                <ShoppingBag className="h-3 w-3" />
+                Equipped items
+              </span>
+            </div>
 
-        <div className="mt-4 rounded-[1.75rem] border border-white/10 bg-white/[0.035] p-4">
-          <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-white/45">
-            <ShoppingBag className="h-4 w-4 text-emerald-300" />
-            Slots
+            <EquippedRatPreview />
           </div>
 
-          <div className="grid grid-cols-4 gap-2">
-            {slotOrder.map((slot) => {
-              const active = activeSlot === slot;
-              const equipped = getEquippedItemIdForSlot(slot);
+          <div className="mt-5">
+            <div className="text-sm font-semibold text-white">Slots</div>
+            <div className="mt-3 grid grid-cols-4 gap-2">
+              {slotOrder.map((slot) => {
+                const active = activeSlot === slot;
+                const equipped = getEquippedItemIdForSlot(slot);
+
+                return (
+                  <button
+                    key={slot}
+                    type="button"
+                    onClick={() => setActiveSlot(slot)}
+                    className={`rounded-2xl px-3 py-3 text-center transition ${
+                      active
+                        ? 'border border-emerald-400/25 bg-emerald-400/10'
+                        : 'border border-white/10 bg-white/[0.04] hover:bg-white/[0.07]'
+                    }`}
+                  >
+                    <div className="text-xs font-semibold text-white">{slotLabels[slot]}</div>
+                    <div className="mt-1 text-[10px] text-zinc-400">
+                      {equipped ? 'Equipped' : 'Empty'}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="mt-5 space-y-3">
+            {filteredItems.map((item) => {
+              const locked = !item.accessible;
+              const asset = getDisplayAsset(item);
+              const isCurrentSlotEquipped = currentSlotEquipped === item.id;
 
               return (
-                <button
-                  key={slot}
-                  type="button"
-                  onClick={() => setActiveSlot(slot)}
-                  className={`rounded-2xl px-3 py-3 text-center transition ${
-                    active
-                      ? 'border border-emerald-400/25 bg-emerald-400/10'
-                      : 'border border-white/10 bg-white/[0.04] hover:bg-white/[0.07]'
-                  }`}
+                <div
+                  key={item.id}
+                  className="rounded-3xl border border-white/10 bg-white/[0.04] p-4"
                 >
-                  <div className="text-xs font-semibold text-white">{slotLabels[slot]}</div>
-                  <div className="mt-1 text-[10px] uppercase tracking-[0.12em] text-white/45">
-                    {equipped ? 'Equipped' : 'Empty'}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="mt-4 space-y-3">
-          {filteredItems.map((item) => {
-            const locked = !item.accessible;
-            const asset = getDisplayAsset(item);
-            const isCurrentSlotEquipped = currentSlotEquipped === item.id;
-
-            return (
-              <div
-                key={item.id}
-                className={`rounded-[1.5rem] border p-4 transition ${
-                  isCurrentSlotEquipped
-                    ? 'border-emerald-400/25 bg-emerald-400/10'
-                    : 'border-white/10 bg-white/[0.04]'
-                }`}
-              >
-                <div className="flex gap-4">
-                  <div className="relative flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-black/20">
-                    {asset ? (
-                      <img
-                        src={asset}
-                        alt={item.name}
-                        className="h-full w-full object-contain"
-                      />
-                    ) : (
-                      <div className="text-2xl">{item.icon}</div>
-                    )}
-
-                    {locked ? (
-                      <div className="absolute right-2 top-2 rounded-full bg-black/70 p-1 text-white/80">
-                        <Lock className="h-3.5 w-3.5" />
-                      </div>
-                    ) : null}
-                  </div>
-
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <h3 className="text-sm font-bold text-white">{item.name}</h3>
-
-                          {item.isPremium ? (
-                            <span className="rounded-full border border-yellow-400/25 bg-yellow-400/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-yellow-200">
-                              Premium
-                            </span>
-                          ) : null}
-                        </div>
-
-                        <p className="mt-1 text-sm leading-relaxed text-white/55">
-                          {item.description}
-                        </p>
-                      </div>
-
-                      <div className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-white/70">
-                        {getBadge(item)}
-                      </div>
+                  <div className="flex items-start gap-4">
+                    <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-black/20">
+                      {asset ? (
+                        <img
+                          src={asset}
+                          alt={item.name}
+                          className="h-full w-full object-contain"
+                        />
+                      ) : (
+                        <div className="text-3xl">{item.icon || '✨'}</div>
+                      )}
                     </div>
 
-                    <div className="mt-4 flex items-center justify-between">
-                      <div className="text-xs uppercase tracking-[0.12em] text-white/45">
-                        Slot: {slotLabels[activeSlot]}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <h3 className="text-lg font-bold text-white">{item.name}</h3>
+                          <p className="mt-1 text-sm text-zinc-400">{item.description}</p>
+                        </div>
+
+                        {locked ? (
+                          <span className="inline-flex items-center gap-1 rounded-full border border-yellow-400/15 bg-yellow-400/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-yellow-200">
+                            <Lock className="h-3 w-3" />
+                            Premium
+                          </span>
+                        ) : item.isPremium ? (
+                          <span className="inline-flex items-center gap-1 rounded-full border border-amber-400/15 bg-amber-400/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-amber-200">
+                            <Crown className="h-3 w-3" />
+                            Premium
+                          </span>
+                        ) : null}
+                      </div>
+
+                      <div className="mt-3 flex items-center justify-between text-xs text-zinc-400">
+                        <span>Slot: {slotLabels[activeSlot]}</span>
+                        <span>
+                          {isCurrentSlotEquipped
+                            ? 'Equipped'
+                            : item.owned
+                            ? item.isPremium
+                              ? 'Premium owned'
+                              : 'Owned'
+                            : item.priceLabel ?? '9 kr'}
+                        </span>
                       </div>
 
                       <button
                         type="button"
                         onClick={() => handleBuyOrEquip(item)}
-                        className={`rounded-2xl px-4 py-2 text-sm font-bold transition ${
+                        className={`mt-3 rounded-2xl px-4 py-2 text-sm font-bold transition ${
                           locked
                             ? 'bg-yellow-400/15 text-yellow-200 hover:bg-yellow-400/20'
                             : isCurrentSlotEquipped
@@ -241,34 +219,26 @@ export default function RatShop({ onBack, onOpenPremium }: RatShopProps) {
                             : 'bg-emerald-400 text-black hover:brightness-105'
                         }`}
                       >
-                        {locked ? (
-                          <span className="inline-flex items-center gap-2">
-                            <Crown className="h-4 w-4" />
-                            Unlock Premium
-                          </span>
-                        ) : isCurrentSlotEquipped ? (
-                          <span className="inline-flex items-center gap-2">
-                            <Check className="h-4 w-4" />
-                            Equipped
-                          </span>
-                        ) : item.owned ? (
-                          'Equip'
-                        ) : (
-                          `Buy · ${item.priceLabel ?? '9 kr'}`
-                        )}
+                        {locked
+                          ? 'Unlock Premium'
+                          : isCurrentSlotEquipped
+                          ? 'Equipped'
+                          : item.owned
+                          ? 'Equip'
+                          : `Buy · ${item.priceLabel ?? '9 kr'}`}
                       </button>
                     </div>
                   </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
 
-          {filteredItems.length === 0 ? (
-            <div className="rounded-[1.5rem] border border-dashed border-white/10 bg-white/[0.03] p-5 text-sm text-white/55">
-              No items in this slot yet.
-            </div>
-          ) : null}
+            {filteredItems.length === 0 ? (
+              <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5 text-sm text-zinc-400">
+                No items in this slot yet.
+              </div>
+            ) : null}
+          </div>
         </div>
       </div>
     </div>

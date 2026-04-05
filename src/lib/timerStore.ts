@@ -1,195 +1,53 @@
-export type TimerPhase = 'set' | 'rest';
-
 export type TimerSettings = {
   enabled: boolean;
   setSeconds: number;
   restSeconds: number;
 };
 
-const TIMER_SETTINGS_KEY = 'gymrat-timer-settings';
+const KEY = 'gymrat-timer-settings';
 
-const defaultSettings: TimerSettings = {
+const DEFAULT_SETTINGS: TimerSettings = {
   enabled: true,
   setSeconds: 45,
   restSeconds: 90,
 };
 
-function emitUpdate() {
-  window.dispatchEvent(new CustomEvent('timer-settings-updated'));
+function sanitize(input: Partial<TimerSettings> | null | undefined): TimerSettings {
+  const setSeconds = Number(input?.setSeconds);
+  const restSeconds = Number(input?.restSeconds);
+
+  return {
+    enabled: input?.enabled !== false,
+    setSeconds: Number.isFinite(setSeconds) ? Math.max(5, Math.min(600, Math.floor(setSeconds))) : DEFAULT_SETTINGS.setSeconds,
+    restSeconds: Number.isFinite(restSeconds) ? Math.max(5, Math.min(600, Math.floor(restSeconds))) : DEFAULT_SETTINGS.restSeconds,
+  };
 }
 
 export function getTimerSettings(): TimerSettings {
+  if (typeof window === 'undefined') return DEFAULT_SETTINGS;
+
   try {
-    const raw = localStorage.getItem(TIMER_SETTINGS_KEY);
-    if (!raw) return defaultSettings;
-
-    const parsed = JSON.parse(raw);
-
-    return {
-      enabled: typeof parsed.enabled === 'boolean' ? parsed.enabled : defaultSettings.enabled,
-      setSeconds:
-        typeof parsed.setSeconds === 'number' && parsed.setSeconds > 0
-          ? parsed.setSeconds
-          : defaultSettings.setSeconds,
-      restSeconds:
-        typeof parsed.restSeconds === 'number' && parsed.restSeconds > 0
-          ? parsed.restSeconds
-          : defaultSettings.restSeconds,
-    };
+    const raw = localStorage.getItem(KEY);
+    if (!raw) return DEFAULT_SETTINGS;
+    return sanitize(JSON.parse(raw));
   } catch {
-    return defaultSettings;
+    return DEFAULT_SETTINGS;
   }
 }
 
-export function saveTimerSettings(settings: TimerSettings) {
-  localStorage.setItem(TIMER_SETTINGS_KEY, JSON.stringify(settings));
-  emitUpdate();
-}
+export function saveTimerSettings(settings: Partial<TimerSettings>) {
+  if (typeof window === 'undefined') return;
 
-export function updateSetSeconds(seconds: number) {
   const current = getTimerSettings();
-  saveTimerSettings({
-    ...current,
-    setSeconds: Math.max(5, Math.floor(seconds)),
-  });
-}
+  const next = sanitize({ ...current, ...settings });
 
-export function updateRestSeconds(seconds: number) {
-  const current = getTimerSettings();
-  saveTimerSettings({
-    ...current,
-    restSeconds: Math.max(5, Math.floor(seconds)),
-  });
-}
-
-export function toggleTimerEnabled() {
-  const current = getTimerSettings();
-  saveTimerSettings({
-    ...current,
-    enabled: !current.enabled,
-  });
+  localStorage.setItem(KEY, JSON.stringify(next));
+  window.dispatchEvent(new CustomEvent('timer-settings-updated', { detail: next }));
 }
 
 export function resetTimerSettings() {
-  saveTimerSettings(defaultSettings);
-}
+  if (typeof window === 'undefined') return;
 
-export type WorkoutTimerState = {
-  running: boolean;
-  phase: TimerPhase;
-  remainingSeconds: number;
-};
-
-const WORKOUT_TIMER_KEY = 'gymrat-workout-timer-state';
-
-const defaultWorkoutTimerState = (): WorkoutTimerState => {
-  const settings = getTimerSettings();
-
-  return {
-    running: false,
-    phase: 'set',
-    remainingSeconds: settings.setSeconds,
-  };
-};
-
-function emitWorkoutUpdate() {
-  window.dispatchEvent(new CustomEvent('workout-timer-updated'));
-}
-
-export function getWorkoutTimerState(): WorkoutTimerState {
-  try {
-    const raw = localStorage.getItem(WORKOUT_TIMER_KEY);
-    if (!raw) return defaultWorkoutTimerState();
-
-    const parsed = JSON.parse(raw);
-
-    return {
-      running: typeof parsed.running === 'boolean' ? parsed.running : false,
-      phase: parsed.phase === 'rest' ? 'rest' : 'set',
-      remainingSeconds:
-        typeof parsed.remainingSeconds === 'number' && parsed.remainingSeconds >= 0
-          ? parsed.remainingSeconds
-          : defaultWorkoutTimerState().remainingSeconds,
-    };
-  } catch {
-    return defaultWorkoutTimerState();
-  }
-}
-
-export function saveWorkoutTimerState(state: WorkoutTimerState) {
-  localStorage.setItem(WORKOUT_TIMER_KEY, JSON.stringify(state));
-  emitWorkoutUpdate();
-}
-
-export function startWorkoutTimer() {
-  const settings = getTimerSettings();
-  const current = getWorkoutTimerState();
-
-  if (!settings.enabled) return;
-
-  saveWorkoutTimerState({
-    ...current,
-    running: true,
-    remainingSeconds:
-      current.remainingSeconds > 0
-        ? current.remainingSeconds
-        : current.phase === 'set'
-        ? settings.setSeconds
-        : settings.restSeconds,
-  });
-}
-
-export function pauseWorkoutTimer() {
-  const current = getWorkoutTimerState();
-  saveWorkoutTimerState({
-    ...current,
-    running: false,
-  });
-}
-
-export function stopWorkoutTimer() {
-  const settings = getTimerSettings();
-  saveWorkoutTimerState({
-    running: false,
-    phase: 'set',
-    remainingSeconds: settings.setSeconds,
-  });
-}
-
-export function tickWorkoutTimer() {
-  const current = getWorkoutTimerState();
-  const settings = getTimerSettings();
-
-  if (!current.running) return current;
-
-  if (current.remainingSeconds > 1) {
-    const updated = {
-      ...current,
-      remainingSeconds: current.remainingSeconds - 1,
-    };
-    saveWorkoutTimerState(updated);
-    return updated;
-  }
-
-  const nextPhase: TimerPhase = current.phase === 'set' ? 'rest' : 'set';
-  const nextSeconds = nextPhase === 'set' ? settings.setSeconds : settings.restSeconds;
-
-  const updated = {
-    running: true,
-    phase: nextPhase,
-    remainingSeconds: nextSeconds,
-  };
-
-  saveWorkoutTimerState(updated);
-  return updated;
-}
-
-export function resetWorkoutTimerToPhase(phase: TimerPhase = 'set') {
-  const settings = getTimerSettings();
-
-  saveWorkoutTimerState({
-    running: false,
-    phase,
-    remainingSeconds: phase === 'set' ? settings.setSeconds : settings.restSeconds,
-  });
+  localStorage.setItem(KEY, JSON.stringify(DEFAULT_SETTINGS));
+  window.dispatchEvent(new CustomEvent('timer-settings-updated', { detail: DEFAULT_SETTINGS }));
 }

@@ -1,309 +1,288 @@
-import { Purchases } from '@revenuecat/purchases-capacitor';
-import { Capacitor } from '@capacitor/core';
-import { getCustomerInfo, getOfferings } from '../revenuecat';
+export type PremiumPlan = 'monthly' | 'yearly' | 'lifetime';
+export type PremiumSource = 'preview' | 'revenuecat' | 'manual';
 
-export type PremiumPlan = 'monthly' | 'yearly' | null;
-export type PremiumSource = 'revenuecat' | 'preview' | 'none';
-
-export type PremiumState = {
+export type PremiumStatus = {
+  isPremium: boolean;
   isActive: boolean;
-  entitlementId: string | null;
-  plan: PremiumPlan;
-  source: PremiumSource;
-  expiresAt: string | null;
-  managementURL: string | null;
-  lastSyncedAt: string | null;
+  source?: PremiumSource;
+  plan?: PremiumPlan;
+  expiresAt?: string;
+  trialUsed: boolean;
 };
 
-const KEY = 'gymrat-premium-store';
-
-const defaultState: PremiumState = {
-  isActive: false,
-  entitlementId: null,
-  plan: null,
-  source: 'none',
-  expiresAt: null,
-  managementURL: null,
-  lastSyncedAt: null,
+type PurchaseResult = {
+  ok: boolean;
+  reason?:
+    | 'cancelled'
+    | 'not-supported'
+    | 'package-not-found'
+    | 'preview-only'
+    | 'nothing-to-restore'
+    | 'failed';
 };
 
-function isNativePlatform() {
-  const platform = Capacitor.getPlatform();
-  return platform === 'ios' || platform === 'android';
-}
+const PREMIUM_KEY = 'gymrat-premium-active';
+const PREMIUM_SOURCE_KEY = 'gymrat-premium-source';
+const PREMIUM_PLAN_KEY = 'gymrat-premium-plan';
+const PREMIUM_EXPIRY_KEY = 'gymrat-premium-expiry';
+const PREMIUM_TRIAL_KEY = 'gymrat-premium-trial-used';
+const PREMIUM_EVENT = 'premium-updated';
 
-function readState(): PremiumState {
-  if (typeof window === 'undefined') return defaultState;
-
-  const raw = localStorage.getItem(KEY);
-  if (!raw) return defaultState;
-
-  try {
-    return {
-      ...defaultState,
-      ...JSON.parse(raw),
-    } as PremiumState;
-  } catch {
-    return defaultState;
-  }
-}
-
-function writeState(next: PremiumState) {
+function emit(status: PremiumStatus) {
   if (typeof window === 'undefined') return;
-  localStorage.setItem(KEY, JSON.stringify(next));
-  window.dispatchEvent(new CustomEvent('gymrat:premium-updated', { detail: next }));
+  window.dispatchEvent(new CustomEvent(PREMIUM_EVENT, { detail: status }));
 }
 
-function normalizePlan(productId?: string | null): PremiumPlan {
-  if (!productId) return null;
-
-  const id = productId.toLowerCase();
-
-  if (
-    id.includes('year') ||
-    id.includes('annual') ||
-    id.includes('yearly') ||
-    id.includes('12m')
-  ) {
-    return 'yearly';
-  }
-
-  if (
-    id.includes('month') ||
-    id.includes('monthly') ||
-    id.includes('1m')
-  ) {
-    return 'monthly';
-  }
-
-  return null;
-}
-
-function extractActiveEntitlement(customerInfo: any) {
-  const active = customerInfo?.customerInfo?.entitlements?.active
-    ?? customerInfo?.entitlements?.active
-    ?? {};
-
-  const entries = Object.entries(active);
-  if (!entries.length) return null;
-
-  const preferred =
-    entries.find(([key]) => key.toLowerCase() === 'premium') ??
-    entries[0];
-
-  const [entitlementId, entitlement] = preferred as [string, any];
+function normalizeStatus(status: Partial<PremiumStatus>): PremiumStatus {
+  const isPremium = status.isPremium === true || status.isActive === true;
 
   return {
-    entitlementId,
-    entitlement,
+    isPremium,
+    isActive: isPremium,
+    source: status.source,
+    plan: status.plan,
+    expiresAt: status.expiresAt,
+    trialUsed: status.trialUsed === true,
   };
 }
 
-function mapCustomerInfoToState(customerInfo: any): PremiumState {
-  const activeEntitlement = extractActiveEntitlement(customerInfo);
+function savePremiumStatus(input: Partial<PremiumStatus>) {
+  if (typeof window === 'undefined') return;
 
-  if (!activeEntitlement) {
+  const status = normalizeStatus(input);
+
+  localStorage.setItem(PREMIUM_KEY, status.isPremium ? 'true' : 'false');
+
+  if (status.source) localStorage.setItem(PREMIUM_SOURCE_KEY, status.source);
+  else localStorage.removeItem(PREMIUM_SOURCE_KEY);
+
+  if (status.plan) localStorage.setItem(PREMIUM_PLAN_KEY, status.plan);
+  else localStorage.removeItem(PREMIUM_PLAN_KEY);
+
+  if (status.expiresAt) localStorage.setItem(PREMIUM_EXPIRY_KEY, status.expiresAt);
+  else localStorage.removeItem(PREMIUM_EXPIRY_KEY);
+
+  if (status.trialUsed) localStorage.setItem(PREMIUM_TRIAL_KEY, 'true');
+  else localStorage.removeItem(PREMIUM_TRIAL_KEY);
+
+  emit(status);
+}
+
+export function checkPremium(): boolean {
+  if (typeof window === 'undefined') return false;
+  return localStorage.getItem(PREMIUM_KEY) === 'true';
+}
+
+export function isPremiumUnlocked(): boolean {
+  return checkPremium();
+}
+
+export function getPremiumStatus(): PremiumStatus {
+  if (typeof window === 'undefined') {
     return {
-      ...defaultState,
-      source: 'revenuecat',
-      lastSyncedAt: new Date().toISOString(),
-      managementURL:
-        customerInfo?.customerInfo?.managementURL ??
-        customerInfo?.managementURL ??
-        null,
+      isPremium: false,
+      isActive: false,
+      trialUsed: false,
     };
   }
 
-  const { entitlementId, entitlement } = activeEntitlement;
+  const isPremium = localStorage.getItem(PREMIUM_KEY) === 'true';
 
   return {
-    isActive: true,
-    entitlementId,
-    plan: normalizePlan(
-      entitlement?.productIdentifier ??
-        entitlement?.product_identifier ??
-        null
-    ),
-    source: 'revenuecat',
-    expiresAt:
-      entitlement?.expirationDate ??
-      entitlement?.expiration_date ??
-      null,
-    managementURL:
-      customerInfo?.customerInfo?.managementURL ??
-      customerInfo?.managementURL ??
-      null,
-    lastSyncedAt: new Date().toISOString(),
+    isPremium,
+    isActive: isPremium,
+    source: (localStorage.getItem(PREMIUM_SOURCE_KEY) as PremiumSource | null) ?? undefined,
+    plan: (localStorage.getItem(PREMIUM_PLAN_KEY) as PremiumPlan | null) ?? undefined,
+    expiresAt: localStorage.getItem(PREMIUM_EXPIRY_KEY) ?? undefined,
+    trialUsed: localStorage.getItem(PREMIUM_TRIAL_KEY) === 'true',
   };
 }
 
 export function getPremiumState() {
-  return readState();
+  return getPremiumStatus();
 }
 
-export function isPremiumUnlocked() {
-  return readState().isActive;
-}
-
-export function getPremiumPlan() {
-  return readState().plan;
-}
-
-export function getPremiumManagementURL() {
-  return readState().managementURL;
-}
-
-export function subscribePremium(listener: (state: PremiumState) => void) {
-  const handler = (event: Event) => {
-    const customEvent = event as CustomEvent<PremiumState>;
-    listener(customEvent.detail ?? readState());
-  };
-
-  window.addEventListener('gymrat:premium-updated', handler);
-
-  return () => {
-    window.removeEventListener('gymrat:premium-updated', handler);
-  };
-}
-
-export async function refreshPremiumStatus() {
-  if (!isNativePlatform()) {
-    const current = readState();
-    writeState({
-      ...current,
-      lastSyncedAt: new Date().toISOString(),
-    });
-    return current;
-  }
-
-  try {
-    const customerInfo = await getCustomerInfo();
-    const next = mapCustomerInfoToState(customerInfo);
-    writeState(next);
-    return next;
-  } catch (error) {
-    console.error('Failed to refresh premium status:', error);
-    return readState();
-  }
-}
-
-function resolvePackageFromOffering(offerings: any, plan: Exclude<PremiumPlan, null>) {
-  const current =
-    offerings?.current ??
-    offerings?.all?.default ??
-    null;
-
-  if (!current) return null;
-
-  const availablePackages: any[] = current.availablePackages ?? [];
-
-  const findByPackageType = (packageType: string) =>
-    availablePackages.find(
-      (pkg) => String(pkg.packageType ?? '').toUpperCase() === packageType
-    );
-
-  const findByIdentifierIncludes = (needle: string) =>
-    availablePackages.find((pkg) =>
-      String(
-        pkg.identifier ??
-          pkg.packageIdentifier ??
-          pkg.product?.identifier ??
-          pkg.storeProduct?.identifier ??
-          ''
-      )
-        .toLowerCase()
-        .includes(needle)
-    );
-
-  if (plan === 'monthly') {
-    return (
-      findByPackageType('MONTHLY') ??
-      findByIdentifierIncludes('month') ??
-      findByIdentifierIncludes('monthly')
-    );
-  }
-
-  return (
-    findByPackageType('ANNUAL') ??
-    findByPackageType('YEARLY') ??
-    findByIdentifierIncludes('year') ??
-    findByIdentifierIncludes('annual') ??
-    findByIdentifierIncludes('yearly')
-  );
-}
-
-export async function purchasePremium(plan: Exclude<PremiumPlan, null>) {
-  if (!isNativePlatform()) {
-    console.log('RevenueCat purchase skipped: not running on native iOS/Android');
-    return { ok: false as const, reason: 'not-native' as const };
-  }
-
-  try {
-    const offerings = await getOfferings();
-    const targetPackage = resolvePackageFromOffering(offerings, plan);
-
-    if (!targetPackage) {
-      return { ok: false as const, reason: 'package-not-found' as const };
-    }
-
-    await Purchases.purchasePackage({
-      aPackage: targetPackage,
-    });
-
-    const next = await refreshPremiumStatus();
-    return { ok: true as const, state: next };
-  } catch (error: any) {
-    const code = error?.code ?? error?.message ?? 'purchase-failed';
-    const userCancelled =
-      code === 'PURCHASE_CANCELLED_ERROR' ||
-      String(code).toLowerCase().includes('cancel');
-
-    return {
-      ok: false as const,
-      reason: userCancelled ? 'cancelled' as const : 'purchase-failed' as const,
-      error,
-    };
-  }
-}
-
-export async function restorePremium() {
-  if (!isNativePlatform()) {
-    console.log('RevenueCat restore skipped: not running on native iOS/Android');
-    return { ok: false as const, reason: 'not-native' as const };
-  }
-
-  try {
-    await Purchases.restorePurchases();
-    const next = await refreshPremiumStatus();
-    return { ok: true as const, state: next };
-  } catch (error) {
-    console.error('Failed to restore purchases:', error);
-    return { ok: false as const, reason: 'restore-failed' as const, error };
-  }
-}
-
-/**
- * Behåll preview för lokal UI-testning i browser/emulator när store-flow inte används.
- * Vi kan ta bort detta helt senare när allt är kopplat live.
- */
 export function unlockPremiumPreview(plan: PremiumPlan = 'monthly') {
-  const next: PremiumState = {
+  savePremiumStatus({
+    isPremium: true,
     isActive: true,
-    entitlementId: 'premium',
-    plan,
     source: 'preview',
-    expiresAt: null,
-    managementURL: null,
-    lastSyncedAt: new Date().toISOString(),
-  };
-
-  writeState(next);
-  return next;
+    plan,
+    trialUsed: true,
+  });
 }
 
 export function clearPremiumPreview() {
-  writeState(defaultState);
+  savePremiumStatus({
+    isPremium: false,
+    isActive: false,
+    source: undefined,
+    plan: undefined,
+    expiresAt: undefined,
+    trialUsed: false,
+  });
 }
-export function checkPremium() {
-  return isPremiumUnlocked();
+
+export function subscribePremium(listener: (state: PremiumStatus) => void) {
+  if (typeof window === 'undefined') {
+    return () => undefined;
+  }
+
+  const handler = (event: Event) => {
+    const custom = event as CustomEvent<PremiumStatus>;
+    listener(custom.detail ?? getPremiumStatus());
+  };
+
+  window.addEventListener(PREMIUM_EVENT, handler);
+  listener(getPremiumStatus());
+
+  return () => {
+    window.removeEventListener(PREMIUM_EVENT, handler);
+  };
+}
+
+function getPurchases(): any | null {
+  if (typeof window === 'undefined') return null;
+  return (window as any).Purchases ?? null;
+}
+
+function inferPlanFromPackageId(value: string): PremiumPlan | undefined {
+  const id = value.toLowerCase();
+  if (id.includes('month')) return 'monthly';
+  if (id.includes('year') || id.includes('annual')) return 'yearly';
+  if (id.includes('life')) return 'lifetime';
+  return undefined;
+}
+
+export async function syncPremiumFromRevenueCat(): Promise<boolean> {
+  const Purchases = getPurchases();
+  if (!Purchases?.getCustomerInfo) return checkPremium();
+
+  try {
+    const customerInfo = await Purchases.getCustomerInfo();
+    const entitlement =
+      customerInfo?.customerInfo?.entitlements?.active?.premium ??
+      customerInfo?.entitlements?.active?.premium;
+
+    if (!entitlement) {
+      savePremiumStatus({
+        isPremium: false,
+        isActive: false,
+        trialUsed: getPremiumStatus().trialUsed,
+      });
+      return false;
+    }
+
+    savePremiumStatus({
+      isPremium: true,
+      isActive: true,
+      source: 'revenuecat',
+      plan: inferPlanFromPackageId(entitlement.productIdentifier ?? ''),
+      expiresAt: entitlement.expirationDate ?? undefined,
+      trialUsed: getPremiumStatus().trialUsed || entitlement.periodType === 'TRIAL',
+    });
+
+    return true;
+  } catch {
+    return checkPremium();
+  }
+}
+
+export async function getOfferings(): Promise<any | null> {
+  const Purchases = getPurchases();
+  if (!Purchases?.getOfferings) return null;
+
+  try {
+    return await Purchases.getOfferings();
+  } catch {
+    return null;
+  }
+}
+
+export async function purchasePackage(rcPackage: any): Promise<boolean> {
+  const Purchases = getPurchases();
+  if (!Purchases?.purchasePackage || !rcPackage) return false;
+
+  try {
+    const result = await Purchases.purchasePackage({ aPackage: rcPackage });
+    const entitlement =
+      result?.customerInfo?.entitlements?.active?.premium ??
+      result?.entitlements?.active?.premium;
+
+    const isPremium = Boolean(entitlement);
+
+    savePremiumStatus({
+      isPremium,
+      isActive: isPremium,
+      source: isPremium ? 'revenuecat' : undefined,
+      plan: isPremium ? inferPlanFromPackageId(entitlement?.productIdentifier ?? '') : undefined,
+      expiresAt: entitlement?.expirationDate ?? undefined,
+      trialUsed: getPremiumStatus().trialUsed || entitlement?.periodType === 'TRIAL',
+    });
+
+    return isPremium;
+  } catch (error: any) {
+    if (error?.userCancelled) return false;
+    return false;
+  }
+}
+
+export async function restorePurchases(): Promise<boolean> {
+  const Purchases = getPurchases();
+  if (!Purchases?.restorePurchases) return false;
+
+  try {
+    const result = await Purchases.restorePurchases();
+    const entitlement =
+      result?.customerInfo?.entitlements?.active?.premium ??
+      result?.entitlements?.active?.premium;
+
+    const isPremium = Boolean(entitlement);
+
+    savePremiumStatus({
+      isPremium,
+      isActive: isPremium,
+      source: isPremium ? 'revenuecat' : undefined,
+      plan: isPremium ? inferPlanFromPackageId(entitlement?.productIdentifier ?? '') : undefined,
+      expiresAt: entitlement?.expirationDate ?? undefined,
+      trialUsed: getPremiumStatus().trialUsed,
+    });
+
+    return isPremium;
+  } catch {
+    return false;
+  }
+}
+
+export async function purchasePremium(plan: PremiumPlan): Promise<PurchaseResult> {
+  const offerings = await getOfferings();
+
+  if (!offerings) {
+    return { ok: false, reason: 'preview-only' };
+  }
+
+  const current = offerings.current;
+  const availablePackages: any[] = current?.availablePackages ?? [];
+
+  const selectedPackage =
+    availablePackages.find((pkg) => {
+      const identifier = String(pkg?.identifier ?? '').toLowerCase();
+      const productId = String(pkg?.product?.identifier ?? pkg?.productIdentifier ?? '').toLowerCase();
+
+      if (plan === 'monthly') return identifier.includes('month') || productId.includes('month');
+      if (plan === 'yearly') return identifier.includes('year') || productId.includes('year') || productId.includes('annual');
+      return identifier.includes('life') || productId.includes('life');
+    }) ?? null;
+
+  if (!selectedPackage) {
+    return { ok: false, reason: 'package-not-found' };
+  }
+
+  const ok = await purchasePackage(selectedPackage);
+  return ok ? { ok: true } : { ok: false, reason: 'failed' };
+}
+
+export async function restorePremiumPurchases(): Promise<PurchaseResult> {
+  const ok = await restorePurchases();
+  return ok ? { ok: true } : { ok: false, reason: 'nothing-to-restore' };
 }

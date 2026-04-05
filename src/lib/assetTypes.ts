@@ -9,7 +9,9 @@ export type ItemSlot =
   | 'feet'
   | 'aura';
 
-export type EquippedItems = Partial<Record<ItemSlot, string>>;
+export type EquippedItems = Partial<Record<ItemSlot, string>> & {
+  background?: string;
+};
 
 export type AssetShopItem = {
   id: string;
@@ -18,8 +20,7 @@ export type AssetShopItem = {
   price: number;
   emoji: string;
   slot: ItemSlot;
-  owned: boolean;
   isPremium: boolean;
-  unlockLevel?: number;
+  unlockLevel: number;
   image?: string;
 };

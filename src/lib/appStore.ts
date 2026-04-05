@@ -1,124 +1,200 @@
-import { getBackgroundImage, getItemImage, getRatImage } from '@/lib/assetRegistry';
-import type { RatVariant } from '@/lib/assetTypes';
-import type { UserGender } from '@/lib/profileStore';
-import { getEquippedItems } from '@/lib/shopStore';
+export type AppPage =
+  | 'home'
+  | 'workout'
+  | 'complete'
+  | 'history'
+  | 'nutrition'
+  | 'shop'
+  | 'gallery'
+  | 'premium'
+  | 'settings'
+  | 'daily';
 
-type Props = {
+export type AppStats = {
   level: number;
-  gender?: UserGender;
-  size?: 'hero' | 'card';
+  totalXP: number;
+  currentLevelXP: number;
+  nextLevelXP: number;
+  progressPercent: number;
+  totalWorkouts: number;
+  streak: number;
 };
 
-function mapGenderToVariant(gender?: UserGender): RatVariant {
-  if (gender === 'female') return 'female';
-  if (gender === 'non-binary') return 'nonbinary';
-  return 'male';
-}
+type AppState = {
+  currentPage: AppPage;
+  menuOpen: boolean;
+  paywallOpen: boolean;
+  workoutSummary: unknown | null;
+  xp: number;
+};
 
-function getFrameClass(size: 'hero' | 'card') {
-  if (size === 'card') {
-    return 'h-[190px] w-[190px] sm:h-[210px] sm:w-[210px]';
+const KEY = 'gymrat-app-store';
+const XP_PER_LEVEL = 250;
+
+const DEFAULT_STATE: AppState = {
+  currentPage: 'home',
+  menuOpen: false,
+  paywallOpen: false,
+  workoutSummary: null,
+  xp: 0,
+};
+
+function readState(): AppState {
+  if (typeof window === 'undefined') return DEFAULT_STATE;
+
+  const raw = localStorage.getItem(KEY);
+  if (!raw) return DEFAULT_STATE;
+
+  try {
+    const parsed = JSON.parse(raw);
+    return {
+      ...DEFAULT_STATE,
+      ...parsed,
+      currentPage: isValidPage(parsed?.currentPage) ? parsed.currentPage : 'home',
+      xp: typeof parsed?.xp === 'number' ? parsed.xp : 0,
+      menuOpen: parsed?.menuOpen === true,
+      paywallOpen: parsed?.paywallOpen === true,
+      workoutSummary: parsed?.workoutSummary ?? null,
+    };
+  } catch {
+    return DEFAULT_STATE;
   }
-
-  return 'h-[300px] w-[300px] sm:h-[360px] sm:w-[360px]';
 }
 
-function getRatPadding(size: 'hero' | 'card') {
-  return size === 'hero' ? 'p-2 sm:p-3' : 'p-2';
+function writeState(state: AppState) {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(KEY, JSON.stringify(state));
+  window.dispatchEvent(new CustomEvent('app-store-updated', { detail: state }));
 }
 
-function getOverlayClass(slot?: string) {
-  switch (slot) {
-    case 'aura':
-      return 'absolute inset-[-4%] z-[5] h-[108%] w-[108%] object-contain opacity-95';
-    case 'head':
-      return 'absolute inset-0 z-[30] h-full w-full object-contain';
-    case 'eyes':
-      return 'absolute inset-0 z-[31] h-full w-full object-contain';
-    case 'neck':
-      return 'absolute inset-0 z-[28] h-full w-full object-contain';
-    case 'top':
-      return 'absolute inset-0 z-[24] h-full w-full object-contain';
-    case 'pants':
-      return 'absolute inset-0 z-[22] h-full w-full object-contain';
-    case 'feet':
-      return 'absolute inset-0 z-[21] h-full w-full object-contain';
-    default:
-      return 'absolute inset-0 z-[20] h-full w-full object-contain';
+function isValidPage(value: unknown): value is AppPage {
+  return [
+    'home',
+    'workout',
+    'complete',
+    'history',
+    'nutrition',
+    'shop',
+    'gallery',
+    'premium',
+    'settings',
+    'daily',
+  ].includes(String(value));
+}
+
+export function getCurrentPage(): AppPage {
+  return readState().currentPage;
+}
+
+export function setCurrentPage(currentPage: AppPage) {
+  const state = readState();
+  writeState({ ...state, currentPage });
+}
+
+export function getUIState() {
+  const state = readState();
+  return {
+    menuOpen: state.menuOpen,
+    paywallOpen: state.paywallOpen,
+  };
+}
+
+export function setMenuOpen(menuOpen: boolean) {
+  const state = readState();
+  writeState({ ...state, menuOpen });
+}
+
+export function setPaywallOpen(paywallOpen: boolean) {
+  const state = readState();
+  writeState({ ...state, paywallOpen });
+}
+
+export function setWorkoutSummary(workoutSummary: unknown | null) {
+  const state = readState();
+  writeState({ ...state, workoutSummary });
+}
+
+export function getWorkoutSummary<T = unknown>() {
+  return readState().workoutSummary as T | null;
+}
+
+export function addXP(amount: number) {
+  const state = readState();
+  writeState({
+    ...state,
+    xp: Math.max(0, state.xp + Math.max(0, amount)),
+  });
+}
+
+export function getTotalXP() {
+  return readState().xp;
+}
+
+export function getLevelFromXP(xp: number) {
+  return Math.floor(Math.max(0, xp) / XP_PER_LEVEL) + 1;
+}
+
+function getHistoryEntries(): Array<{ completedAt?: string }> {
+  if (typeof window === 'undefined') return [];
+
+  try {
+    const raw = localStorage.getItem('gymrat-history-store');
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
   }
 }
 
-export default function EquippedRatPreview({ level, gender, size = 'hero' }: Props) {
-  const variant = mapGenderToVariant(gender);
-  const ratImage = getRatImage(level, variant);
-  const equipped = getEquippedItems();
+function calculateStreak(entries: Array<{ completedAt?: string }>) {
+  if (!entries.length) return 0;
 
-  const backgroundImage = equipped.background ? getBackgroundImage(equipped.background) : undefined;
-
-  const auraImage = equipped.aura ? getItemImage(equipped.aura) : undefined;
-  const headImage = equipped.head ? getItemImage(equipped.head) : undefined;
-  const eyesImage = equipped.eyes ? getItemImage(equipped.eyes) : undefined;
-  const neckImage = equipped.neck ? getItemImage(equipped.neck) : undefined;
-  const topImage = equipped.top ? getItemImage(equipped.top) : undefined;
-  const pantsImage = equipped.pants ? getItemImage(equipped.pants) : undefined;
-  const feetImage = equipped.feet ? getItemImage(equipped.feet) : undefined;
-
-  const frameClass = getFrameClass(size);
-  const ratPadding = getRatPadding(size);
-
-  return (
-    <div className={`relative ${frameClass}`}>
-      <div className="absolute inset-0 rounded-[2rem] bg-[radial-gradient(circle_at_50%_20%,rgba(74,222,128,0.16),transparent_45%),linear-gradient(180deg,rgba(24,24,27,0.82),rgba(9,9,11,0.96))] shadow-[0_20px_80px_rgba(0,0,0,0.45)]" />
-      <div className="absolute inset-[1px] rounded-[2rem] border border-white/10 bg-white/[0.03]" />
-      <div className="absolute inset-4 rounded-[1.5rem] bg-gradient-to-b from-white/[0.05] via-transparent to-black/20" />
-
-      <div className="absolute inset-0 overflow-hidden rounded-[2rem]">
-        <div className="absolute left-1/2 top-[10%] h-[28%] w-[60%] -translate-x-1/2 rounded-full bg-emerald-400/12 blur-3xl" />
-        <div className="absolute bottom-[12%] left-1/2 h-[22%] w-[72%] -translate-x-1/2 rounded-full bg-lime-300/8 blur-3xl" />
-      </div>
-
-      <div className="absolute inset-[10px] overflow-hidden rounded-[1.6rem]">
-        {backgroundImage ? (
-          <img
-            src={backgroundImage}
-            alt="Background"
-            className="absolute inset-0 z-0 h-full w-full object-cover opacity-90"
-          />
-        ) : (
-          <div className="absolute inset-0 z-0 bg-[radial-gradient(circle_at_top,rgba(34,197,94,0.15),transparent_42%),linear-gradient(180deg,rgba(24,24,27,0.45),rgba(9,9,11,0.86))]" />
-        )}
-
-        <div className="absolute inset-0 z-[1] bg-gradient-to-b from-black/10 via-transparent to-black/35" />
-      </div>
-
-      <div className={`absolute inset-[12px] z-10 ${ratPadding}`}>
-        <div className="relative h-full w-full">
-          {auraImage ? (
-            <img src={auraImage} alt="Aura" className={getOverlayClass('aura')} />
-          ) : null}
-
-          {ratImage ? (
-            <img
-              src={ratImage}
-              alt="Gym Rat"
-              className="absolute inset-0 z-[10] h-full w-full object-contain drop-shadow-[0_22px_40px_rgba(0,0,0,0.42)]"
-            />
-          ) : (
-            <div className="absolute inset-0 z-[10] flex items-center justify-center text-[96px]">
-              🐀
-            </div>
-          )}
-
-          {pantsImage ? <img src={pantsImage} alt="Pants" className={getOverlayClass('pants')} /> : null}
-          {feetImage ? <img src={feetImage} alt="Feet" className={getOverlayClass('feet')} /> : null}
-          {topImage ? <img src={topImage} alt="Top" className={getOverlayClass('top')} /> : null}
-          {neckImage ? <img src={neckImage} alt="Neck" className={getOverlayClass('neck')} /> : null}
-          {headImage ? <img src={headImage} alt="Head" className={getOverlayClass('head')} /> : null}
-          {eyesImage ? <img src={eyesImage} alt="Eyes" className={getOverlayClass('eyes')} /> : null}
-        </div>
-      </div>
-
-      <div className="absolute inset-x-[16%] bottom-3 h-6 rounded-full bg-emerald-300/8 blur-2xl" />
-    </div>
+  const uniqueDays = new Set(
+    entries
+      .map((entry) => {
+        if (!entry?.completedAt) return null;
+        const date = new Date(entry.completedAt);
+        if (Number.isNaN(date.getTime())) return null;
+        return date.toISOString().slice(0, 10);
+      })
+      .filter(Boolean) as string[]
   );
+
+  if (!uniqueDays.size) return 0;
+
+  let streak = 0;
+  const cursor = new Date();
+  cursor.setHours(0, 0, 0, 0);
+
+  while (true) {
+    const iso = cursor.toISOString().slice(0, 10);
+    if (!uniqueDays.has(iso)) break;
+    streak += 1;
+    cursor.setDate(cursor.getDate() - 1);
+  }
+
+  return streak;
+}
+
+export function getAppStats(): AppStats {
+  const state = readState();
+  const level = getLevelFromXP(state.xp);
+  const levelStartXP = (level - 1) * XP_PER_LEVEL;
+  const currentLevelXP = state.xp - levelStartXP;
+  const progressPercent = Math.min(100, (currentLevelXP / XP_PER_LEVEL) * 100);
+  const historyEntries = getHistoryEntries();
+
+  return {
+    level,
+    totalXP: state.xp,
+    currentLevelXP,
+    nextLevelXP: XP_PER_LEVEL,
+    progressPercent,
+    totalWorkouts: historyEntries.length,
+    streak: calculateStreak(historyEntries),
+  };
+}
+
+export function resetAppState() {
+  writeState(DEFAULT_STATE);
 }

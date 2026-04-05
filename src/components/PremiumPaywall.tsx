@@ -1,121 +1,58 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
+import { Check, Crown, Sparkles, X } from 'lucide-react';
 import {
-  Apple,
-  Check,
-  Crown,
-  Dumbbell,
-  History,
-  Loader2,
-  Sparkles,
-  Wand2,
-  X,
-} from 'lucide-react';
-import {
-  isPremiumUnlocked,
+  clearPremiumPreview,
+  getPremiumState,
   purchasePremium,
-  refreshPremiumStatus,
-  restorePremium,
+  restorePremiumPurchases,
+  unlockPremiumPreview,
+  type PremiumPlan,
 } from '@/lib/premiumStore';
-import {
-  getPaywallHeadline,
-  getPaywallSubheadline,
-  markPaywallShown,
-  type PaywallTrigger,
-} from '@/lib/PayWallStore';
 
 type PremiumPaywallProps = {
-  open: boolean;
+  isOpen: boolean;
   onClose: () => void;
-  trigger?: PaywallTrigger;
-  onUnlocked?: () => void;
 };
 
+const FEATURES = [
+  'Nutrition tracking with goals and macro support',
+  'Workout history and deeper progress overview',
+  'Custom workouts and broader training control',
+  'Premium cosmetics and stronger identity feel',
+  'Future premium unlocks without cluttering free flow',
+];
+
 export default function PremiumPaywall({
-  open,
+  isOpen,
   onClose,
-  trigger = 'manual',
-  onUnlocked,
 }: PremiumPaywallProps) {
-  const [loadingPlan, setLoadingPlan] = useState<'monthly' | 'yearly' | null>(null);
-  const [restoring, setRestoring] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<PremiumPlan>('monthly');
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const benefits = useMemo(
-    () => [
-      {
-        icon: <Apple size={18} className="text-lime-300" />,
-        title: 'Nutrition',
-        text: 'Macros, logging and cleaner food progress.',
-      },
-      {
-        icon: <History size={18} className="text-cyan-300" />,
-        title: 'History',
-        text: 'Full workout history and clearer progression review.',
-      },
-      {
-        icon: <Dumbbell size={18} className="text-orange-300" />,
-        title: 'Custom Workouts',
-        text: 'Build your own sessions without friction.',
-      },
-      {
-        icon: <Sparkles size={18} className="text-fuchsia-300" />,
-        title: 'XP Boost',
-        text: 'More reward feeling and faster momentum.',
-      },
-      {
-        icon: <Wand2 size={18} className="text-amber-300" />,
-        title: 'Premium Cosmetics',
-        text: 'Exclusive premium visuals and identity upgrades.',
-      },
-      {
-        icon: <Crown size={18} className="text-yellow-300" />,
-        title: 'Premium Status',
-        text: 'More than features — visible value in the app.',
-      },
-    ],
-    []
-  );
+  const premiumState = useMemo(() => getPremiumState(), [isOpen]);
+  const isActive = premiumState.isActive;
 
-  useEffect(() => {
-    if (!open) return;
-    markPaywallShown();
-    setError(null);
-  }, [open]);
-
-  const headline = getPaywallHeadline(trigger);
-  const subheadline = getPaywallSubheadline(trigger);
-
-  const handlePurchase = async (plan: 'monthly' | 'yearly') => {
-    if (loadingPlan || restoring) return;
-
-    setLoadingPlan(plan);
+  const handlePurchase = async () => {
+    setIsLoading(true);
     setError(null);
 
     try {
-      const result = await purchasePremium(plan);
+      const result = await purchasePremium(selectedPlan);
 
       if (result.ok) {
-        await refreshPremiumStatus();
-
-        if (isPremiumUnlocked()) {
-          onUnlocked?.();
-          onClose();
-          return;
-        }
-
-        setError('Purchase completed, but premium did not unlock yet.');
+        onClose();
         return;
       }
 
-      if (result.reason === 'cancelled') {
-        setError('Purchase cancelled.');
+      if (result.reason === 'preview-only') {
+        unlockPremiumPreview(selectedPlan);
+        onClose();
         return;
       }
 
-      if (result.reason === 'not-native') {
-        setError(
-          'Purchases run in native iOS/Android builds. In browser, use preview mode from Settings.'
-        );
+      if (result.reason === 'not-supported') {
+        setError('Purchases are only available on device builds right now. In browser, use preview mode from Settings.');
         return;
       }
 
@@ -128,34 +65,24 @@ export default function PremiumPaywall({
     } catch {
       setError('Purchase failed. Please try again.');
     } finally {
-      setLoadingPlan(null);
+      setIsLoading(false);
     }
   };
 
   const handleRestore = async () => {
-    if (loadingPlan || restoring) return;
-
-    setRestoring(true);
+    setIsLoading(true);
     setError(null);
 
     try {
-      const result = await restorePremium();
+      const restored = await restorePremiumPurchases();
 
-      if (result.ok) {
-        await refreshPremiumStatus();
-
-        if (isPremiumUnlocked()) {
-          onUnlocked?.();
-          onClose();
-          return;
-        }
-
-        setError('Restore completed, but no active premium was found.');
+      if (restored.ok) {
+        onClose();
         return;
       }
 
-      if (result.reason === 'not-native') {
-        setError('Restore only works in native iOS/Android builds.');
+      if (restored.reason === 'nothing-to-restore') {
+        setError('No purchases found to restore.');
         return;
       }
 
@@ -163,131 +90,170 @@ export default function PremiumPaywall({
     } catch {
       setError('Restore failed. Please try again.');
     } finally {
-      setRestoring(false);
+      setIsLoading(false);
     }
   };
 
-  if (!open) return null;
+  const handlePreviewUnlock = () => {
+    unlockPremiumPreview(selectedPlan);
+    onClose();
+  };
+
+  const handlePreviewClear = () => {
+    clearPremiumPreview();
+    setError(null);
+  };
+
+  if (!isOpen) return null;
 
   return (
     <div
-      className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 px-4 py-6 backdrop-blur-sm"
+      className="fixed inset-0 z-[60] bg-black/75 backdrop-blur-sm"
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-2xl rounded-[32px] border border-white/10 bg-[linear-gradient(180deg,rgba(18,18,22,0.98),rgba(11,12,16,0.98))] p-5 text-white shadow-[0_25px_100px_rgba(0,0,0,0.55)] md:p-7"
+        className="absolute inset-x-0 bottom-0 mx-auto w-full max-w-[430px] rounded-t-[2rem] border border-white/10 bg-[#09090b] p-4 text-white shadow-[0_-24px_80px_rgba(0,0,0,0.45)]"
         onClick={(e) => e.stopPropagation()}
       >
-        <button
-          type="button"
-          onClick={onClose}
-          className="absolute right-4 top-4 inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-white/75 transition hover:bg-white/[0.09] hover:text-white"
-          aria-label="Close premium paywall"
-        >
-          <X size={18} />
-        </button>
-
-        <div className="pr-12">
-          <div className="inline-flex items-center gap-2 rounded-full border border-lime-400/20 bg-lime-400/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.22em] text-lime-300">
-            <Crown size={14} />
-            GymRat Premium
-          </div>
-
-          <h2 className="mt-4 text-3xl font-black tracking-tight">
-            {headline}
-          </h2>
-
-          <p className="mt-2 max-w-xl text-sm leading-6 text-white/65">
-            {subheadline}
-          </p>
-        </div>
-
-        <div className="mt-5 grid gap-3 md:grid-cols-2">
-          {benefits.map((benefit) => (
-            <div
-              key={benefit.title}
-              className="rounded-2xl border border-white/8 bg-white/[0.04] p-4"
-            >
-              <div className="flex items-start gap-3">
-                <div className="mt-0.5">{benefit.icon}</div>
-                <div>
-                  <div className="text-sm font-bold text-white">{benefit.title}</div>
-                  <div className="mt-1 text-sm leading-5 text-white/60">
-                    {benefit.text}
-                  </div>
-                </div>
-              </div>
+        <div className="mb-4 flex items-center justify-between">
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-200/80">
+              Premium
             </div>
-          ))}
-        </div>
-
-        <div className="mt-5 rounded-2xl border border-amber-300/10 bg-amber-300/[0.06] p-4">
-          <div className="flex items-start gap-3">
-            <Sparkles className="mt-0.5 text-amber-200" size={18} />
-            <div>
-              <div className="text-sm font-bold text-white">
-                Premium should feel visible
-              </div>
-              <div className="mt-1 text-sm leading-5 text-white/65">
-                Premium is not only features. It should also unlock cleaner visuals,
-                stronger identity and exclusive cosmetics.
-              </div>
-            </div>
+            <h2 className="mt-1 text-2xl font-black">Level up harder</h2>
           </div>
-        </div>
-
-        {error ? (
-          <div className="mt-4 rounded-2xl border border-red-400/20 bg-red-400/10 px-4 py-3 text-sm font-medium text-red-200">
-            {error}
-          </div>
-        ) : null}
-
-        <div className="mt-5 grid gap-3">
-          <button
-            type="button"
-            onClick={() => handlePurchase('monthly')}
-            disabled={!!loadingPlan || restoring}
-            className="inline-flex min-h-[56px] w-full items-center justify-center gap-2 rounded-2xl bg-lime-400 px-4 py-3 text-sm font-black text-black transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {loadingPlan === 'monthly' ? (
-              <Loader2 size={18} className="animate-spin" />
-            ) : (
-              <Check size={18} />
-            )}
-            Start Monthly
-          </button>
-
-          <button
-            type="button"
-            onClick={() => handlePurchase('yearly')}
-            disabled={!!loadingPlan || restoring}
-            className="inline-flex min-h-[56px] w-full items-center justify-center gap-2 rounded-2xl border border-white/12 bg-white/[0.05] px-4 py-3 text-sm font-bold text-white transition hover:bg-white/[0.09] disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {loadingPlan === 'yearly' ? (
-              <Loader2 size={18} className="animate-spin" />
-            ) : (
-              <Crown size={18} />
-            )}
-            Best Value • Yearly
-          </button>
-        </div>
-
-        <div className="mt-4 flex flex-col items-center gap-3 text-center">
-          <button
-            type="button"
-            onClick={handleRestore}
-            disabled={!!loadingPlan || restoring}
-            className="text-sm font-medium text-white/70 transition hover:text-white disabled:opacity-60"
-          >
-            {restoring ? 'Restoring…' : 'Restore purchases'}
-          </button>
 
           <button
             type="button"
             onClick={onClose}
-            className="text-sm font-semibold text-white/55 transition hover:text-white"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] transition hover:bg-white/[0.08]"
+            aria-label="Close paywall"
           >
-            Continue free
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="rounded-[1.75rem] border border-amber-400/20 bg-[linear-gradient(180deg,rgba(251,191,36,0.12),rgba(255,255,255,0.03))] p-5">
+          <div className="inline-flex rounded-2xl bg-amber-400/10 p-3 text-amber-200">
+            <Crown className="h-5 w-5" />
+          </div>
+
+          <h3 className="mt-4 text-2xl font-black">GymRat Premium</h3>
+          <p className="mt-2 text-sm text-zinc-300">
+            Keep free simple. Unlock the deeper systems only when the user wants more.
+          </p>
+
+          <div className="mt-4 space-y-2">
+            {FEATURES.map((feature) => (
+              <div
+                key={feature}
+                className="flex items-start gap-3 rounded-2xl border border-white/10 bg-black/20 px-3 py-3"
+              >
+                <div className="mt-0.5 inline-flex rounded-full bg-emerald-400/10 p-1 text-emerald-300">
+                  <Check className="h-3.5 w-3.5" />
+                </div>
+                <span className="text-sm text-zinc-200">{feature}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="mt-4 grid grid-cols-2 gap-3">
+          <button
+            type="button"
+            onClick={() => setSelectedPlan('monthly')}
+            className={`rounded-3xl border p-4 text-left transition ${
+              selectedPlan === 'monthly'
+                ? 'border-emerald-400/20 bg-emerald-400/10'
+                : 'border-white/10 bg-white/[0.04]'
+            }`}
+          >
+            <div className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-400">
+              Monthly
+            </div>
+            <div className="mt-1 text-lg font-black">1 month</div>
+            <div className="mt-1 text-sm text-zinc-400">Flexible entry</div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setSelectedPlan('yearly')}
+            className={`rounded-3xl border p-4 text-left transition ${
+              selectedPlan === 'yearly'
+                ? 'border-emerald-400/20 bg-emerald-400/10'
+                : 'border-white/10 bg-white/[0.04]'
+            }`}
+          >
+            <div className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-400">
+              Yearly
+            </div>
+            <div className="mt-1 text-lg font-black">12 months</div>
+            <div className="mt-1 text-sm text-zinc-400">Best long-term value</div>
+          </button>
+        </div>
+
+        {isActive ? (
+          <div className="mt-4 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 p-4">
+            <div className="flex items-center gap-2 text-emerald-200">
+              <Sparkles className="h-4 w-4" />
+              <span className="text-sm font-semibold">Premium is active</span>
+            </div>
+            <p className="mt-2 text-sm text-zinc-200">
+              Source: {premiumState.source ?? 'unknown'}
+            </p>
+          </div>
+        ) : null}
+
+        {error ? (
+          <div className="mt-4 rounded-2xl border border-red-400/20 bg-red-400/10 p-4 text-sm text-red-100">
+            {error}
+          </div>
+        ) : null}
+
+        <div className="mt-4 grid gap-3">
+          <button
+            type="button"
+            onClick={handlePurchase}
+            disabled={isLoading}
+            className="inline-flex w-full items-center justify-center rounded-2xl bg-emerald-400 px-4 py-4 text-sm font-black uppercase tracking-[0.14em] text-black transition disabled:opacity-60"
+          >
+            {isLoading ? 'Working...' : selectedPlan === 'monthly' ? 'Start monthly premium' : 'Start yearly premium'}
+          </button>
+
+          <button
+            type="button"
+            onClick={handleRestore}
+            disabled={isLoading}
+            className="inline-flex w-full items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-4 text-sm font-semibold transition hover:bg-white/[0.08] disabled:opacity-60"
+          >
+            Restore purchases
+          </button>
+
+          <button
+            type="button"
+            onClick={handlePreviewUnlock}
+            disabled={isLoading}
+            className="inline-flex w-full items-center justify-center rounded-2xl border border-amber-400/20 bg-amber-400/10 px-4 py-4 text-sm font-semibold text-amber-100 transition hover:bg-amber-400/15 disabled:opacity-60"
+          >
+            Preview unlock
+          </button>
+
+          {isActive ? (
+            <button
+              type="button"
+              onClick={handlePreviewClear}
+              className="inline-flex w-full items-center justify-center rounded-2xl border border-white/10 bg-transparent px-4 py-4 text-sm font-semibold text-zinc-300 transition hover:bg-white/[0.04]"
+            >
+              Clear preview premium
+            </button>
+          ) : null}
+
+          <button
+            type="button"
+            onClick={onClose}
+            className="inline-flex w-full items-center justify-center rounded-2xl bg-transparent px-4 py-2 text-sm text-zinc-400 transition hover:text-white"
+          >
+            Continue without premium
           </button>
         </div>
       </div>
