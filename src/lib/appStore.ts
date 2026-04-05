@@ -65,19 +65,19 @@ function isValidPage(value: unknown): value is AppPage {
 function readState(): AppState {
   if (typeof window === 'undefined') return DEFAULT_STATE;
 
-  const raw = localStorage.getItem(KEY);
-  if (!raw) return DEFAULT_STATE;
-
   try {
+    const raw = localStorage.getItem(KEY);
+    if (!raw) return DEFAULT_STATE;
+
     const parsed = JSON.parse(raw) as Partial<AppState>;
 
     return {
       ...DEFAULT_STATE,
       ...parsed,
-      currentPage: isValidPage(parsed?.currentPage) ? parsed.currentPage : 'home',
-      menuOpen: parsed?.menuOpen === true,
-      paywallOpen: parsed?.paywallOpen === true,
-      workoutSummary: parsed?.workoutSummary ?? null,
+      currentPage: isValidPage(parsed.currentPage) ? parsed.currentPage : 'home',
+      menuOpen: parsed.menuOpen === true,
+      paywallOpen: parsed.paywallOpen === true,
+      workoutSummary: parsed.workoutSummary ?? null,
     };
   } catch {
     return DEFAULT_STATE;
@@ -86,10 +86,25 @@ function readState(): AppState {
 
 function writeState(state: AppState) {
   if (typeof window === 'undefined') return;
-  localStorage.setItem(KEY, JSON.stringify(state));
+
+  const currentRaw = localStorage.getItem(KEY);
+  let current: Record<string, unknown> = {};
+
+  try {
+    current = currentRaw ? JSON.parse(currentRaw) : {};
+  } catch {
+    current = {};
+  }
+
+  const merged = {
+    ...current,
+    ...state,
+  };
+
+  localStorage.setItem(KEY, JSON.stringify(merged));
   window.dispatchEvent(
     new CustomEvent('app-store-updated', {
-      detail: state,
+      detail: merged,
     })
   );
 }
@@ -105,7 +120,6 @@ export function setCurrentPage(currentPage: AppPage) {
 
 export function getUIState() {
   const state = readState();
-
   return {
     menuOpen: state.menuOpen,
     paywallOpen: state.paywallOpen,
@@ -127,7 +141,7 @@ export function setWorkoutSummary(workoutSummary: unknown | null) {
   writeState({ ...state, workoutSummary });
 }
 
-export function getWorkoutSummary<T = unknown>() {
+export function getWorkoutSummary<T>() {
   return readState().workoutSummary as T | null;
 }
 

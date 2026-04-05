@@ -1,33 +1,97 @@
-type WorkoutDraft = {
-  startedAt: string | null;
+export type WorkoutDraft = {
+  startedAt: string;
+  workoutName?: string;
+  notes?: string;
 };
 
-const KEY = 'gymrat-workout-store';
+export type WorkoutExerciseLog = {
+  id: string;
+  name: string;
+  muscleGroup: string;
+  sets: number;
+  reps: string;
+  weight: number;
+  completed: boolean;
+};
 
-function read(): WorkoutDraft {
-  if (typeof window === 'undefined') return { startedAt: null };
-  const raw = localStorage.getItem(KEY);
-  if (!raw) return { startedAt: null };
+export type WorkoutSummary = {
+  workoutName: string;
+  durationMinutes: number;
+  exercisesCompleted: number;
+  totalExercises: number;
+  totalSets: number;
+  totalVolume: number;
+  xpEarned: number;
+  completedAt: string;
+};
+
+const DRAFT_KEY = 'gymrat-workout-draft';
+const SUMMARY_KEY = 'gymrat-last-workout-summary';
+
+function readDraft(): WorkoutDraft | null {
+  if (typeof window === 'undefined') return null;
 
   try {
-    return { startedAt: null, ...JSON.parse(raw) } as WorkoutDraft;
+    const raw = localStorage.getItem(DRAFT_KEY);
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw) as Partial<WorkoutDraft>;
+    if (typeof parsed.startedAt !== 'string' || parsed.startedAt.length === 0) {
+      return null;
+    }
+
+    return {
+      startedAt: parsed.startedAt,
+      workoutName: typeof parsed.workoutName === 'string' ? parsed.workoutName : undefined,
+      notes: typeof parsed.notes === 'string' ? parsed.notes : undefined,
+    };
   } catch {
-    return { startedAt: null };
+    return null;
   }
 }
 
-function write(state: WorkoutDraft) {
-  localStorage.setItem(KEY, JSON.stringify(state));
+function writeDraft(draft: WorkoutDraft | null) {
+  if (typeof window === 'undefined') return;
+
+  if (draft === null) {
+    localStorage.removeItem(DRAFT_KEY);
+  } else {
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+  }
+
+  window.dispatchEvent(
+    new CustomEvent('workout-draft-updated', {
+      detail: draft,
+    })
+  );
 }
 
 export function getWorkoutDraft() {
-  return read();
+  return readDraft();
 }
 
 export function saveWorkoutDraft(draft: WorkoutDraft) {
-  write(draft);
+  writeDraft(draft);
 }
 
 export function clearWorkoutDraft() {
-  write({ startedAt: null });
+  writeDraft(null);
+}
+
+export function saveLastWorkoutSummary(summary: WorkoutSummary) {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(SUMMARY_KEY, JSON.stringify(summary));
+}
+
+export function getLastWorkoutSummary(): WorkoutSummary | null {
+  if (typeof window === 'undefined') return null;
+
+  try {
+    const raw = localStorage.getItem(SUMMARY_KEY);
+    if (!raw) return null;
+
+    return JSON.parse(raw) as WorkoutSummary;
+  } catch {
+    return null;
+  }
 }

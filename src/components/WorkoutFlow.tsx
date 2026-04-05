@@ -8,6 +8,7 @@ import {
   Timer,
   Trash2,
 } from 'lucide-react';
+import { saveWorkoutDraft, clearWorkoutDraft } from '@/lib/workoutStore';
 
 type WorkoutRow = {
   id: string;
@@ -30,16 +31,25 @@ type WorkoutFlowProps = {
 const EXERCISE_OPTIONS = [
   'Bench Press',
   'Incline Dumbbell Press',
+  'Chest Fly',
   'Lat Pulldown',
   'Barbell Row',
+  'Seated Cable Row',
   'Shoulder Press',
   'Lateral Raise',
+  'Rear Delt Fly',
   'Barbell Curl',
+  'Hammer Curl',
   'Triceps Pushdown',
+  'Overhead Extension',
   'Squat',
   'Leg Press',
   'Romanian Deadlift',
+  'Leg Curl',
+  'Leg Extension',
   'Calf Raise',
+  'Crunch',
+  'Plank',
 ];
 
 function createId() {
@@ -71,7 +81,10 @@ function formatMinutes(totalSeconds: number) {
   const hours = Math.floor(minutes / 60);
   const mins = minutes % 60;
 
-  if (hours > 0) return `${hours}h ${mins}m`;
+  if (hours > 0) {
+    return `${hours}h ${mins}m`;
+  }
+
   return `${minutes} min`;
 }
 
@@ -87,19 +100,14 @@ function SummaryCard({
   accent?: string;
 }) {
   return (
-    <div className="rounded-[1.4rem] border border-white/10 bg-white/[0.05] p-4 shadow-[0_12px_35px_rgba(0,0,0,0.22)]">
-      <div className="mb-2 flex items-center gap-2 text-white/55">
-        <div className="rounded-full border border-white/10 bg-black/20 p-2">
-          {icon}
-        </div>
-        <span className="text-[0.68rem] font-semibold uppercase tracking-[0.16em]">
-          {label}
-        </span>
+    <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-4 shadow-[0_10px_30px_rgba(0,0,0,0.25)]">
+      <div className="flex items-center gap-2 text-xs uppercase tracking-[0.22em] text-zinc-400">
+        <span className={accent}>{icon}</span>
+        <span>{label}</span>
       </div>
-
-      <p className={`text-xl font-black tracking-tight ${accent ?? 'text-white'}`}>
+      <div className={`mt-3 text-2xl font-black text-white ${accent ?? ''}`}>
         {value}
-      </p>
+      </div>
     </div>
   );
 }
@@ -124,6 +132,14 @@ export default function WorkoutFlow({
     return () => window.clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    saveWorkoutDraft({
+      startedAt: new Date(Date.now() - elapsedSeconds * 1000).toISOString(),
+      workoutName,
+      notes: JSON.stringify(rows),
+    });
+  }, [elapsedSeconds, workoutName, rows]);
+
   const volume = useMemo(() => {
     return rows.reduce((sum, row) => sum + row.sets * row.reps * row.weight, 0);
   }, [rows]);
@@ -133,7 +149,9 @@ export default function WorkoutFlow({
       (row) => row.exercise.trim() && row.sets > 0 && row.reps > 0
     ).length;
 
-    return rows.length === 0 ? 0 : Math.round((completed / rows.length) * 100);
+    return rows.length === 0
+      ? 0
+      : Math.max(0, Math.min(100, Math.round((completed / rows.length) * 100)));
   }, [rows]);
 
   const durationMinutes = Math.max(1, Math.round(elapsedSeconds / 60));
@@ -165,6 +183,8 @@ export default function WorkoutFlow({
       0
     );
 
+    clearWorkoutDraft();
+
     onComplete({
       workoutName: workoutName.trim() || 'Workout',
       durationMinutes,
@@ -174,37 +194,45 @@ export default function WorkoutFlow({
   };
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(16,185,129,0.16),transparent_28%),linear-gradient(180deg,#07110d_0%,#0b1511_38%,#050806_100%)] px-4 pb-8 pt-5 text-white">
-      <div className="mx-auto max-w-md">
-        <div className="mb-4 flex items-center justify-between">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(34,197,94,0.18),_transparent_35%),linear-gradient(180deg,_#09090b_0%,_#111113_100%)] px-4 py-5 text-white">
+      <div className="mx-auto flex w-full max-w-3xl flex-col gap-4">
+        <div className="flex items-center justify-between">
           <button
             onClick={onBack}
-            className="flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.05] px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/[0.08]"
+            type="button"
+            className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-semibold text-zinc-200 transition hover:bg-white/[0.08]"
           >
             <ArrowLeft className="h-4 w-4" />
             Back
           </button>
 
-          <div className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-[0.68rem] font-black uppercase tracking-[0.18em] text-emerald-300">
-            Workout
+          <div className="rounded-full border border-emerald-400/25 bg-emerald-400/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.24em] text-emerald-300">
+            Workout Live
           </div>
         </div>
 
-        <div className="rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.03))] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.42)] backdrop-blur-md">
-          <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-[0.68rem] font-black uppercase tracking-[0.18em] text-white/75">
-            <Flame className="h-3.5 w-3.5" />
-            <span>Live</span>
+        <div className="overflow-hidden rounded-[32px] border border-white/10 bg-white/[0.04] shadow-[0_20px_60px_rgba(0,0,0,0.35)]">
+          <div className="border-b border-white/10 bg-gradient-to-r from-emerald-500/15 via-lime-400/10 to-transparent p-5">
+            <div className="flex items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-400/15 text-emerald-300">
+                <Dumbbell className="h-6 w-6" />
+              </div>
+
+              <div>
+                <p className="text-xs uppercase tracking-[0.24em] text-zinc-400">
+                  Train clean. Level up.
+                </p>
+                <h1 className="text-2xl font-black sm:text-3xl">Workout Flow</h1>
+              </div>
+            </div>
+
+            <p className="mt-3 max-w-xl text-sm text-zinc-300">
+              Fast workout logging with a premium feel. Clean, simple, and ready
+              to finish strong.
+            </p>
           </div>
 
-          <h1 className="mt-4 text-3xl font-black tracking-tight text-white">
-            Train clean. Level up.
-          </h1>
-
-          <p className="mt-3 text-sm leading-6 text-white/65">
-            Fast workout flow, premium feel, zero clutter.
-          </p>
-
-          <div className="mt-5 grid grid-cols-3 gap-3">
+          <div className="grid gap-3 p-4 sm:grid-cols-3">
             <SummaryCard
               icon={<Check className="h-4 w-4" />}
               label="Progress"
@@ -212,7 +240,7 @@ export default function WorkoutFlow({
               accent="text-emerald-300"
             />
             <SummaryCard
-              icon={<Dumbbell className="h-4 w-4" />}
+              icon={<Flame className="h-4 w-4" />}
               label="Exercises"
               value={rows.length}
             />
@@ -222,51 +250,51 @@ export default function WorkoutFlow({
               value={formatMinutes(elapsedSeconds)}
             />
           </div>
+        </div>
 
-          <div className="mt-5 rounded-[1.5rem] border border-white/10 bg-black/20 p-4">
-            <label className="block">
-              <span className="text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-white/45">
-                Workout name
-              </span>
-              <input
-                value={workoutName}
-                onChange={(e) => setWorkoutName(e.target.value)}
-                className="mt-2 w-full rounded-2xl border border-white/10 bg-zinc-900 px-4 py-3 text-white outline-none transition focus:border-emerald-400"
-                placeholder="Push Session"
-              />
-            </label>
-          </div>
+        <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-5 shadow-[0_16px_50px_rgba(0,0,0,0.28)]">
+          <label className="block text-xs font-bold uppercase tracking-[0.22em] text-zinc-400">
+            Workout name
+          </label>
+          <input
+            value={workoutName}
+            onChange={(e) => setWorkoutName(e.target.value)}
+            className="mt-2 w-full rounded-2xl border border-white/10 bg-zinc-900 px-4 py-3 text-white outline-none transition focus:border-emerald-400"
+            placeholder="Push Session"
+          />
+        </div>
 
-          <div className="mt-5 space-y-3">
-            {rows.map((row, index) => (
-              <div
-                key={row.id}
-                className="rounded-[1.5rem] border border-white/10 bg-black/20 p-4"
-              >
-                <div className="mb-4 flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-white/45">
-                      Exercise {index + 1}
-                    </p>
-                    <p className="mt-1 text-sm font-bold text-white">
-                      Log your work
-                    </p>
-                  </div>
-
-                  <button
-                    onClick={() => removeRow(row.id)}
-                    className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-zinc-300 transition hover:bg-white/[0.08]"
-                    aria-label="Remove exercise"
-                    type="button"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
+        <div className="flex flex-col gap-4">
+          {rows.map((row, index) => (
+            <div
+              key={row.id}
+              className="rounded-[28px] border border-white/10 bg-white/[0.04] p-5 shadow-[0_16px_50px_rgba(0,0,0,0.28)]"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.22em] text-zinc-400">
+                    Exercise {index + 1}
+                  </p>
+                  <h2 className="mt-1 text-lg font-bold text-white">
+                    Log your work
+                  </h2>
                 </div>
 
-                <label className="block">
-                  <span className="text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-white/45">
+                <button
+                  onClick={() => removeRow(row.id)}
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-zinc-300 transition hover:bg-white/[0.08]"
+                  aria-label="Remove exercise"
+                  type="button"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div className="mt-4 grid gap-4">
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-[0.18em] text-zinc-400">
                     Exercise
-                  </span>
+                  </label>
                   <select
                     value={row.exercise}
                     onChange={(e) =>
@@ -280,15 +308,17 @@ export default function WorkoutFlow({
                       </option>
                     ))}
                   </select>
-                </label>
+                </div>
 
-                <div className="mt-4 grid grid-cols-3 gap-3">
-                  <label className="block">
-                    <span className="text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-white/45">
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="text-xs font-bold uppercase tracking-[0.18em] text-zinc-400">
                       Sets
-                    </span>
+                    </label>
                     <input
                       type="number"
+                      min={1}
+                      max={20}
                       value={row.sets}
                       onChange={(e) =>
                         updateRow(row.id, {
@@ -297,14 +327,16 @@ export default function WorkoutFlow({
                       }
                       className="mt-2 w-full rounded-2xl border border-white/10 bg-zinc-900 px-4 py-3 text-white outline-none transition focus:border-emerald-400"
                     />
-                  </label>
+                  </div>
 
-                  <label className="block">
-                    <span className="text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-white/45">
+                  <div>
+                    <label className="text-xs font-bold uppercase tracking-[0.18em] text-zinc-400">
                       Reps
-                    </span>
+                    </label>
                     <input
                       type="number"
+                      min={1}
+                      max={50}
                       value={row.reps}
                       onChange={(e) =>
                         updateRow(row.id, {
@@ -313,14 +345,16 @@ export default function WorkoutFlow({
                       }
                       className="mt-2 w-full rounded-2xl border border-white/10 bg-zinc-900 px-4 py-3 text-white outline-none transition focus:border-emerald-400"
                     />
-                  </label>
+                  </div>
 
-                  <label className="block">
-                    <span className="text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-white/45">
+                  <div>
+                    <label className="text-xs font-bold uppercase tracking-[0.18em] text-zinc-400">
                       Weight
-                    </span>
+                    </label>
                     <input
                       type="number"
+                      min={0}
+                      max={500}
                       value={row.weight}
                       onChange={(e) =>
                         updateRow(row.id, {
@@ -329,56 +363,53 @@ export default function WorkoutFlow({
                       }
                       className="mt-2 w-full rounded-2xl border border-white/10 bg-zinc-900 px-4 py-3 text-white outline-none transition focus:border-emerald-400"
                     />
-                  </label>
+                  </div>
                 </div>
               </div>
-            ))}
+            </div>
+          ))}
+        </div>
+
+        <button
+          onClick={addRow}
+          type="button"
+          className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 font-semibold text-zinc-200 transition hover:bg-white/[0.08]"
+        >
+          <Plus className="h-4 w-4" />
+          Add exercise
+        </button>
+
+        <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-5 shadow-[0_16px_50px_rgba(0,0,0,0.28)]">
+          <div className="flex items-center gap-2 text-xs uppercase tracking-[0.22em] text-zinc-400">
+            <Timer className="h-4 w-4 text-emerald-300" />
+            Session summary
           </div>
 
-          <button
-            onClick={addRow}
-            type="button"
-            className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3 text-sm font-bold text-white transition hover:bg-white/[0.08]"
-          >
-            <Plus className="h-4 w-4" />
-            <span>Add exercise</span>
-          </button>
-
-          <div className="mt-5 rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-4">
-            <div className="mb-3 flex items-center justify-between">
-              <p className="text-sm font-bold text-white">Session summary</p>
-              <div className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[0.62rem] font-semibold uppercase tracking-[0.14em] text-white/45">
-                Live
-              </div>
+          <div className="mt-4 grid grid-cols-2 gap-3">
+            <div className="rounded-2xl border border-white/10 bg-zinc-950/60 p-4">
+              <p className="text-xs uppercase tracking-[0.18em] text-zinc-500">
+                Estimated volume
+              </p>
+              <p className="mt-2 text-2xl font-black text-white">{volume} kg</p>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
-                <p className="text-[0.62rem] font-semibold uppercase tracking-[0.14em] text-white/40">
-                  Estimated volume
-                </p>
-                <p className="mt-1 text-base font-black text-emerald-300">
-                  {volume} kg
-                </p>
-              </div>
-
-              <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
-                <p className="text-[0.62rem] font-semibold uppercase tracking-[0.14em] text-white/40">
-                  Duration
-                </p>
-                <p className="mt-1 text-base font-black text-white">
-                  {durationMinutes} min
-                </p>
-              </div>
+            <div className="rounded-2xl border border-white/10 bg-zinc-950/60 p-4">
+              <p className="text-xs uppercase tracking-[0.18em] text-zinc-500">
+                Duration
+              </p>
+              <p className="mt-2 text-2xl font-black text-white">
+                {durationMinutes} min
+              </p>
             </div>
           </div>
 
           <button
             onClick={handleComplete}
-            className="mt-5 flex w-full items-center justify-center gap-3 rounded-[1.6rem] border border-emerald-300/20 bg-[linear-gradient(90deg,rgba(16,185,129,0.95),rgba(132,204,22,0.95))] px-5 py-4 text-base font-black tracking-[0.04em] text-black shadow-[0_18px_45px_rgba(16,185,129,0.28)] transition-transform duration-200 hover:scale-[1.01] active:scale-[0.99]"
+            type="button"
+            className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-400 via-lime-300 to-emerald-300 px-5 py-4 text-sm font-black text-black shadow-[0_12px_35px_rgba(74,222,128,0.35)] transition hover:scale-[1.01]"
           >
-            <Check className="h-5 w-5" />
-            <span>Finish workout</span>
+            <Check className="h-4 w-4" />
+            Finish workout
           </button>
         </div>
       </div>
