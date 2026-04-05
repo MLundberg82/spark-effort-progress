@@ -1,38 +1,106 @@
 export type LevelVisual = {
+  milestone: number;
   tierLabel: string;
   title: string;
   subtitle: string;
-  milestone: string;
 };
 
-const milestones = [
-  { min: 100, tierLabel: 'Mythic', title: 'Mythic Rat', subtitle: 'Peak form. Fully ascended.', milestone: 'LVL 100' },
-  { min: 90, tierLabel: 'Legend', title: 'Legend Rat', subtitle: 'Elite presence with undeniable aura.', milestone: 'LVL 90' },
-  { min: 80, tierLabel: 'King', title: 'King Rat', subtitle: 'You own the room and the grind.', milestone: 'LVL 80' },
-  { min: 70, tierLabel: 'Dominus', title: 'Dominus Rat', subtitle: 'Dominant, advanced, relentless.', milestone: 'LVL 70' },
-  { min: 60, tierLabel: 'Elite', title: 'Elite Rat', subtitle: 'Sharper look. Stronger identity.', milestone: 'LVL 60' },
-  { min: 50, tierLabel: 'Alpha', title: 'Alpha Rat', subtitle: 'Clear progression. Clear presence.', milestone: 'LVL 50' },
-  { min: 40, tierLabel: 'Beast', title: 'Beast Rat', subtitle: 'Heavy work starts to show.', milestone: 'LVL 40' },
-  { min: 35, tierLabel: 'Advanced', title: 'Advanced Rat', subtitle: 'You are not dabbling anymore.', milestone: 'LVL 35' },
-  { min: 30, tierLabel: 'Strong', title: 'Strong Rat', subtitle: 'Momentum is visible now.', milestone: 'LVL 30' },
-  { min: 25, tierLabel: 'Built', title: 'Built Rat', subtitle: 'More size. More confidence.', milestone: 'LVL 25' },
-  { min: 20, tierLabel: 'Rising', title: 'Rising Rat', subtitle: 'A real base is forming.', milestone: 'LVL 20' },
-  { min: 15, tierLabel: 'Solid', title: 'Solid Rat', subtitle: 'Consistency is paying off.', milestone: 'LVL 15' },
-  { min: 10, tierLabel: 'Rookie+', title: 'Rookie Plus', subtitle: 'Past the beginner energy.', milestone: 'LVL 10' },
-  { min: 5, tierLabel: 'Rookie', title: 'Rookie Rat', subtitle: 'The grind has started to stick.', milestone: 'LVL 5' },
-  { min: 1, tierLabel: 'Starter', title: 'Starter Rat', subtitle: 'Every level begins with one session.', milestone: 'LVL 1' },
-];
+const MILESTONES = [1, 5, 10, 15, 20, 25, 30, 35, 40, 50, 60, 70, 80, 90, 100];
+
+function getMilestone(level: number) {
+  let current = 1;
+
+  for (const value of MILESTONES) {
+    if (level >= value) current = value;
+  }
+
+  return current;
+}
+
+const VISUALS: Record<number, Omit<LevelVisual, 'milestone'>> = {
+  1: {
+    tierLabel: 'Underground',
+    title: 'The Beginning',
+    subtitle: 'Raw start. Low level, high hunger, zero excuses.',
+  },
+  5: {
+    tierLabel: 'Regular',
+    title: 'Routine Builder',
+    subtitle: 'Momentum starts showing. You are not guessing anymore.',
+  },
+  10: {
+    tierLabel: 'Rising',
+    title: 'Visible Progress',
+    subtitle: 'You look more locked in. Training has become part of identity.',
+  },
+  15: {
+    tierLabel: 'Grind',
+    title: 'Grind Mode',
+    subtitle: 'Consistency is now stronger than motivation.',
+  },
+  20: {
+    tierLabel: 'Strong',
+    title: 'Solid Frame',
+    subtitle: 'The rat looks tougher. Sessions are stacking into real change.',
+  },
+  25: {
+    tierLabel: 'Buff',
+    title: 'Built Different',
+    subtitle: 'You are clearly leveling up. More mass, more presence, more aura.',
+  },
+  30: {
+    tierLabel: 'Alpha',
+    title: 'Alpha Presence',
+    subtitle: 'The build gets sharper. You are starting to look like a problem.',
+  },
+  35: {
+    tierLabel: 'Alpha+',
+    title: 'Dominant Rhythm',
+    subtitle: 'You move like somebody who does not negotiate with weakness.',
+  },
+  40: {
+    tierLabel: 'Dominus',
+    title: 'Dominus Form',
+    subtitle: 'Premium identity starts to hit. Bigger silhouette, stronger vibe.',
+  },
+  50: {
+    tierLabel: 'Apex',
+    title: 'Apex Hunter',
+    subtitle: 'Confident, controlled and visibly more advanced.',
+  },
+  60: {
+    tierLabel: 'Elite',
+    title: 'Elite Build',
+    subtitle: 'This is no longer casual progress. This is a serious form.',
+  },
+  70: {
+    tierLabel: 'Legend',
+    title: 'Legend Energy',
+    subtitle: 'Heavy status. High level. The rat now feels dangerous.',
+  },
+  80: {
+    tierLabel: 'King',
+    title: 'King Form',
+    subtitle: 'Commanding presence with a premium, dominant finish.',
+  },
+  90: {
+    tierLabel: 'Ascended',
+    title: 'Ascended Beast',
+    subtitle: 'Rare form. The build is dramatic and the aura is obvious.',
+  },
+  100: {
+    tierLabel: 'Mythic',
+    title: 'Mythic GymRat',
+    subtitle: 'Top-tier evolution. Endgame energy.',
+  },
+};
 
 export function getLevelVisual(level: number): LevelVisual {
-  const safeLevel = Math.max(1, Math.floor(level || 1));
-  const match = milestones.find((entry) => safeLevel >= entry.min);
+  const milestone = getMilestone(level);
+  const visual = VISUALS[milestone] ?? VISUALS[1];
 
-  return (
-    match ?? {
-      tierLabel: 'Starter',
-      title: 'Starter Rat',
-      subtitle: 'Every level begins with one session.',
-      milestone: 'LVL 1',
-    }
-  );
+  return {
+    milestone,
+    ...visual,
+  };
 }

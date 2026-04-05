@@ -1,4 +1,9 @@
-import { exercises, type ExerciseDefinition, type MuscleGroup, type TrainingLevel } from '@/lib/exerciseData';
+import {
+  exercises,
+  type ExerciseDefinition,
+  type MuscleGroup,
+  type TrainingLevel,
+} from '@/lib/exerciseData';
 
 export type WorkoutDay = {
   label: string;
@@ -14,38 +19,40 @@ export type WorkoutPlan = {
 const LEVEL_KEY = 'gymrat-training-level';
 const PLAN_INDEX_KEY = 'gymrat-selected-plan-index';
 
+function isBrowser() {
+  return typeof window !== 'undefined' && typeof localStorage !== 'undefined';
+}
+
+function clampIndex(value: unknown) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 0) return 0;
+  return Math.floor(parsed);
+}
+
+function isTrainingLevel(value: unknown): value is TrainingLevel {
+  return value === 'beginner' || value === 'intermediate' || value === 'advanced';
+}
+
 export function getTrainingLevel(): TrainingLevel {
-  if (typeof window === 'undefined') return 'beginner';
+  if (!isBrowser()) return 'beginner';
 
   const raw = localStorage.getItem(LEVEL_KEY);
-  if (raw === 'beginner' || raw === 'intermediate' || raw === 'advanced') {
-    return raw;
-  }
-
-  return 'beginner';
+  return isTrainingLevel(raw) ? raw : 'beginner';
 }
 
 export function setTrainingLevel(level: TrainingLevel) {
-  if (typeof window === 'undefined') return;
+  if (!isBrowser()) return;
   localStorage.setItem(LEVEL_KEY, level);
 }
 
 export function getSelectedPlanIndex(): number {
-  if (typeof window === 'undefined') return 0;
-
-  const raw = localStorage.getItem(PLAN_INDEX_KEY);
-  const parsed = Number(raw);
-
-  if (Number.isFinite(parsed) && parsed >= 0) {
-    return Math.floor(parsed);
-  }
-
-  return 0;
+  if (!isBrowser()) return 0;
+  return clampIndex(localStorage.getItem(PLAN_INDEX_KEY));
 }
 
 export function setSelectedPlanIndex(index: number) {
-  if (typeof window === 'undefined') return;
-  localStorage.setItem(PLAN_INDEX_KEY, String(Math.max(0, Math.floor(index))));
+  if (!isBrowser()) return;
+  localStorage.setItem(PLAN_INDEX_KEY, String(clampIndex(index)));
 }
 
 export function getPlansForLevel(level: TrainingLevel): WorkoutPlan[] {
@@ -69,12 +76,12 @@ export function getPlansForLevel(level: TrainingLevel): WorkoutPlan[] {
         ],
       },
       {
-        name: '3-Day Split',
-        description: 'A little more focus per session while staying manageable.',
+        name: 'Walk + Lift',
+        description: 'A lower-pressure setup with walking included to keep momentum alive.',
         days: [
-          { label: 'Day 1', muscleGroups: ['chest', 'arms'] },
-          { label: 'Day 2', muscleGroups: ['back', 'shoulders'] },
-          { label: 'Day 3', muscleGroups: ['legs', 'core'] },
+          { label: 'Walk Day', muscleGroups: ['legs', 'core'] },
+          { label: 'Upper Day', muscleGroups: ['chest', 'back', 'arms', 'shoulders'] },
+          { label: 'Lower Day', muscleGroups: ['legs', 'core'] },
         ],
       },
     ];
@@ -103,14 +110,13 @@ export function getPlansForLevel(level: TrainingLevel): WorkoutPlan[] {
         ],
       },
       {
-        name: 'Bro Split',
-        description: 'Classic split with more muscle-specific sessions.',
+        name: 'Walk + Lift Hybrid',
+        description: 'Keeps intensity but gives a recovery-friendly fallback day.',
         days: [
-          { label: 'Chest', muscleGroups: ['chest'] },
-          { label: 'Back', muscleGroups: ['back'] },
-          { label: 'Shoulders', muscleGroups: ['shoulders'] },
-          { label: 'Legs', muscleGroups: ['legs'] },
-          { label: 'Arms & Core', muscleGroups: ['arms', 'core'] },
+          { label: 'Push', muscleGroups: ['chest', 'shoulders', 'arms'] },
+          { label: 'Pull', muscleGroups: ['back', 'arms'] },
+          { label: 'Walk / Core', muscleGroups: ['legs', 'core'] },
+          { label: 'Legs', muscleGroups: ['legs', 'core'] },
         ],
       },
     ];
@@ -142,15 +148,14 @@ export function getPlansForLevel(level: TrainingLevel): WorkoutPlan[] {
       ],
     },
     {
-      name: 'High Volume Split',
-      description: 'For users who want max training density and more sessions.',
+      name: 'Hybrid Performance',
+      description: 'Heavy training with walking fallback built into the week.',
       days: [
-        { label: 'Chest', muscleGroups: ['chest'] },
-        { label: 'Back', muscleGroups: ['back'] },
-        { label: 'Shoulders', muscleGroups: ['shoulders'] },
-        { label: 'Arms', muscleGroups: ['arms'] },
-        { label: 'Legs', muscleGroups: ['legs'] },
-        { label: 'Core', muscleGroups: ['core'] },
+        { label: 'Upper Power', muscleGroups: ['chest', 'back', 'shoulders'] },
+        { label: 'Walk Reset', muscleGroups: ['legs', 'core'] },
+        { label: 'Pull Strength', muscleGroups: ['back', 'arms'] },
+        { label: 'Legs', muscleGroups: ['legs', 'core'] },
+        { label: 'Push Volume', muscleGroups: ['chest', 'shoulders', 'arms'] },
       ],
     },
   ];
@@ -167,13 +172,18 @@ export function getExercisesForLevel(level: TrainingLevel): ExerciseDefinition[]
   const order: TrainingLevel[] = ['beginner', 'intermediate', 'advanced'];
   const currentIndex = order.indexOf(level);
 
-  return exercises.filter((exercise) => order.indexOf(exercise.level) <= currentIndex);
+  return exercises.filter(
+    (exercise) => order.indexOf(exercise.level) <= currentIndex,
+  );
 }
 
 export function getExercisesForWorkoutDay(
   level: TrainingLevel,
-  muscleGroups: MuscleGroup[]
+  muscleGroups: MuscleGroup[],
 ): ExerciseDefinition[] {
   const available = getExercisesForLevel(level);
-  return available.filter((exercise) => muscleGroups.includes(exercise.muscleGroup));
+
+  return available.filter((exercise) =>
+    muscleGroups.includes(exercise.muscleGroup),
+  );
 }

@@ -1,5 +1,8 @@
 import type { EquippedItems, SlotKey } from '@/lib/assetTypes';
+import { DEFAULT_EQUIPPED_ITEMS, createEmptyEquippedItems } from '@/lib/assetTypes';
+import { getBackgroundImage, getItemImageForSlot } from '@/lib/assetRegistry';
 import { checkPremium } from '@/lib/premiumStore';
+import { getProfile } from '@/lib/profileStore';
 
 export type ShopItem = {
   id: string;
@@ -21,24 +24,19 @@ type ShopState = {
 };
 
 const SHOP_KEY = 'gymrat-shop-store';
+const SHOP_EVENT = 'shop-updated';
 
 const DEFAULT_EQUIPPED: EquippedItems = {
-  head: null,
-  eyes: null,
-  neck: null,
-  top: null,
-  pants: null,
-  feet: null,
-  aura: null,
+  ...DEFAULT_EQUIPPED_ITEMS,
   background: 'bg-underground-1',
 };
 
-const CATALOG_BASE: Omit<ShopItem, 'owned' | 'accessible'>[] = [
+const CATALOG_BASE: Array<Omit<ShopItem, 'owned' | 'accessible'>> = [
   {
     id: 'cap-starter-core',
     slot: 'head',
     name: 'Starter Crown',
-    description: 'Simple headpiece that makes the rat feel leveled from day one.',
+    description: 'Simple crown to make the rat feel leveled from day one.',
     price: 9,
     priceLabel: '9 kr',
     emoji: '👑',
@@ -47,10 +45,10 @@ const CATALOG_BASE: Omit<ShopItem, 'owned' | 'accessible'>[] = [
     id: 'eyes-shadow-core',
     slot: 'eyes',
     name: 'Shadow Eyes',
-    description: 'A sharper look for a more serious training vibe.',
+    description: 'Sharper eye layer for a more serious training vibe.',
     price: 9,
     priceLabel: '9 kr',
-    emoji: '🕶️',
+    emoji: '⚡',
   },
   {
     id: 'neck-gold-chain',
@@ -65,10 +63,10 @@ const CATALOG_BASE: Omit<ShopItem, 'owned' | 'accessible'>[] = [
     id: 'top-core-tee',
     slot: 'top',
     name: 'Core Tee',
-    description: 'Minimal top layer for a polished hero look.',
+    description: 'Minimal top layer for a polished hero silhouette.',
     price: 9,
     priceLabel: '9 kr',
-    emoji: '👕',
+    emoji: '🧥',
   },
   {
     id: 'pants-core-fit',
@@ -101,7 +99,7 @@ const CATALOG_BASE: Omit<ShopItem, 'owned' | 'accessible'>[] = [
     id: 'bg-grind-1',
     slot: 'background',
     name: 'Grind Background',
-    description: 'Sharper background for daily grind energy.',
+    description: 'Sharper room for daily grind energy.',
     price: 9,
     priceLabel: '9 kr',
     emoji: '🟩',
@@ -123,7 +121,7 @@ const CATALOG_BASE: Omit<ShopItem, 'owned' | 'accessible'>[] = [
     description: 'Cleaner aura and stronger premium identity.',
     price: 9,
     priceLabel: '9 kr',
-    emoji: '🟪',
+    emoji: '🟨',
     isPremium: true,
   },
   {
@@ -133,25 +131,49 @@ const CATALOG_BASE: Omit<ShopItem, 'owned' | 'accessible'>[] = [
     description: 'Bold stage for a higher-status rat form.',
     price: 9,
     priceLabel: '9 kr',
-    emoji: '🟨',
+    emoji: '🟪',
     isPremium: true,
   },
   {
     id: 'bg-mythic-1',
     slot: 'background',
     name: 'Mythic Background',
-    description: 'Mythic-grade finish for the premium fantasy.',
+    description: 'Mythic-grade finish for the endgame fantasy.',
     price: 9,
     priceLabel: '9 kr',
-    emoji: '🌈',
+    emoji: '🔥',
     isPremium: true,
   },
 ];
 
+function isBrowser() {
+  return typeof window !== 'undefined' && typeof localStorage !== 'undefined';
+}
+
+function sanitizeOwnedItemIds(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((entry): entry is string => typeof entry === 'string');
+}
+
+function sanitizeEquipped(value: unknown): EquippedItems {
+  if (!value || typeof value !== 'object') {
+    return DEFAULT_EQUIPPED;
+  }
+
+  return {
+    ...DEFAULT_EQUIPPED,
+    ...createEmptyEquippedItems(value as Partial<EquippedItems>),
+    background:
+      typeof (value as Partial<EquippedItems>).background === 'string'
+        ? (value as Partial<EquippedItems>).background ?? 'bg-underground-1'
+        : 'bg-underground-1',
+  };
+}
+
 function readState(): ShopState {
-  if (typeof window === 'undefined') {
+  if (!isBrowser()) {
     return {
-      ownedItemIds: [],
+      ownedItemIds: ['cap-starter-core'],
       equipped: DEFAULT_EQUIPPED,
     };
   }
@@ -160,7 +182,7 @@ function readState(): ShopState {
     const raw = localStorage.getItem(SHOP_KEY);
     if (!raw) {
       return {
-        ownedItemIds: [],
+        ownedItemIds: ['cap-starter-core'],
         equipped: DEFAULT_EQUIPPED,
       };
     }
@@ -168,46 +190,37 @@ function readState(): ShopState {
     const parsed = JSON.parse(raw) as Partial<ShopState>;
 
     return {
-      ownedItemIds: Array.isArray(parsed.ownedItemIds)
-        ? parsed.ownedItemIds.filter((entry): entry is string => typeof entry === 'string')
-        : [],
-      equipped: {
-        ...DEFAULT_EQUIPPED,
-        ...(parsed.equipped ?? {}),
-      },
+      ownedItemIds: Array.from(new Set(['cap-starter-core', ...sanitizeOwnedItemIds(parsed.ownedItemIds)])),
+      equipped: sanitizeEquipped(parsed.equipped),
     };
   } catch {
     return {
-      ownedItemIds: [],
+      ownedItemIds: ['cap-starter-core'],
       equipped: DEFAULT_EQUIPPED,
     };
   }
 }
 
 function writeState(state: ShopState) {
-  if (typeof window === 'undefined') return;
+  if (!isBrowser()) return;
 
   localStorage.setItem(SHOP_KEY, JSON.stringify(state));
-  window.dispatchEvent(
-    new CustomEvent('shop-updated', {
-      detail: state,
-    })
-  );
+  window.dispatchEvent(new CustomEvent(SHOP_EVENT, { detail: state }));
 }
 
 export function subscribeShop(callback: () => void) {
-  if (typeof window === 'undefined') {
+  if (!isBrowser()) {
     return () => undefined;
   }
 
   const handler = () => callback();
 
-  window.addEventListener('shop-updated', handler);
+  window.addEventListener(SHOP_EVENT, handler);
   window.addEventListener('premium-updated', handler);
   window.addEventListener('storage', handler);
 
   return () => {
-    window.removeEventListener('shop-updated', handler);
+    window.removeEventListener(SHOP_EVENT, handler);
     window.removeEventListener('premium-updated', handler);
     window.removeEventListener('storage', handler);
   };
@@ -215,6 +228,10 @@ export function subscribeShop(callback: () => void) {
 
 export function getEquippedState(): EquippedItems {
   return readState().equipped;
+}
+
+export function getOwnedItemIds(): string[] {
+  return readState().ownedItemIds;
 }
 
 export function getEquippedItemIdForSlot(slot: SlotKey) {
@@ -231,10 +248,7 @@ export function getShopItems(): ShopItem[] {
   const premium = checkPremium().isActive;
 
   return CATALOG_BASE.map((item) => {
-    const owned =
-      state.ownedItemIds.includes(item.id) ||
-      (!item.isPremium && item.id === 'cap-starter-core');
-
+    const owned = state.ownedItemIds.includes(item.id) || (!item.isPremium && item.id === 'cap-starter-core');
     const accessible = !item.isPremium || premium;
 
     return {
@@ -245,9 +259,16 @@ export function getShopItems(): ShopItem[] {
   });
 }
 
+export function getShopItemsBySlot(slot: SlotKey): ShopItem[] {
+  return getShopItems().filter((item) => item.slot === slot);
+}
+
+export function getShopItemById(itemId: string): ShopItem | null {
+  return getShopItems().find((item) => item.id === itemId) ?? null;
+}
+
 export function ownItem(itemId: string) {
   const state = readState();
-
   if (state.ownedItemIds.includes(itemId)) return state;
 
   const next: ShopState = {
@@ -260,9 +281,8 @@ export function ownItem(itemId: string) {
 }
 
 export function equipItem(itemId: string) {
-  const item = getShopItems().find((entry) => entry.id === itemId);
+  const item = getShopItemById(itemId);
   if (!item) return readState();
-
   if (!canAccessShopItem(item)) return readState();
 
   const state = readState();
@@ -291,6 +311,44 @@ export function unequipItem(slot: SlotKey) {
       ...state.equipped,
       [slot]: slot === 'background' ? 'bg-underground-1' : null,
     },
+  };
+
+  writeState(next);
+  return next;
+}
+
+export function isEquipped(itemId: string): boolean {
+  const equipped = getEquippedState();
+  return Object.values(equipped).includes(itemId);
+}
+
+export function getItemPreviewSrc(item: Pick<ShopItem, 'id' | 'slot'>): string | null {
+  const profile = getProfile();
+  const variant = profile.gender;
+
+  if (item.slot === 'background') {
+    return getBackgroundImage(item.id);
+  }
+
+  if (
+    item.slot === 'head' ||
+    item.slot === 'eyes' ||
+    item.slot === 'neck' ||
+    item.slot === 'top' ||
+    item.slot === 'pants' ||
+    item.slot === 'feet' ||
+    item.slot === 'aura'
+  ) {
+    return getItemImageForSlot(item.slot, item.id, variant);
+  }
+
+  return null;
+}
+
+export function resetShopState() {
+  const next: ShopState = {
+    ownedItemIds: ['cap-starter-core'],
+    equipped: DEFAULT_EQUIPPED,
   };
 
   writeState(next);

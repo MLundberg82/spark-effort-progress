@@ -20,46 +20,50 @@ export default function GymRatStage({
   const visual = getLevelVisual(level);
 
   return (
-    <div className={`rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.01))] p-4 ${className}`}>
+    <div className={`w-full ${className}`}>
       {showMeta ? (
         <div className="mb-4 flex items-start justify-between gap-3">
           <div>
-            <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+            <div className="text-[11px] font-black uppercase tracking-[0.18em] text-zinc-400">
               {visual.tierLabel}
-            </p>
-            <h3 className="mt-1 text-xl font-black text-white">
+            </div>
+            <h3 className="mt-1 text-2xl font-black tracking-tight text-white">
               {visual.title}
             </h3>
-            <p className="mt-1 text-sm text-zinc-400">{visual.subtitle}</p>
+            <p className="mt-2 max-w-sm text-sm leading-6 text-zinc-300">
+              {visual.subtitle}
+            </p>
           </div>
 
-          <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-3 py-2 text-right">
-            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-300">
+          <div className="shrink-0 rounded-[22px] border border-white/10 bg-white/[0.05] px-4 py-3 text-center">
+            <div className="text-[10px] font-black uppercase tracking-[0.18em] text-zinc-400">
               LVL
-            </p>
-            <p className="text-lg font-black text-white">{level}</p>
+            </div>
+            <div className="mt-1 text-2xl font-black text-white">{level}</div>
           </div>
         </div>
       ) : null}
 
-      <div className={compact ? 'scale-[0.94]' : ''}>
-        <EquippedRatPreview level={level} variant={variant} />
-      </div>
+      <EquippedRatPreview
+        level={level}
+        variant={variant}
+        className={compact ? 'mx-auto max-w-[320px]' : 'mx-auto'}
+      />
 
       {showMeta ? (
         <div className="mt-4 grid grid-cols-2 gap-3">
-          <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
-            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-500">
+          <div className="rounded-[22px] border border-white/10 bg-white/[0.04] px-4 py-3">
+            <div className="text-[10px] font-black uppercase tracking-[0.18em] text-zinc-400">
               Milestone
-            </p>
-            <p className="mt-1 font-semibold text-white">{visual.milestone}</p>
+            </div>
+            <div className="mt-1 text-lg font-black text-white">{visual.milestone}</div>
           </div>
 
-          <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
-            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-500">
+          <div className="rounded-[22px] border border-white/10 bg-white/[0.04] px-4 py-3">
+            <div className="text-[10px] font-black uppercase tracking-[0.18em] text-zinc-400">
               Tier
-            </p>
-            <p className="mt-1 font-semibold text-white">{visual.tierLabel}</p>
+            </div>
+            <div className="mt-1 text-lg font-black text-white">{visual.tierLabel}</div>
           </div>
         </div>
       ) : null}

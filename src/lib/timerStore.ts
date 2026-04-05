@@ -1,226 +1,99 @@
-export type TimerSettings = {
-  enabled: boolean;
-  setSeconds: number;
-  restSeconds: number;
+const STORAGE_KEY = 'gymrat-rest-timer';
+const EVENT_NAME = 'rest-timer-updated';
+
+export type TimerState = {
+  startedAt: string | null;
+  durationSeconds: number;
+  isRunning: boolean;
 };
 
-export type WorkoutTimerPhase = 'set' | 'rest';
-
-export type WorkoutTimerState = {
-  running: boolean;
-  phase: WorkoutTimerPhase;
-  remainingSeconds: number;
-};
-
-const SETTINGS_KEY = 'gymrat-timer-store';
-const TIMER_KEY = 'gymrat-workout-timer-store';
-
-const DEFAULT_SETTINGS: TimerSettings = {
-  enabled: true,
-  setSeconds: 45,
-  restSeconds: 90,
-};
-
-const DEFAULT_TIMER_STATE: WorkoutTimerState = {
-  running: false,
-  phase: 'set',
-  remainingSeconds: DEFAULT_SETTINGS.setSeconds,
-};
-
-function sanitizeSeconds(value: unknown, fallback: number) {
-  if (typeof value !== 'number' || !Number.isFinite(value)) return fallback;
-  return Math.max(5, Math.min(600, Math.floor(value)));
+function isBrowser() {
+  return typeof window !== 'undefined' && typeof localStorage !== 'undefined';
 }
 
-function emitSettings(state: TimerSettings) {
-  if (typeof window === 'undefined') return;
-  window.dispatchEvent(
-    new CustomEvent('timer-settings-updated', {
-      detail: state,
-    })
-  );
+function getDefaultState(): TimerState {
+  return {
+    startedAt: null,
+    durationSeconds: 90,
+    isRunning: false,
+  };
 }
 
-function emitTimer(state: WorkoutTimerState) {
-  if (typeof window === 'undefined') return;
-  window.dispatchEvent(
-    new CustomEvent('workout-timer-updated', {
-      detail: state,
-    })
-  );
-}
-
-function readSettings(): TimerSettings {
-  if (typeof window === 'undefined') return DEFAULT_SETTINGS;
+function readState(): TimerState {
+  if (!isBrowser()) return getDefaultState();
 
   try {
-    const raw = localStorage.getItem(SETTINGS_KEY);
-    if (!raw) return DEFAULT_SETTINGS;
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return getDefaultState();
 
-    const parsed = JSON.parse(raw) as Partial<TimerSettings>;
+    const parsed = JSON.parse(raw) as Partial<TimerState>;
 
     return {
-      enabled: parsed.enabled !== false,
-      setSeconds: sanitizeSeconds(parsed.setSeconds, DEFAULT_SETTINGS.setSeconds),
-      restSeconds: sanitizeSeconds(
-        parsed.restSeconds,
-        DEFAULT_SETTINGS.restSeconds
-      ),
+      startedAt:
+        typeof parsed.startedAt === 'string' && parsed.startedAt.length > 0
+          ? parsed.startedAt
+          : null,
+      durationSeconds:
+        typeof parsed.durationSeconds === 'number'
+          ? Math.max(0, Math.floor(parsed.durationSeconds))
+          : 90,
+      isRunning: Boolean(parsed.isRunning),
     };
   } catch {
-    return DEFAULT_SETTINGS;
+    return getDefaultState();
   }
 }
 
-function writeSettings(next: TimerSettings) {
-  if (typeof window === 'undefined') return;
-  localStorage.setItem(SETTINGS_KEY, JSON.stringify(next));
-  emitSettings(next);
+function writeState(state: TimerState) {
+  if (!isBrowser()) return;
+
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  window.dispatchEvent(new CustomEvent(EVENT_NAME, { detail: state }));
 }
 
-function getPhaseSeconds(
-  phase: WorkoutTimerPhase,
-  settings: TimerSettings
-): number {
-  return phase === 'set' ? settings.setSeconds : settings.restSeconds;
+export function getTimerState() {
+  return readState();
 }
 
-function readTimer(): WorkoutTimerState {
-  if (typeof window === 'undefined') return DEFAULT_TIMER_STATE;
-
-  try {
-    const raw = localStorage.getItem(TIMER_KEY);
-    if (!raw) {
-      const settings = readSettings();
-      return {
-        ...DEFAULT_TIMER_STATE,
-        remainingSeconds: settings.setSeconds,
-      };
-    }
-
-    const parsed = JSON.parse(raw) as Partial<WorkoutTimerState>;
-    const settings = readSettings();
-    const phase: WorkoutTimerPhase =
-      parsed.phase === 'rest' ? 'rest' : 'set';
-
-    return {
-      running: parsed.running === true,
-      phase,
-      remainingSeconds: sanitizeSeconds(
-        parsed.remainingSeconds,
-        getPhaseSeconds(phase, settings)
-      ),
-    };
-  } catch {
-    const settings = readSettings();
-    return {
-      ...DEFAULT_TIMER_STATE,
-      remainingSeconds: settings.setSeconds,
-    };
-  }
-}
-
-function writeTimer(next: WorkoutTimerState) {
-  if (typeof window === 'undefined') return;
-  localStorage.setItem(TIMER_KEY, JSON.stringify(next));
-  emitTimer(next);
-}
-
-export function getTimerSettings() {
-  return readSettings();
-}
-
-export function saveTimerSettings(next: TimerSettings) {
-  const safe: TimerSettings = {
-    enabled: next.enabled,
-    setSeconds: sanitizeSeconds(next.setSeconds, DEFAULT_SETTINGS.setSeconds),
-    restSeconds: sanitizeSeconds(
-      next.restSeconds,
-      DEFAULT_SETTINGS.restSeconds
-    ),
+export function startTimer(durationSeconds = 90) {
+  const next: TimerState = {
+    startedAt: new Date().toISOString(),
+    durationSeconds: Math.max(0, Math.floor(durationSeconds)),
+    isRunning: true,
   };
 
-  writeSettings(safe);
-
-  const currentTimer = readTimer();
-  if (!currentTimer.running) {
-    const synced: WorkoutTimerState = {
-      ...currentTimer,
-      remainingSeconds: getPhaseSeconds(currentTimer.phase, safe),
-    };
-    writeTimer(synced);
-  }
-
-  return safe;
-}
-
-export function resetTimerSettings() {
-  writeSettings(DEFAULT_SETTINGS);
-  writeTimer({
-    running: false,
-    phase: 'set',
-    remainingSeconds: DEFAULT_SETTINGS.setSeconds,
-  });
-  return DEFAULT_SETTINGS;
-}
-
-export function getWorkoutTimerState() {
-  return readTimer();
-}
-
-export function startWorkoutTimer() {
-  const current = readTimer();
-  const next: WorkoutTimerState = {
-    ...current,
-    running: true,
-  };
-  writeTimer(next);
+  writeState(next);
   return next;
 }
 
-export function pauseWorkoutTimer() {
-  const current = readTimer();
-  const next: WorkoutTimerState = {
-    ...current,
-    running: false,
+export function stopTimer() {
+  const next = {
+    ...readState(),
+    isRunning: false,
   };
-  writeTimer(next);
+
+  writeState(next);
   return next;
 }
 
-export function resetWorkoutTimerToPhase(phase: WorkoutTimerPhase) {
-  const settings = readSettings();
-  const next: WorkoutTimerState = {
-    running: false,
-    phase,
-    remainingSeconds: getPhaseSeconds(phase, settings),
+export function resetTimer(durationSeconds = 90) {
+  const next: TimerState = {
+    startedAt: null,
+    durationSeconds: Math.max(0, Math.floor(durationSeconds)),
+    isRunning: false,
   };
-  writeTimer(next);
+
+  writeState(next);
   return next;
 }
 
-export function tickWorkoutTimer() {
-  const current = readTimer();
-  const settings = readSettings();
+export function getSecondsRemaining() {
+  const state = readState();
+  if (!state.isRunning || !state.startedAt) return state.durationSeconds;
 
-  if (!current.running) return current;
+  const elapsed = Math.floor(
+    (Date.now() - new Date(state.startedAt).getTime()) / 1000,
+  );
 
-  if (current.remainingSeconds > 1) {
-    const next: WorkoutTimerState = {
-      ...current,
-      remainingSeconds: current.remainingSeconds - 1,
-    };
-    writeTimer(next);
-    return next;
-  }
-
-  const nextPhase: WorkoutTimerPhase = current.phase === 'set' ? 'rest' : 'set';
-  const next: WorkoutTimerState = {
-    running: true,
-    phase: nextPhase,
-    remainingSeconds: getPhaseSeconds(nextPhase, settings),
-  };
-
-  writeTimer(next);
-  return next;
+  return Math.max(0, state.durationSeconds - elapsed);
 }

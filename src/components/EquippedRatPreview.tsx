@@ -3,7 +3,7 @@ import { getEquippedState } from '@/lib/shopStore';
 import {
   getBackgroundImage,
   getDefaultBackgroundForLevel,
-  getItemImage,
+  getItemImageForSlot,
   getRatImageForLevel,
 } from '@/lib/assetRegistry';
 import type { CosmeticSlot, RatVariant } from '@/lib/assetTypes';
@@ -19,9 +19,8 @@ function resolveVariant(explicit?: RatVariant): RatVariant {
 
   const profile = getProfile();
 
-  if (profile?.gender === 'female') return 'female';
-  if (profile?.gender === 'non-binary') return 'non-binary';
-
+  if (profile.gender === 'female') return 'female';
+  if (profile.gender === 'non-binary') return 'non-binary';
   return 'male';
 }
 
@@ -40,7 +39,7 @@ function Layer({
     <img
       src={src}
       alt={alt}
-      className={`pointer-events-none absolute inset-0 h-full w-full select-none object-contain ${className}`}
+      className={`pointer-events-none absolute inset-0 h-full w-full object-contain ${className}`}
       draggable={false}
     />
   );
@@ -55,9 +54,10 @@ export default function EquippedRatPreview({
   const equipped = getEquippedState();
 
   const backgroundSrc =
-    getBackgroundImage(equipped.background) ?? getDefaultBackgroundForLevel(level);
+    (equipped.background ? getBackgroundImage(equipped.background) : null) ??
+    getDefaultBackgroundForLevel(level);
 
-  const ratSrc = getRatImageForLevel(level, resolvedVariant);
+  const baseRatSrc = getRatImageForLevel(level, resolvedVariant);
 
   const layerOrder: CosmeticSlot[] = [
     'aura',
@@ -69,53 +69,51 @@ export default function EquippedRatPreview({
     'eyes',
   ];
 
-  const layers = layerOrder
-    .map((slot) => {
-      const itemId = equipped[slot];
-      return {
-        slot,
-        itemId,
-        src: itemId ? getItemImage(itemId, resolvedVariant) : null,
-      };
-    })
-    .filter((entry) => Boolean(entry.itemId));
+  const layers = layerOrder.map((slot) => ({
+    slot,
+    itemId: equipped[slot],
+    src: equipped[slot]
+      ? getItemImageForSlot(slot, equipped[slot], resolvedVariant)
+      : null,
+  }));
+
+  const auraSrc = layers.find((entry) => entry.slot === 'aura')?.src ?? null;
 
   return (
-    <div className={`relative isolate h-full w-full overflow-hidden rounded-[32px] ${className}`}>
+    <div
+      className={`relative isolate overflow-hidden rounded-[32px] border border-white/10 bg-zinc-950/90 ${className}`}
+    >
       {backgroundSrc ? (
         <img
           src={backgroundSrc}
-          alt=""
-          className="absolute inset-0 h-full w-full object-cover"
+          alt="Background"
+          className="absolute inset-0 h-full w-full object-cover opacity-90"
           draggable={false}
         />
       ) : (
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(124,255,107,0.18),rgba(0,0,0,0.92)_70%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(163,230,53,0.12),transparent_35%),linear-gradient(180deg,rgba(255,255,255,0.03),rgba(0,0,0,0.14))]" />
       )}
 
-      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_bottom,rgba(0,0,0,0.06),rgba(0,0,0,0.18)_42%,rgba(0,0,0,0.74))]" />
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_82%,rgba(124,255,107,0.16),transparent_28%)]" />
+      <div className="absolute inset-0 bg-black/10" />
 
-      <div className="absolute inset-0 flex items-center justify-center p-2">
-        <div className="relative h-full w-full">
+      <div className="relative z-10 flex aspect-[4/5] w-full items-end justify-center p-4 sm:p-5">
+        <div className="relative h-full w-full max-w-[320px]">
           <Layer
-            src={layers.find((entry) => entry.slot === 'aura')?.src ?? null}
+            src={auraSrc}
             alt="Aura"
-            className="scale-[1.08] opacity-90"
+            className="scale-[1.08] object-contain drop-shadow-[0_0_28px_rgba(52,211,153,0.24)]"
           />
 
-          {ratSrc ? (
+          {baseRatSrc ? (
             <img
-              src={ratSrc}
+              src={baseRatSrc}
               alt="GymRat"
-              className="absolute inset-0 h-full w-full select-none object-contain drop-shadow-[0_26px_46px_rgba(0,0,0,0.62)]"
+              className="pointer-events-none absolute inset-0 h-full w-full object-contain drop-shadow-[0_14px_35px_rgba(0,0,0,0.35)]"
               draggable={false}
             />
           ) : (
-            <div className="absolute inset-0 flex items-center justify-center rounded-[28px] border border-white/10 bg-black/45">
-              <span className="text-xs font-black uppercase tracking-[0.22em] text-white/35">
-                Missing rat asset
-              </span>
+            <div className="absolute inset-0 flex items-center justify-center rounded-[28px] border border-dashed border-white/15 bg-white/[0.03] text-center text-sm font-semibold text-zinc-400">
+              Missing rat image
             </div>
           )}
 
@@ -123,10 +121,9 @@ export default function EquippedRatPreview({
             .filter((entry) => entry.slot !== 'aura')
             .map((entry) => (
               <Layer
-                key={`${entry.slot}-${entry.itemId}`}
+                key={`${entry.slot}-${entry.itemId ?? 'empty'}`}
                 src={entry.src}
-                alt={entry.itemId ?? entry.slot}
-                className="drop-shadow-[0_12px_24px_rgba(0,0,0,0.35)]"
+                alt={entry.slot}
               />
             ))}
         </div>

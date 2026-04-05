@@ -1,214 +1,577 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
-  addWorkoutHistory,
-  detectPRs,
-  getSuggestedWeight,
-} from '@/lib/historyStore';
-import { isPremium } from '@/lib/premiumStore';
+  ArrowLeft,
+  Check,
+  ChevronDown,
+  ChevronUp,
+  Crown,
+  Dumbbell,
+  Plus,
+  Save,
+  Sparkles,
+  Trash2,
+} from 'lucide-react';
 
-import type {
-  MuscleGroup,
-  ExerciseEntry,
-  PRResult,
+import {
+  getSuggestedWeight,
+  type ExerciseEntry,
+  type MuscleGroup,
 } from '@/lib/historyStore';
+import { checkPremium } from '@/lib/premiumStore';
+import {
+  clearWorkoutDraft,
+  getWorkoutDraft,
+  saveWorkoutDraft,
+} from '@/lib/workoutStore';
+import {
+  getRecommendedPlan,
+  getTrainingLevel,
+  type WorkoutPlan,
+} from '@/lib/trainingStore';
 
 type SetData = {
   reps: number;
   weight: number;
 };
 
-type Exercise = {
+type ExerciseDraft = {
   name: string;
+  muscleGroup: MuscleGroup;
   sets: SetData[];
 };
 
-type Workout = {
-  name: string;
-  focus?: string;
-  exercises: Exercise[];
+type WorkoutCompleteResult = {
+  workoutName: string;
+  durationMinutes: number;
+  exercisesCompleted: number;
+  volume: number;
+  focusArea: Extract<MuscleGroup, 'chest' | 'back' | 'arms' | 'legs'>;
+  details: Array<{
+    exercise: string;
+    sets: number;
+    reps: number;
+    weight: number;
+    volume: number;
+  }>;
 };
 
 type WorkoutFlowProps = {
-  workout: Workout;
-  onComplete?: (summary: {
-    durationMinutes: number;
-    exercisesCompleted: number;
-    volume: number;
-    prs: PRResult[];
-  }) => void;
+  onBack: () => void;
+  onComplete: (result: WorkoutCompleteResult) => void;
 };
 
-function mapExerciseToMuscle(name: string): MuscleGroup {
-  const n = name.toLowerCase();
-
-  if (n.includes('walk') || n.includes('treadmill')) return 'legs';
-  if (n.includes('bench') || n.includes('press')) return 'chest';
-  if (n.includes('row') || n.includes('pull')) return 'back';
-  if (n.includes('curl') || n.includes('tricep')) return 'arms';
-  if (n.includes('squat') || n.includes('leg')) return 'legs';
-  if (n.includes('shoulder')) return 'shoulders';
-
-  return 'core';
+function toSupportedFocusArea(group: MuscleGroup): WorkoutCompleteResult['focusArea'] {
+  if (group === 'back' || group === 'arms' || group === 'legs') return group;
+  return 'chest';
 }
 
-function isWalkExercise(name: string) {
-  const n = name.toLowerCase();
-  return n.includes('walk') || n.includes('treadmill');
-}
-
-export default function WorkoutFlow({
-  workout,
-  onComplete,
-}: WorkoutFlowProps) {
-  const [startTime] = useState(Date.now());
-  const [localExercises, setLocalExercises] = useState(workout.exercises);
-
-  const premium = isPremium();
-
-  useEffect(() => {
-    setLocalExercises(workout.exercises);
-  }, [workout]);
-
-  const updateSet = (
-    exIndex: number,
-    setIndex: number,
-    field: 'reps' | 'weight',
-    value: number
-  ) => {
-    setLocalExercises((prev) => {
-      const updated = [...prev];
-      updated[exIndex].sets[setIndex][field] = value;
-      return updated;
-    });
+function getPrimaryFocus(exercises: ExerciseDraft[]): WorkoutCompleteResult['focusArea'] {
+  const score: Record<WorkoutCompleteResult['focusArea'], number> = {
+    chest: 0,
+    back: 0,
+    arms: 0,
+    legs: 0,
   };
 
-  const handleFinishWorkout = () => {
+  for (const exercise of exercises) {
+    const supported = toSupportedFocusArea(exercise.muscleGroup);
+    score[supported] += exercise.sets.length;
+  }
+
+  return (Object.entries(score).sort((a, b) => b[1] - a[1])[0]?.[0] ??
+    'chest') as WorkoutCompleteResult['focusArea'];
+}
+
+function buildExercisesFromPlan(plan: WorkoutPlan): ExerciseDraft[] {
+  const day = plan.days[0];
+
+  return day.muscleGroups.map((group, index) => {
+    if (group === 'legs' && index === 0) {
+      return {
+        name: 'Walk',
+        muscleGroup: 'legs',
+        sets: [{ reps: 30, weight: 0 }],
+      };
+    }
+
+    if (group === 'chest') {
+      return {
+        name: 'Bench Press',
+        muscleGroup: 'chest',
+        sets: [
+          { reps: 10, weight: 40 },
+          { reps: 8, weight: 45 },
+          { reps: 8, weight: 45 },
+        ],
+      };
+    }
+
+    if (group === 'back') {
+      return {
+        name: 'Lat Pulldown',
+        muscleGroup: 'back',
+        sets: [
+          { reps: 12, weight: 35 },
+          { reps: 10, weight: 40 },
+          { reps: 10, weight: 40 },
+        ],
+      };
+    }
+
+    if (group === 'arms') {
+      return {
+        name: 'Biceps Curl',
+        muscleGroup: 'arms',
+        sets: [
+          { reps: 12, weight: 10 },
+          { reps: 10, weight: 12 },
+          { reps: 10, weight: 12 },
+        ],
+      };
+    }
+
+    if (group === 'shoulders') {
+      return {
+        name: 'Shoulder Press',
+        muscleGroup: 'shoulders',
+        sets: [
+          { reps: 10, weight: 20 },
+          { reps: 10, weight: 20 },
+          { reps: 8, weight: 22.5 },
+        ],
+      };
+    }
+
+    return {
+      name: 'Plank',
+      muscleGroup: group,
+      sets: [
+        { reps: 45, weight: 0 },
+        { reps: 45, weight: 0 },
+      ],
+    };
+  });
+}
+
+function normalizeExercises(raw: unknown): ExerciseDraft[] {
+  if (!Array.isArray(raw)) return [];
+
+  return raw
+    .map((exercise) => {
+      if (!exercise || typeof exercise !== 'object') return null;
+
+      const candidate = exercise as {
+        name?: string;
+        muscleGroup?: string;
+        sets?: Array<{ reps?: number; weight?: number }>;
+      };
+
+      if (!candidate.name || !Array.isArray(candidate.sets) || candidate.sets.length === 0) {
+        return null;
+      }
+
+      const muscleGroup =
+        candidate.muscleGroup === 'back' ||
+        candidate.muscleGroup === 'arms' ||
+        candidate.muscleGroup === 'legs' ||
+        candidate.muscleGroup === 'shoulders' ||
+        candidate.muscleGroup === 'core'
+          ? candidate.muscleGroup
+          : 'chest';
+
+      return {
+        name: candidate.name,
+        muscleGroup,
+        sets: candidate.sets.map((set) => ({
+          reps: Number.isFinite(Number(set.reps)) ? Math.max(0, Math.round(Number(set.reps))) : 0,
+          weight: Number.isFinite(Number(set.weight)) ? Math.max(0, Number(set.weight)) : 0,
+        })),
+      } satisfies ExerciseDraft;
+    })
+    .filter((exercise): exercise is ExerciseDraft => Boolean(exercise));
+}
+
+function toExerciseEntries(exercises: ExerciseDraft[]): ExerciseEntry[] {
+  return exercises.map((exercise) => ({
+    name: exercise.name,
+    muscleGroup: exercise.muscleGroup,
+    sets: exercise.sets,
+  }));
+}
+
+export default function WorkoutFlow({ onBack, onComplete }: WorkoutFlowProps) {
+  const premium = checkPremium().isActive;
+  const recommendedPlan = useMemo(
+    () => getRecommendedPlan(getTrainingLevel()),
+    [],
+  );
+
+  const draft = useMemo(() => getWorkoutDraft(), []);
+  const [startedAt] = useState(draft?.startedAt ?? new Date().toISOString());
+  const [workoutName, setWorkoutName] = useState(
+    draft?.workoutName ?? recommendedPlan.name,
+  );
+  const [notes, setNotes] = useState(draft?.notes ?? '');
+  const [planName] = useState(draft?.planName ?? recommendedPlan.name);
+  const [dayLabel] = useState(draft?.dayLabel ?? recommendedPlan.days[0]?.label ?? 'Day 1');
+  const [expandedExercise, setExpandedExercise] = useState<number | null>(0);
+  const [exercises, setExercises] = useState<ExerciseDraft[]>(
+    draft?.exercises && draft.exercises.length > 0
+      ? normalizeExercises(draft.exercises)
+      : buildExercisesFromPlan(recommendedPlan),
+  );
+
+  useEffect(() => {
+    saveWorkoutDraft({
+      startedAt,
+      workoutName,
+      notes,
+      planName,
+      dayLabel,
+      isCustom: false,
+      exercises,
+    });
+  }, [startedAt, workoutName, notes, planName, dayLabel, exercises]);
+
+  const totalVolume = useMemo(() => {
+    return exercises.reduce((total, exercise) => {
+      return (
+        total +
+        exercise.sets.reduce((sum, set) => sum + set.reps * set.weight, 0)
+      );
+    }, 0);
+  }, [exercises]);
+
+  const updateSet = (
+    exerciseIndex: number,
+    setIndex: number,
+    field: 'reps' | 'weight',
+    value: number,
+  ) => {
+    setExercises((current) =>
+      current.map((exercise, currentExerciseIndex) => {
+        if (currentExerciseIndex !== exerciseIndex) return exercise;
+
+        return {
+          ...exercise,
+          sets: exercise.sets.map((set, currentSetIndex) => {
+            if (currentSetIndex !== setIndex) return set;
+
+            return {
+              ...set,
+              [field]:
+                field === 'reps'
+                  ? Math.max(0, Math.round(value))
+                  : Math.max(0, value),
+            };
+          }),
+        };
+      }),
+    );
+  };
+
+  const addSet = (exerciseIndex: number) => {
+    setExercises((current) =>
+      current.map((exercise, index) => {
+        if (index !== exerciseIndex) return exercise;
+
+        const lastSet = exercise.sets[exercise.sets.length - 1] ?? {
+          reps: 10,
+          weight: 0,
+        };
+
+        return {
+          ...exercise,
+          sets: [...exercise.sets, { ...lastSet }],
+        };
+      }),
+    );
+  };
+
+  const removeSet = (exerciseIndex: number, setIndex: number) => {
+    setExercises((current) =>
+      current.map((exercise, index) => {
+        if (index !== exerciseIndex) return exercise;
+        if (exercise.sets.length <= 1) return exercise;
+
+        return {
+          ...exercise,
+          sets: exercise.sets.filter((_, currentSetIndex) => currentSetIndex !== setIndex),
+        };
+      }),
+    );
+  };
+
+  const handleFinish = () => {
     const durationMinutes = Math.max(
       1,
-      Math.round((Date.now() - startTime) / 60000)
+      Math.round((Date.now() - new Date(startedAt).getTime()) / 60000),
     );
 
-    const exercises: ExerciseEntry[] = localExercises.map((ex) => ({
-      name: ex.name,
-      muscleGroup: mapExerciseToMuscle(ex.name),
-      sets: ex.sets,
-    }));
+    const details = exercises.map((exercise) => {
+      const topSet = exercise.sets.reduce(
+        (best, current) =>
+          current.weight > best.weight ? current : best,
+        exercise.sets[0] ?? { reps: 0, weight: 0 },
+      );
 
-    const prs = detectPRs(
-      exercises.filter((exercise) => !isWalkExercise(exercise.name))
-    );
+      const volume = exercise.sets.reduce(
+        (sum, set) => sum + set.reps * set.weight,
+        0,
+      );
 
-    const workoutEntry = {
-      id: crypto.randomUUID(),
-      workoutName: workout.name,
-      exercises,
-      durationMinutes,
-      completedAt: new Date().toISOString(),
-    };
+      return {
+        exercise: exercise.name,
+        sets: exercise.sets.length,
+        reps: topSet.reps,
+        weight: topSet.weight,
+        volume,
+      };
+    });
 
-    addWorkoutHistory(workoutEntry);
+    clearWorkoutDraft();
 
-    const volume = exercises.reduce(
-      (total, ex) =>
-        total +
-        ex.sets.reduce((sum, set) => sum + set.reps * set.weight, 0),
-      0
-    );
-
-    onComplete?.({
+    onComplete({
+      workoutName,
       durationMinutes,
       exercisesCompleted: exercises.length,
-      volume,
-      prs,
+      volume: totalVolume,
+      focusArea: getPrimaryFocus(exercises),
+      details,
     });
   };
 
   return (
-    <div className="min-h-screen bg-background p-4 text-foreground">
-      <h1 className="text-xl font-bold mb-4">{workout.name}</h1>
+    <div className="min-h-screen bg-black px-5 py-5 text-white">
+      <div className="mx-auto max-w-md">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <button
+            type="button"
+            onClick={onBack}
+            className="inline-flex h-12 items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.05] px-4 text-sm font-black uppercase tracking-[0.14em] text-white transition hover:bg-white/[0.08]"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back
+          </button>
 
-      <div className="space-y-6">
-        {localExercises.map((exercise, exIndex) => {
-          const walkMode = isWalkExercise(exercise.name);
-          const suggested = premium && !walkMode
-            ? getSuggestedWeight(exercise.name)
-            : null;
+          <div className="inline-flex items-center gap-2 rounded-full border border-lime-300/20 bg-lime-300/10 px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-lime-200">
+            <Dumbbell className="h-3.5 w-3.5" />
+            Workout
+          </div>
+        </div>
 
-          return (
-            <div
-              key={exIndex}
-              className="bg-card p-4 rounded-2xl shadow"
-            >
-              <h2 className="font-semibold mb-1">
-                {exercise.name}
-              </h2>
-
-              {premium && suggested && (
-                <p className="text-xs text-primary mb-2">
-                  Suggested: {suggested} kg
-                </p>
-              )}
-
-              {!premium && !walkMode && (
-                <p className="text-xs opacity-40 mb-2">
-                  Upgrade to unlock smart progression
-                </p>
-              )}
-
-              {walkMode && (
-                <p className="text-xs text-primary mb-2">
-                  Walk counts toward your streak too
-                </p>
-              )}
-
-              {exercise.sets.map((set, setIndex) => (
-                <div
-                  key={setIndex}
-                  className="flex gap-2 mb-2"
-                >
-                  <input
-                    type="number"
-                    value={set.reps}
-                    onChange={(e) =>
-                      updateSet(
-                        exIndex,
-                        setIndex,
-                        'reps',
-                        Number(e.target.value)
-                      )
-                    }
-                    className="w-24 p-2 bg-muted rounded"
-                    placeholder={walkMode ? 'Minutes' : 'Reps'}
-                  />
-
-                  <input
-                    type="number"
-                    value={set.weight}
-                    onChange={(e) =>
-                      updateSet(
-                        exIndex,
-                        setIndex,
-                        'weight',
-                        Number(e.target.value)
-                      )
-                    }
-                    className="w-24 p-2 bg-muted rounded"
-                    placeholder={walkMode ? '0' : 'Weight'}
-                    disabled={walkMode}
-                  />
-                </div>
-              ))}
+        <div className="rounded-[32px] border border-white/10 bg-zinc-950/90 p-5 shadow-[0_24px_90px_rgba(0,0,0,0.48)]">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className="text-[11px] font-black uppercase tracking-[0.18em] text-zinc-400">
+                Active session
+              </div>
+              <h1 className="mt-1 text-3xl font-black tracking-tight">{workoutName}</h1>
+              <p className="mt-2 text-sm leading-6 text-zinc-300">
+                {planName} · {dayLabel}
+              </p>
             </div>
-          );
-        })}
-      </div>
 
-      <button
-        onClick={handleFinishWorkout}
-        className="fixed bottom-6 left-4 right-4 bg-primary py-4 rounded-2xl font-bold"
-      >
-        Finish Workout
-      </button>
+            <div className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-zinc-300">
+              {premium ? 'Premium' : 'Base'}
+            </div>
+          </div>
+
+          <div className="mt-5 space-y-4">
+            <div>
+              <label className="text-sm font-semibold text-zinc-200">Workout name</label>
+              <input
+                value={workoutName}
+                onChange={(event) => setWorkoutName(event.target.value)}
+                className="mt-2 w-full rounded-2xl border border-white/10 bg-zinc-900 px-4 py-3 text-white outline-none transition focus:border-lime-300"
+                placeholder="Push day"
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-semibold text-zinc-200">Notes</label>
+              <textarea
+                value={notes}
+                onChange={(event) => setNotes(event.target.value)}
+                className="mt-2 min-h-[96px] w-full rounded-2xl border border-white/10 bg-zinc-900 px-4 py-3 text-white outline-none transition focus:border-lime-300"
+                placeholder="Energy, pump, what felt strong..."
+              />
+            </div>
+          </div>
+
+          <div className="mt-5 rounded-[24px] border border-white/10 bg-white/[0.04] p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-[11px] font-black uppercase tracking-[0.18em] text-zinc-400">
+                  Autosave
+                </div>
+                <div className="mt-1 text-lg font-black">Draft active</div>
+              </div>
+
+              <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-zinc-300">
+                <Save className="h-3.5 w-3.5" />
+                Safe
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-5 space-y-4">
+            {exercises.map((exercise, exerciseIndex) => {
+              const suggestedWeight =
+                premium && exercise.muscleGroup !== 'core'
+                  ? getSuggestedWeight(exercise.name)
+                  : null;
+
+              const expanded = expandedExercise === exerciseIndex;
+
+              return (
+                <div
+                  key={`${exercise.name}-${exerciseIndex}`}
+                  className="rounded-[28px] border border-white/10 bg-white/[0.04] p-4"
+                >
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setExpandedExercise((current) =>
+                        current === exerciseIndex ? null : exerciseIndex,
+                      )
+                    }
+                    className="flex w-full items-start justify-between gap-3 text-left"
+                  >
+                    <div>
+                      <div className="text-[11px] font-black uppercase tracking-[0.18em] text-zinc-400">
+                        {exercise.muscleGroup}
+                      </div>
+                      <div className="mt-1 text-xl font-black tracking-tight text-white">
+                        {exercise.name}
+                      </div>
+
+                      {suggestedWeight ? (
+                        <div className="mt-2 inline-flex items-center gap-2 rounded-full border border-lime-300/20 bg-lime-300/10 px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-lime-200">
+                          <Sparkles className="h-3.5 w-3.5" />
+                          Suggested {suggestedWeight} kg
+                        </div>
+                      ) : !premium && exercise.muscleGroup !== 'core' ? (
+                        <div className="mt-2 inline-flex items-center gap-2 rounded-full border border-yellow-300/20 bg-yellow-300/10 px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-yellow-100">
+                          <Crown className="h-3.5 w-3.5" />
+                          Smart suggestions in premium
+                        </div>
+                      ) : null}
+                    </div>
+
+                    <div className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.05]">
+                      {expanded ? (
+                        <ChevronUp className="h-5 w-5" />
+                      ) : (
+                        <ChevronDown className="h-5 w-5" />
+                      )}
+                    </div>
+                  </button>
+
+                  {expanded ? (
+                    <div className="mt-4 space-y-3">
+                      {exercise.sets.map((set, setIndex) => (
+                        <div
+                          key={`${exercise.name}-set-${setIndex}`}
+                          className="rounded-[22px] border border-white/10 bg-zinc-950/90 p-3"
+                        >
+                          <div className="mb-3 flex items-center justify-between">
+                            <div className="text-sm font-black uppercase tracking-[0.14em] text-white">
+                              Set {setIndex + 1}
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => removeSet(exerciseIndex, setIndex)}
+                              className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/[0.05] text-zinc-300 transition hover:bg-white/[0.08]"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <label className="text-xs font-bold uppercase tracking-[0.14em] text-zinc-400">
+                                Reps
+                              </label>
+                              <input
+                                value={set.reps}
+                                onChange={(event) =>
+                                  updateSet(
+                                    exerciseIndex,
+                                    setIndex,
+                                    'reps',
+                                    Number(event.target.value),
+                                  )
+                                }
+                                inputMode="numeric"
+                                className="mt-2 w-full rounded-2xl border border-white/10 bg-zinc-900 px-4 py-3 text-white outline-none transition focus:border-lime-300"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="text-xs font-bold uppercase tracking-[0.14em] text-zinc-400">
+                                Weight
+                              </label>
+                              <input
+                                value={set.weight}
+                                onChange={(event) =>
+                                  updateSet(
+                                    exerciseIndex,
+                                    setIndex,
+                                    'weight',
+                                    Number(event.target.value),
+                                  )
+                                }
+                                inputMode="decimal"
+                                className="mt-2 w-full rounded-2xl border border-white/10 bg-zinc-900 px-4 py-3 text-white outline-none transition focus:border-lime-300"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+
+                      <button
+                        type="button"
+                        onClick={() => addSet(exerciseIndex)}
+                        className="inline-flex min-h-[48px] w-full items-center justify-center gap-2 rounded-[20px] border border-white/10 bg-white/[0.05] px-4 py-3 text-sm font-black uppercase tracking-[0.14em] text-white transition hover:bg-white/[0.08]"
+                      >
+                        <Plus className="h-4 w-4" />
+                        Add set
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="mt-5 grid grid-cols-2 gap-3">
+            <div className="rounded-[22px] border border-white/10 bg-white/[0.04] px-4 py-3">
+              <div className="text-[10px] font-black uppercase tracking-[0.18em] text-zinc-400">
+                Exercises
+              </div>
+              <div className="mt-1 text-2xl font-black text-white">{exercises.length}</div>
+            </div>
+
+            <div className="rounded-[22px] border border-white/10 bg-white/[0.04] px-4 py-3">
+              <div className="text-[10px] font-black uppercase tracking-[0.18em] text-zinc-400">
+                Volume
+              </div>
+              <div className="mt-1 text-2xl font-black text-white">{Math.round(totalVolume)}</div>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleFinish}
+            className="mt-5 inline-flex min-h-[58px] w-full items-center justify-center gap-2 rounded-[24px] bg-lime-300 px-5 py-3 text-sm font-black uppercase tracking-[0.16em] text-black shadow-[0_18px_50px_rgba(163,230,53,0.2)] transition hover:brightness-105"
+          >
+            <Check className="h-4 w-4" />
+            Finish workout
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

@@ -1,138 +1,104 @@
-// src/lib/streakStore.ts
+const STORAGE_KEY = 'gymrat-streak-state';
+const EVENT_NAME = 'streak-updated';
 
-import { getWorkoutHistory } from '@/lib/historyStore';
-
-export type StreakSummary = {
-  currentStreak: number;
-  longestStreak: number;
+export type StreakState = {
+  current: number;
+  best: number;
   lastActivityDate: string | null;
-  isAtRisk: boolean;
-  daysSinceLastActivity: number | null;
 };
 
-const DEFAULT_ALLOWED_GAP_DAYS = 2;
+function isBrowser() {
+  return typeof window !== 'undefined' && typeof localStorage !== 'undefined';
+}
 
 function startOfDay(date: Date) {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
 }
 
-function diffInDays(a: Date, b: Date) {
-  const msPerDay = 1000 * 60 * 60 * 24;
-  const aDay = startOfDay(a).getTime();
-  const bDay = startOfDay(b).getTime();
-  return Math.round((aDay - bDay) / msPerDay);
+function dayDiff(a: Date, b: Date) {
+  const ms = startOfDay(a).getTime() - startOfDay(b).getTime();
+  return Math.round(ms / 86400000);
 }
 
-function getUniqueActivityDates(): Date[] {
-  const history = getWorkoutHistory();
-
-  const unique = new Set<string>();
-
-  history.forEach((entry) => {
-    const date = new Date(entry.completedAt);
-    const key = startOfDay(date).toISOString();
-    unique.add(key);
-  });
-
-  return Array.from(unique)
-    .map((value) => new Date(value))
-    .sort((a, b) => b.getTime() - a.getTime());
-}
-
-function calculateLongestStreak(
-  dates: Date[],
-  allowedGapDays: number
-): number {
-  if (dates.length === 0) return 0;
-  if (dates.length === 1) return 1;
-
-  let longest = 1;
-  let current = 1;
-
-  for (let i = 1; i < dates.length; i += 1) {
-    const gap = diffInDays(dates[i - 1], dates[i]);
-
-    if (gap <= allowedGapDays) {
-      current += 1;
-    } else {
-      current = 1;
-    }
-
-    if (current > longest) {
-      longest = current;
-    }
-  }
-
-  return longest;
-}
-
-function calculateCurrentStreak(
-  dates: Date[],
-  allowedGapDays: number
-): number {
-  if (dates.length === 0) return 0;
-
-  const today = new Date();
-  const lastActivity = dates[0];
-  const gapFromToday = diffInDays(today, lastActivity);
-
-  if (gapFromToday > allowedGapDays) {
-    return 0;
-  }
-
-  let streak = 1;
-
-  for (let i = 1; i < dates.length; i += 1) {
-    const gap = diffInDays(dates[i - 1], dates[i]);
-
-    if (gap <= allowedGapDays) {
-      streak += 1;
-    } else {
-      break;
-    }
-  }
-
-  return streak;
-}
-
-export function getStreakSummary(
-  allowedGapDays: number = DEFAULT_ALLOWED_GAP_DAYS
-): StreakSummary {
-  const dates = getUniqueActivityDates();
-
-  if (dates.length === 0) {
-    return {
-      currentStreak: 0,
-      longestStreak: 0,
-      lastActivityDate: null,
-      isAtRisk: false,
-      daysSinceLastActivity: null,
-    };
-  }
-
-  const today = new Date();
-  const lastActivity = dates[0];
-  const daysSinceLastActivity = diffInDays(today, lastActivity);
-
-  const currentStreak = calculateCurrentStreak(dates, allowedGapDays);
-  const longestStreak = calculateLongestStreak(dates, allowedGapDays);
-
+function getDefaultState(): StreakState {
   return {
-    currentStreak,
-    longestStreak,
-    lastActivityDate: lastActivity.toISOString(),
-    daysSinceLastActivity,
-    isAtRisk:
-      currentStreak > 0 &&
-      daysSinceLastActivity >= allowedGapDays &&
-      daysSinceLastActivity < allowedGapDays + 1,
+    current: 0,
+    best: 0,
+    lastActivityDate: null,
   };
 }
 
-export function getCurrentStreak(): number {
-  return getStreakSummary().currentStreak;
+function readState(): StreakState {
+  if (!isBrowser()) return getDefaultState();
+
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return getDefaultState();
+
+    const parsed = JSON.parse(raw) as Partial<StreakState>;
+
+    return {
+      current: typeof parsed.current === 'number' ? Math.max(0, Math.floor(parsed.current)) : 0,
+      best: typeof parsed.best === 'number' ? Math.max(0, Math.floor(parsed.best)) : 0,
+      lastActivityDate:
+        typeof parsed.lastActivityDate === 'string' ? parsed.lastActivityDate : null,
+    };
+  } catch {
+    return getDefaultState();
+  }
 }
 
-export function isStreakAtRisk(): boolean {
-  return getStreakSummary().isAtRisk;
+function writeState(state: StreakState) {
+  if (!isBrowser()) return;
+
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  window.dispatchEvent(new CustomEvent(EVENT_NAME, { detail: state }));
+}
+
+export function getStreakState() {
+  const state = readState();
+
+  if (!state.lastActivityDate) return state;
+
+  const diff = dayDiff(new Date(), new Date(state.lastActivityDate));
+  if (diff <= 1) return state;
+
+  return {
+    ...state,
+    current: 0,
+  };
+}
+
+export function logStreakActivity(date = new Date().toISOString()) {
+  const current = readState();
+  const now = new Date(date);
+
+  let nextCurrent = 1;
+
+  if (current.lastActivityDate) {
+    const diff = dayDiff(now, new Date(current.lastActivityDate));
+
+    if (diff <= 0) {
+      nextCurrent = Math.max(1, current.current);
+    } else if (diff === 1) {
+      nextCurrent = Math.max(1, current.current + 1);
+    } else {
+      nextCurrent = 1;
+    }
+  }
+
+  const next: StreakState = {
+    current: nextCurrent,
+    best: Math.max(current.best, nextCurrent),
+    lastActivityDate: now.toISOString(),
+  };
+
+  writeState(next);
+  return next;
+}
+
+export function resetStreak() {
+  const next = getDefaultState();
+  writeState(next);
+  return next;
 }

@@ -1,17 +1,13 @@
-import { useEffect, useState } from 'react';
-import {
-  getRecommendedNextFocusArea,
-  getWorkoutFocusBreakdown,
-  getPRProximity,
-} from '@/lib/historyStore';
+import { useMemo } from 'react';
+import { ArrowRight, Flame, Sparkles, Trophy, X } from 'lucide-react';
 
-type MuscleGroup =
-  | 'chest'
-  | 'back'
-  | 'arms'
-  | 'legs'
-  | 'shoulders'
-  | 'core';
+import { getAdaptiveWorkoutSuggestion } from '@/lib/adaptiveWorkout';
+import {
+  getPRProximity,
+  getWorkoutFocusBreakdown,
+  type MuscleGroup,
+} from '@/lib/historyStore';
+import { getStreakState } from '@/lib/streakStore';
 
 type Props = {
   onStartWorkout: (focus?: MuscleGroup) => void;
@@ -27,112 +23,163 @@ const muscleLabels: Record<MuscleGroup, string> = {
   core: 'Core',
 };
 
-export default function DailyCheckInScreen({
-  onStartWorkout,
-  onClose,
-}: Props) {
-  const [recommended, setRecommended] =
-    useState<MuscleGroup>('chest');
-
-  const [breakdown, setBreakdown] =
-    useState<Record<MuscleGroup, number> | null>(null);
-
-  const [proximity, setProximity] = useState<
-    ReturnType<typeof getPRProximity>
-  >([]);
-
-  useEffect(() => {
-    setRecommended(getRecommendedNextFocusArea());
-    setBreakdown(getWorkoutFocusBreakdown(10));
-    setProximity(getPRProximity());
-  }, []);
+function FocusBar({
+  label,
+  value,
+  maxValue,
+}: {
+  label: string;
+  value: number;
+  maxValue: number;
+}) {
+  const width =
+    maxValue > 0 ? Math.max(6, Math.min(100, (value / maxValue) * 100)) : 6;
 
   return (
-    <div className="fixed inset-0 z-50 bg-background flex items-center justify-center px-4">
-      <div className="w-full max-w-md bg-card rounded-2xl p-6 shadow-xl relative">
+    <div className="rounded-[22px] border border-white/10 bg-white/[0.04] p-3">
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <div className="text-sm font-black text-white">{label}</div>
+        <div className="text-xs font-bold uppercase tracking-[0.14em] text-zinc-400">
+          {Math.round(value)}
+        </div>
+      </div>
 
-        {/* CLOSE */}
-        <button
-          onClick={onClose}
-          className="absolute top-3 right-3 text-sm opacity-60"
-        >
-          ✕
-        </button>
+      <div className="h-2 overflow-hidden rounded-full bg-white/10">
+        <div
+          className="h-full rounded-full bg-lime-300 transition-all duration-500"
+          style={{ width: `${width}%` }}
+        />
+      </div>
+    </div>
+  );
+}
 
-        {/* TITLE */}
-        <h2 className="text-xl font-bold text-center mb-2">
-          Daily Check-In
-        </h2>
+export default function DailyCheckInScreen({ onStartWorkout, onClose }: Props) {
+  const suggestion = useMemo(() => getAdaptiveWorkoutSuggestion(), []);
+  const streak = useMemo(() => getStreakState(), []);
+  const breakdown = useMemo(() => getWorkoutFocusBreakdown(10), []);
+  const proximity = useMemo(() => getPRProximity(), []);
 
-        <p className="text-center text-sm text-muted-foreground mb-6">
-          Based on your recent workouts
-        </p>
+  const maxValue = Math.max(...Object.values(breakdown), 1);
+  const topPR = proximity[0] ?? null;
 
-        {/* 🔥 PR PROXIMITY */}
-        {proximity.length > 0 && (
-          <div className="bg-primary/10 border border-primary/20 rounded-xl p-3 mb-4 text-center">
-            <p className="text-xs text-muted-foreground">
-              Close to a PR
-            </p>
-            <p className="font-semibold text-sm">
-              {proximity[0].exercise} (+{proximity[0].diff} kg)
-            </p>
+  return (
+    <div className="min-h-screen bg-black px-5 py-5 text-white">
+      <div className="mx-auto max-w-md">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <div className="inline-flex items-center gap-2 rounded-full border border-lime-300/20 bg-lime-300/10 px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-lime-200">
+            <Sparkles className="h-3.5 w-3.5" />
+            Daily check-in
           </div>
-        )}
 
-        {/* RECOMMENDATION */}
-        <div className="bg-muted rounded-xl p-4 text-center mb-6">
-          <p className="text-sm text-muted-foreground mb-1">
-            Recommended focus
-          </p>
-
-          <p className="text-2xl font-bold">
-            {muscleLabels[recommended]}
-          </p>
+          <button
+            type="button"
+            onClick={onClose}
+            className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.05] text-white transition hover:bg-white/[0.08]"
+            aria-label="Close"
+          >
+            <X className="h-5 w-5" />
+          </button>
         </div>
 
-        {/* BREAKDOWN */}
-        {breakdown && (
-          <div className="mb-6 space-y-2">
-            {(Object.keys(breakdown) as MuscleGroup[]).map(
-              (group) => (
-                <div key={group}>
-                  <div className="flex justify-between text-xs mb-1">
-                    <span>{muscleLabels[group]}</span>
-                    <span>{Math.round(breakdown[group])}</span>
-                  </div>
+        <div className="rounded-[32px] border border-white/10 bg-zinc-950/90 p-5 shadow-[0_24px_90px_rgba(0,0,0,0.48)]">
+          <h1 className="text-3xl font-black tracking-tight">Start smart today</h1>
+          <p className="mt-3 text-sm leading-6 text-zinc-300">
+            Quick daily momentum screen built on your actual history, streak and PR proximity.
+          </p>
 
-                  <div className="h-1 bg-muted rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-primary"
-                      style={{
-                        width: `${Math.min(
-                          100,
-                          breakdown[group] / 10
-                        )}%`,
-                      }}
-                    />
-                  </div>
-                </div>
-              )
-            )}
+          <div className="mt-5 grid grid-cols-2 gap-3">
+            <div className="rounded-[24px] border border-white/10 bg-white/[0.04] px-4 py-3">
+              <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.18em] text-zinc-400">
+                <Flame className="h-3.5 w-3.5" />
+                Streak
+              </div>
+              <div className="mt-2 text-2xl font-black text-white">{streak.current}</div>
+            </div>
+
+            <div className="rounded-[24px] border border-white/10 bg-white/[0.04] px-4 py-3">
+              <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.18em] text-zinc-400">
+                <Trophy className="h-3.5 w-3.5" />
+                Best
+              </div>
+              <div className="mt-2 text-2xl font-black text-white">{streak.best}</div>
+            </div>
           </div>
-        )}
 
-        {/* ACTIONS */}
-        <button
-          onClick={() => onStartWorkout(recommended)}
-          className="w-full bg-primary text-primary-foreground py-4 rounded-xl font-bold"
-        >
-          Start Recommended Workout
-        </button>
+          {topPR ? (
+            <div className="mt-5 rounded-[26px] border border-yellow-300/20 bg-yellow-300/10 p-4">
+              <div className="inline-flex items-center gap-2 rounded-full border border-yellow-300/20 bg-yellow-300/10 px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-yellow-100">
+                <Trophy className="h-3.5 w-3.5" />
+                PR watch
+              </div>
 
-        <button
-          onClick={() => onStartWorkout()}
-          className="w-full mt-2 py-3 text-sm opacity-70"
-        >
-          Start Anyway
-        </button>
+              <div className="mt-3 text-lg font-black text-white">{topPR.exercise}</div>
+              <p className="mt-2 text-sm leading-6 text-yellow-50">
+                You are only {topPR.diff} kg from your current best. This is a strong day to push.
+              </p>
+            </div>
+          ) : (
+            <div className="mt-5 rounded-[26px] border border-white/10 bg-white/[0.04] p-4">
+              <div className="text-lg font-black text-white">No immediate PR target</div>
+              <p className="mt-2 text-sm leading-6 text-zinc-300">
+                That is fine. Today can still be a momentum day.
+              </p>
+            </div>
+          )}
+
+          <div className="mt-5 rounded-[28px] border border-lime-300/20 bg-lime-300/10 p-4">
+            <div className="text-[11px] font-black uppercase tracking-[0.18em] text-lime-200">
+              Recommended next focus
+            </div>
+            <div className="mt-2 text-2xl font-black text-white">
+              {muscleLabels[suggestion.focusArea]}
+            </div>
+            <p className="mt-2 text-sm leading-6 text-lime-50">
+              {suggestion.reason}
+            </p>
+
+            <button
+              type="button"
+              onClick={() => onStartWorkout(suggestion.focusArea)}
+              className="mt-4 inline-flex min-h-[54px] w-full items-center justify-center gap-2 rounded-[22px] bg-lime-300 px-4 py-3 text-sm font-black uppercase tracking-[0.14em] text-black shadow-[0_18px_50px_rgba(163,230,53,0.18)] transition hover:brightness-105"
+            >
+              Start recommended workout
+              <ArrowRight className="h-4 w-4" />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => onStartWorkout()}
+              className="mt-3 inline-flex min-h-[50px] w-full items-center justify-center rounded-[22px] border border-white/10 bg-white/[0.05] px-4 py-3 text-sm font-black uppercase tracking-[0.14em] text-white transition hover:bg-white/[0.08]"
+            >
+              Start anyway
+            </button>
+          </div>
+
+          <div className="mt-5">
+            <div className="mb-3 text-[11px] font-black uppercase tracking-[0.18em] text-zinc-400">
+              Recent focus balance
+            </div>
+
+            <div className="space-y-3">
+              {(Object.keys(breakdown) as MuscleGroup[]).map((group) => (
+                <FocusBar
+                  key={group}
+                  label={muscleLabels[group]}
+                  value={breakdown[group]}
+                  maxValue={maxValue}
+                />
+              ))}
+            </div>
+          </div>
+
+          <div className="mt-5 rounded-[24px] border border-white/10 bg-white/[0.04] p-4">
+            <div className="text-sm font-black text-white">Walk fallback</div>
+            <p className="mt-2 text-sm leading-6 text-zinc-300">
+              Low energy today? A walk still helps keep identity and streak momentum alive.
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );

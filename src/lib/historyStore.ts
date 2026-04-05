@@ -1,10 +1,14 @@
-// src/lib/historyStore.ts
-
-export type MuscleGroup = 'chest' | 'back' | 'arms' | 'legs' | 'shoulders' | 'core';
+export type MuscleGroup =
+  | 'chest'
+  | 'back'
+  | 'arms'
+  | 'legs'
+  | 'shoulders'
+  | 'core';
 
 export type ExerciseSet = {
   reps: number;
-  weight: number; // kg
+  weight: number;
 };
 
 export type ExerciseEntry = {
@@ -21,60 +25,189 @@ export type WorkoutEntry = {
   completedAt: string;
 };
 
-// ---------- STORAGE ----------
+export type PRResult = {
+  exercise: string;
+  newWeight: number;
+  previousBest: number;
+};
+
+export type PRProximity = {
+  exercise: string;
+  currentBest: number;
+  lastWeight: number;
+  diff: number;
+};
 
 const STORAGE_KEY = 'gymrat-workout-history';
+const EVENT_NAME = 'history-updated';
 
-function load(): WorkoutEntry[] {
+function isBrowser() {
+  return typeof window !== 'undefined' && typeof localStorage !== 'undefined';
+}
+
+function sanitizeSet(value: unknown): ExerciseSet | null {
+  if (!value || typeof value !== 'object') return null;
+
+  const reps = Number((value as ExerciseSet).reps);
+  const weight = Number((value as ExerciseSet).weight);
+
+  return {
+    reps: Number.isFinite(reps) ? Math.max(0, Math.round(reps)) : 0,
+    weight: Number.isFinite(weight) ? Math.max(0, weight) : 0,
+  };
+}
+
+function sanitizeMuscleGroup(value: unknown): MuscleGroup {
+  if (
+    value === 'chest' ||
+    value === 'back' ||
+    value === 'arms' ||
+    value === 'legs' ||
+    value === 'shoulders' ||
+    value === 'core'
+  ) {
+    return value;
+  }
+
+  return 'core';
+}
+
+function sanitizeExercise(value: unknown): ExerciseEntry | null {
+  if (!value || typeof value !== 'object') return null;
+
+  const raw = value as Partial<ExerciseEntry>;
+  const name = typeof raw.name === 'string' && raw.name.trim().length > 0 ? raw.name : null;
+  const sets = Array.isArray(raw.sets)
+    ? raw.sets.map(sanitizeSet).filter((set): set is ExerciseSet => Boolean(set))
+    : [];
+
+  if (!name || sets.length === 0) {
+    return null;
+  }
+
+  return {
+    name,
+    muscleGroup: sanitizeMuscleGroup(raw.muscleGroup),
+    sets,
+  };
+}
+
+function sanitizeWorkout(value: unknown): WorkoutEntry | null {
+  if (!value || typeof value !== 'object') return null;
+
+  const raw = value as Partial<WorkoutEntry>;
+  const workoutName =
+    typeof raw.workoutName === 'string' && raw.workoutName.trim().length > 0
+      ? raw.workoutName
+      : null;
+
+  const completedAt =
+    typeof raw.completedAt === 'string' && raw.completedAt.trim().length > 0
+      ? raw.completedAt
+      : null;
+
+  const exercises = Array.isArray(raw.exercises)
+    ? raw.exercises
+        .map(sanitizeExercise)
+        .filter((exercise): exercise is ExerciseEntry => Boolean(exercise))
+    : [];
+
+  if (!workoutName || !completedAt || exercises.length === 0) {
+    return null;
+  }
+
+  const durationMinutes = Number(raw.durationMinutes);
+
+  return {
+    id:
+      typeof raw.id === 'string' && raw.id.trim().length > 0
+        ? raw.id
+        : `workout-${Date.now()}`,
+    workoutName,
+    exercises,
+    durationMinutes: Number.isFinite(durationMinutes)
+      ? Math.max(1, Math.round(durationMinutes))
+      : 1,
+    completedAt,
+  };
+}
+
+function readHistory(): WorkoutEntry[] {
+  if (!isBrowser()) return [];
+
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
+    if (!raw) return [];
+
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+
+    return parsed
+      .map(sanitizeWorkout)
+      .filter((entry): entry is WorkoutEntry => Boolean(entry))
+      .sort(
+        (a, b) =>
+          new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime(),
+      );
   } catch {
     return [];
   }
 }
 
-function save(data: WorkoutEntry[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+function writeHistory(history: WorkoutEntry[]) {
+  if (!isBrowser()) return;
+
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(history));
+  window.dispatchEvent(new CustomEvent(EVENT_NAME, { detail: history }));
 }
 
-// ---------- CORE API ----------
+export function subscribeHistory(callback: () => void) {
+  if (!isBrowser()) {
+    return () => undefined;
+  }
+
+  const handler = () => callback();
+
+  window.addEventListener(EVENT_NAME, handler);
+  window.addEventListener('storage', handler);
+
+  return () => {
+    window.removeEventListener(EVENT_NAME, handler);
+    window.removeEventListener('storage', handler);
+  };
+}
 
 export function getWorkoutHistory(): WorkoutEntry[] {
-  return load().sort(
-    (a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime()
-  );
+  return readHistory();
 }
 
 export function addWorkoutHistory(entry: WorkoutEntry) {
-  const current = load();
-  current.push(entry);
-  save(current);
+  const history = readHistory();
+  const next = [sanitizeWorkout(entry), ...history].filter(
+    (item): item is WorkoutEntry => Boolean(item),
+  );
+
+  writeHistory(next);
+  return next;
 }
 
 export function clearWorkoutHistory() {
-  save([]);
+  writeHistory([]);
 }
 
-// ---------- HELPERS ----------
-
 export function calculateWorkoutVolume(entry: WorkoutEntry): number {
-  return entry.exercises.reduce((total, ex) => {
-    const exVolume = ex.sets.reduce(
-      (sum, set) => sum + set.reps * set.weight,
-      0
+  return entry.exercises.reduce((total, exercise) => {
+    return (
+      total +
+      exercise.sets.reduce((sum, set) => sum + set.reps * set.weight, 0)
     );
-    return total + exVolume;
   }, 0);
 }
 
-// ---------- ANALYTICS ----------
-
-// Hur mycket varje muskelgrupp tränats senaste passen
 export function getWorkoutFocusBreakdown(
-  limit: number = 10
+  limit: number = 10,
 ): Record<MuscleGroup, number> {
-  const history = getWorkoutHistory().slice(0, limit);
+  const history = readHistory().slice(0, Math.max(1, Math.floor(limit)));
 
   const breakdown: Record<MuscleGroup, number> = {
     chest: 0,
@@ -85,198 +218,150 @@ export function getWorkoutFocusBreakdown(
     core: 0,
   };
 
-  history.forEach((workout) => {
-    workout.exercises.forEach((ex) => {
-      const volume = ex.sets.reduce(
+  for (const workout of history) {
+    for (const exercise of workout.exercises) {
+      breakdown[exercise.muscleGroup] += exercise.sets.reduce(
         (sum, set) => sum + set.reps * set.weight,
-        0
+        0,
       );
-
-      breakdown[ex.muscleGroup] += volume;
-    });
-  });
+    }
+  }
 
   return breakdown;
 }
 
-// Rekommendera vad användaren ska träna härnäst
 export function getRecommendedNextFocusArea(): MuscleGroup {
   const breakdown = getWorkoutFocusBreakdown(10);
 
   let lowest: MuscleGroup = 'chest';
-  let lowestValue = Infinity;
+  let lowestValue = Number.POSITIVE_INFINITY;
 
-  (Object.keys(breakdown) as MuscleGroup[]).forEach((group) => {
+  for (const group of Object.keys(breakdown) as MuscleGroup[]) {
     if (breakdown[group] < lowestValue) {
-      lowestValue = breakdown[group];
       lowest = group;
+      lowestValue = breakdown[group];
     }
-  });
+  }
 
   return lowest;
 }
 
-// ---------- HISTORY HELPERS ----------
-
 export function getExerciseHistory(exerciseName: string) {
-  const history = getWorkoutHistory();
-
-  return history.flatMap((workout) =>
+  return readHistory().flatMap((workout) =>
     workout.exercises
-      .filter((ex) => ex.name === exerciseName)
-      .map((ex) => ({
+      .filter((exercise) => exercise.name === exerciseName)
+      .map((exercise) => ({
         date: workout.completedAt,
-        sets: ex.sets,
-      }))
+        sets: exercise.sets,
+      })),
   );
 }
 
 export function getExerciseNameOptions(): string[] {
-  const history = getWorkoutHistory();
-
   const names = new Set<string>();
 
-  history.forEach((w) =>
-    w.exercises.forEach((ex) => names.add(ex.name))
-  );
+  for (const workout of readHistory()) {
+    for (const exercise of workout.exercises) {
+      names.add(exercise.name);
+    }
+  }
 
-  return Array.from(names);
+  return Array.from(names).sort((a, b) => a.localeCompare(b));
 }
 
 export function getWorkoutNameOptions(): string[] {
-  const history = getWorkoutHistory();
-
   const names = new Set<string>();
 
-  history.forEach((w) => names.add(w.workoutName));
+  for (const workout of readHistory()) {
+    names.add(workout.workoutName);
+  }
 
-  return Array.from(names);
+  return Array.from(names).sort((a, b) => a.localeCompare(b));
 }
-// ---------- PR SYSTEM ----------
 
 export function getAllTimeBestWeight(exerciseName: string): number {
-  const history = getWorkoutHistory();
-
   let best = 0;
 
-  history.forEach((workout) => {
-    workout.exercises.forEach((ex) => {
-      if (ex.name === exerciseName) {
-        ex.sets.forEach((set) => {
-          if (set.weight > best) {
-            best = set.weight;
-          }
-        });
+  for (const workout of readHistory()) {
+    for (const exercise of workout.exercises) {
+      if (exercise.name !== exerciseName) continue;
+
+      for (const set of exercise.sets) {
+        if (set.weight > best) {
+          best = set.weight;
+        }
       }
-    });
-  });
+    }
+  }
 
   return best;
 }
 
-export type PRResult = {
-  exercise: string;
-  newWeight: number;
-  previousBest: number;
-};
-
-export function detectPRs(
-  exercises: ExerciseEntry[]
-): PRResult[] {
+export function detectPRs(exercises: ExerciseEntry[]): PRResult[] {
   const prs: PRResult[] = [];
 
-  exercises.forEach((ex) => {
-    const bestBefore = getAllTimeBestWeight(ex.name);
+  for (const exercise of exercises) {
+    const previousBest = getAllTimeBestWeight(exercise.name);
+    const newWeight = Math.max(...exercise.sets.map((set) => set.weight), 0);
 
-    const bestNow = Math.max(
-      ...ex.sets.map((s) => s.weight)
-    );
-
-    if (bestNow > bestBefore) {
+    if (newWeight > previousBest) {
       prs.push({
-        exercise: ex.name,
-        newWeight: bestNow,
-        previousBest: bestBefore,
+        exercise: exercise.name,
+        newWeight,
+        previousBest,
       });
     }
-  });
+  }
 
   return prs;
 }
-// ---------- SMART PROGRESSION ----------
 
-export function getLastWorkoutForExercise(exerciseName: string) {
-  const history = getWorkoutHistory();
-
-  for (const workout of history) {
+export function getLastWorkoutForExercise(exerciseName: string): ExerciseEntry | null {
+  for (const workout of readHistory()) {
     const found = workout.exercises.find(
-      (ex) => ex.name === exerciseName
+      (exercise) => exercise.name === exerciseName,
     );
 
-    if (found) {
-      return found;
-    }
+    if (found) return found;
   }
 
   return null;
 }
 
-export function getSuggestedWeight(
-  exerciseName: string
-): number | null {
+export function getSuggestedWeight(exerciseName: string): number | null {
   const last = getLastWorkoutForExercise(exerciseName);
-
   if (!last) return null;
 
-  const lastTopWeight = Math.max(
-    ...last.sets.map((s) => s.weight)
-  );
-
-  // 🔥 progression rule
+  const lastTopWeight = Math.max(...last.sets.map((set) => set.weight), 0);
   const increment = lastTopWeight >= 100 ? 5 : 2.5;
 
-  return lastTopWeight + increment;
+  return Math.max(0, lastTopWeight + increment);
 }
-// ---------- PR PROXIMITY ----------
-
-export type PRProximity = {
-  exercise: string;
-  currentBest: number;
-  lastWeight: number;
-  diff: number;
-};
 
 export function getPRProximity(): PRProximity[] {
-  const history = getWorkoutHistory();
-
   const result: PRProximity[] = [];
-
   const seen = new Set<string>();
 
-  history.forEach((workout) => {
-    workout.exercises.forEach((ex) => {
-      if (seen.has(ex.name)) return;
+  for (const workout of readHistory()) {
+    for (const exercise of workout.exercises) {
+      if (seen.has(exercise.name)) continue;
 
-      const best = getAllTimeBestWeight(ex.name);
+      const currentBest = getAllTimeBestWeight(exercise.name);
+      const lastWeight = exercise.sets[exercise.sets.length - 1]?.weight ?? 0;
+      const diff = currentBest - lastWeight;
 
-      const lastSet = ex.sets[ex.sets.length - 1];
-      const lastWeight = lastSet?.weight ?? 0;
-
-      const diff = best - lastWeight;
-
-      // 🔥 nära PR (inom 5kg)
       if (diff > 0 && diff <= 5) {
         result.push({
-          exercise: ex.name,
-          currentBest: best,
+          exercise: exercise.name,
+          currentBest,
           lastWeight,
           diff,
         });
       }
 
-      seen.add(ex.name);
-    });
-  });
+      seen.add(exercise.name);
+    }
+  }
 
-  return result;
+  return result.sort((a, b) => a.diff - b.diff);
 }

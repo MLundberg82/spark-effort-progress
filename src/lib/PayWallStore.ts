@@ -9,13 +9,18 @@ export type PaywallTrigger =
   | 'shop_premium'
   | 'feature_lock';
 
-type PaywallState = {
+export type PaywallState = {
   isOpen: boolean;
   lastTrigger: PaywallTrigger | null;
   seenThisSession: PaywallTrigger[];
 };
 
 const STORAGE_KEY = 'gymrat-paywall-state';
+const EVENT_NAME = 'paywall-updated';
+
+function isBrowser() {
+  return typeof window !== 'undefined' && typeof sessionStorage !== 'undefined';
+}
 
 function getDefaultState(): PaywallState {
   return {
@@ -25,8 +30,22 @@ function getDefaultState(): PaywallState {
   };
 }
 
+function isPaywallTrigger(value: unknown): value is PaywallTrigger {
+  return (
+    value === 'manual' ||
+    value === 'workout_complete' ||
+    value === 'level_up' ||
+    value === 'pr' ||
+    value === 'history' ||
+    value === 'nutrition' ||
+    value === 'custom_workout' ||
+    value === 'shop_premium' ||
+    value === 'feature_lock'
+  );
+}
+
 function readState(): PaywallState {
-  if (typeof window === 'undefined') return getDefaultState();
+  if (!isBrowser()) return getDefaultState();
 
   try {
     const raw = sessionStorage.getItem(STORAGE_KEY);
@@ -36,9 +55,9 @@ function readState(): PaywallState {
 
     return {
       isOpen: Boolean(parsed.isOpen),
-      lastTrigger: parsed.lastTrigger ?? null,
+      lastTrigger: isPaywallTrigger(parsed.lastTrigger) ? parsed.lastTrigger : null,
       seenThisSession: Array.isArray(parsed.seenThisSession)
-        ? parsed.seenThisSession
+        ? parsed.seenThisSession.filter(isPaywallTrigger)
         : [],
     };
   } catch {
@@ -47,8 +66,25 @@ function readState(): PaywallState {
 }
 
 function writeState(next: PaywallState) {
-  if (typeof window === 'undefined') return;
+  if (!isBrowser()) return;
   sessionStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+  window.dispatchEvent(new CustomEvent(EVENT_NAME, { detail: next }));
+}
+
+export function subscribePaywall(callback: () => void) {
+  if (!isBrowser()) {
+    return () => undefined;
+  }
+
+  const handler = () => callback();
+
+  window.addEventListener(EVENT_NAME, handler);
+  window.addEventListener('storage', handler);
+
+  return () => {
+    window.removeEventListener(EVENT_NAME, handler);
+    window.removeEventListener('storage', handler);
+  };
 }
 
 export function getPaywallState() {
@@ -61,6 +97,15 @@ export function isPaywallOpen() {
 
 export function getLastPaywallTrigger() {
   return readState().lastTrigger;
+}
+
+export function hasSeenPaywallTrigger(trigger: PaywallTrigger) {
+  return readState().seenThisSession.includes(trigger);
+}
+
+export function shouldOpenPaywall(trigger: PaywallTrigger) {
+  if (trigger === 'manual') return true;
+  return !hasSeenPaywallTrigger(trigger);
 }
 
 export function openPaywall(trigger: PaywallTrigger = 'manual') {
@@ -81,21 +126,14 @@ export function openPaywall(trigger: PaywallTrigger = 'manual') {
 
 export function closePaywall() {
   const current = readState();
+
   const next: PaywallState = {
     ...current,
     isOpen: false,
   };
+
   writeState(next);
   return next;
-}
-
-export function hasSeenPaywallTrigger(trigger: PaywallTrigger) {
-  return readState().seenThisSession.includes(trigger);
-}
-
-export function shouldOpenPaywall(trigger: PaywallTrigger) {
-  if (trigger === 'manual') return true;
-  return !hasSeenPaywallTrigger(trigger);
 }
 
 export function resetPaywallSession() {
@@ -105,11 +143,11 @@ export function resetPaywallSession() {
 export function getPaywallHeadline(trigger: PaywallTrigger) {
   switch (trigger) {
     case 'workout_complete':
-      return 'You finished the work. Now unlock the deeper systems.';
+      return 'Workout done. Now unlock the deeper systems.';
     case 'level_up':
-      return 'You leveled up. Keep that momentum going.';
+      return 'You leveled up. Keep the momentum alive.';
     case 'pr':
-      return 'You hit a new high. Build on it with Premium.';
+      return 'You hit a new PR. Stack more wins with Premium.';
     case 'history':
       return 'See the bigger picture of your progress.';
     case 'nutrition':
@@ -122,29 +160,30 @@ export function getPaywallHeadline(trigger: PaywallTrigger) {
       return 'This feature is part of the deeper progression layer.';
     case 'manual':
     default:
-      return 'Train smarter. Track everything. Become unstoppable.';
+      return 'Train smarter. Track more. Become harder to stop.';
   }
 }
 
 export function getPaywallSubtext(trigger: PaywallTrigger) {
   switch (trigger) {
     case 'workout_complete':
-      return 'You already did the hard part. Premium helps you keep the streak alive with better tracking and more control.';
+      return 'You already did the hard part. Premium helps you keep momentum with better tracking and more control.';
     case 'level_up':
-      return 'A stronger rat deserves deeper progression, more insight and stronger personalization.';
+      return 'A stronger rat deserves deeper progression, cleaner insight and stronger identity.';
     case 'pr':
-      return 'When momentum is high, the right tools make it easier to keep stacking wins.';
+      return 'When momentum is high, the right systems make it easier to keep stacking wins.';
     case 'history':
-      return 'Get full workout history, progress stats, and long-term tracking.';
+      return 'Unlock full workout history, progress stats and long-term tracking.';
     case 'nutrition':
-      return 'Unlock nutrition tracking, macro goals, and daily consistency tools.';
+      return 'Unlock nutrition tracking, macro goals and better daily consistency.';
     case 'custom_workout':
       return 'Create your own workouts and train exactly how you want.';
     case 'shop_premium':
-      return 'Premium gives you access to exclusive rewards, upgrades, and a better GymRat experience.';
+      return 'Premium gives you exclusive identity upgrades, cosmetics and a stronger GymRat feel.';
     case 'feature_lock':
+      return 'This is part of the premium progression layer.';
     case 'manual':
     default:
-      return 'Train smarter. Track everything. Become unstoppable.';
+      return 'Keep the free flow simple, then unlock the heavier version when you want more.';
   }
 }

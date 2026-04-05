@@ -1,169 +1,157 @@
-import {
-  addXP as addGamificationXP,
-  getCurrentLevelXP,
-  getLevelFromXP,
-  getNextLevelXP,
-  getProgressPercent,
-  getStreak,
-  getTotalWorkouts,
-  getTotalXP,
-} from '@/lib/gamificationStore';
-
-export type AppPage =
+export type RootPage =
   | 'home'
+  | 'daily'
   | 'workout'
   | 'complete'
+  | 'gallery'
+  | 'shop'
   | 'history'
   | 'nutrition'
-  | 'shop'
-  | 'gallery'
-  | 'premium'
-  | 'settings'
-  | 'daily';
+  | 'settings';
 
-export type AppStats = {
-  level: number;
-  totalXP: number;
-  currentLevelXP: number;
-  nextLevelXP: number;
-  progressPercent: number;
-  totalWorkouts: number;
-  streak: number;
+export type OverlayPage = 'none' | 'menu' | 'paywall';
+
+export type AppStoreState = {
+  page: RootPage;
+  overlay: OverlayPage;
+  showDailyCheckIn: boolean;
+  hasSeenSplash: boolean;
+  lastVisitedAt: string | null;
 };
 
-type AppState = {
-  currentPage: AppPage;
-  menuOpen: boolean;
-  paywallOpen: boolean;
-  workoutSummary: unknown | null;
+const STORAGE_KEY = 'gymrat-app-store';
+const EVENT_NAME = 'gymrat-app-store-updated';
+
+const DEFAULT_STATE: AppStoreState = {
+  page: 'home',
+  overlay: 'none',
+  showDailyCheckIn: false,
+  hasSeenSplash: true,
+  lastVisitedAt: null,
 };
 
-const KEY = 'gymrat-app-store';
-
-const DEFAULT_STATE: AppState = {
-  currentPage: 'home',
-  menuOpen: false,
-  paywallOpen: false,
-  workoutSummary: null,
-};
-
-function isValidPage(value: unknown): value is AppPage {
-  return [
-    'home',
-    'workout',
-    'complete',
-    'history',
-    'nutrition',
-    'shop',
-    'gallery',
-    'premium',
-    'settings',
-    'daily',
-  ].includes(String(value));
+function isBrowser() {
+  return typeof window !== 'undefined' && typeof localStorage !== 'undefined';
 }
 
-function readState(): AppState {
-  if (typeof window === 'undefined') return DEFAULT_STATE;
+function isRootPage(value: unknown): value is RootPage {
+  return (
+    value === 'home' ||
+    value === 'daily' ||
+    value === 'workout' ||
+    value === 'complete' ||
+    value === 'gallery' ||
+    value === 'shop' ||
+    value === 'history' ||
+    value === 'nutrition' ||
+    value === 'settings'
+  );
+}
+
+function isOverlayPage(value: unknown): value is OverlayPage {
+  return value === 'none' || value === 'menu' || value === 'paywall';
+}
+
+function sanitizeState(input: Partial<AppStoreState> | null | undefined): AppStoreState {
+  return {
+    page: isRootPage(input?.page) ? input.page : DEFAULT_STATE.page,
+    overlay: isOverlayPage(input?.overlay) ? input.overlay : DEFAULT_STATE.overlay,
+    showDailyCheckIn:
+      typeof input?.showDailyCheckIn === 'boolean'
+        ? input.showDailyCheckIn
+        : DEFAULT_STATE.showDailyCheckIn,
+    hasSeenSplash:
+      typeof input?.hasSeenSplash === 'boolean'
+        ? input.hasSeenSplash
+        : DEFAULT_STATE.hasSeenSplash,
+    lastVisitedAt:
+      typeof input?.lastVisitedAt === 'string' && input.lastVisitedAt.trim().length > 0
+        ? input.lastVisitedAt
+        : null,
+  };
+}
+
+export function getAppState(): AppStoreState {
+  if (!isBrowser()) {
+    return DEFAULT_STATE;
+  }
 
   try {
-    const raw = localStorage.getItem(KEY);
-    if (!raw) return DEFAULT_STATE;
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) {
+      return DEFAULT_STATE;
+    }
 
-    const parsed = JSON.parse(raw) as Partial<AppState>;
-
-    return {
-      ...DEFAULT_STATE,
-      ...parsed,
-      currentPage: isValidPage(parsed.currentPage) ? parsed.currentPage : 'home',
-      menuOpen: parsed.menuOpen === true,
-      paywallOpen: parsed.paywallOpen === true,
-      workoutSummary: parsed.workoutSummary ?? null,
-    };
+    const parsed = JSON.parse(raw) as Partial<AppStoreState>;
+    return sanitizeState(parsed);
   } catch {
     return DEFAULT_STATE;
   }
 }
 
-function writeState(state: AppState) {
-  if (typeof window === 'undefined') return;
+export function setAppState(next: Partial<AppStoreState>): AppStoreState {
+  const merged = sanitizeState({
+    ...getAppState(),
+    ...next,
+    lastVisitedAt: new Date().toISOString(),
+  });
 
-  const currentRaw = localStorage.getItem(KEY);
-  let current: Record<string, unknown> = {};
-
-  try {
-    current = currentRaw ? JSON.parse(currentRaw) : {};
-  } catch {
-    current = {};
+  if (isBrowser()) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+    window.dispatchEvent(new CustomEvent(EVENT_NAME, { detail: merged }));
   }
 
-  const merged = {
-    ...current,
-    ...state,
+  return merged;
+}
+
+export function updatePage(page: RootPage): AppStoreState {
+  return setAppState({ page });
+}
+
+export function openOverlay(overlay: Exclude<OverlayPage, 'none'>): AppStoreState {
+  return setAppState({ overlay });
+}
+
+export function closeOverlay(): AppStoreState {
+  return setAppState({ overlay: 'none' });
+}
+
+export function setShowDailyCheckIn(showDailyCheckIn: boolean): AppStoreState {
+  return setAppState({ showDailyCheckIn });
+}
+
+export function markSplashSeen(): AppStoreState {
+  return setAppState({ hasSeenSplash: true });
+}
+
+export function resetAppState(): AppStoreState {
+  if (isBrowser()) {
+    localStorage.removeItem(STORAGE_KEY);
+    window.dispatchEvent(new CustomEvent(EVENT_NAME, { detail: DEFAULT_STATE }));
+  }
+
+  return DEFAULT_STATE;
+}
+
+export function subscribeAppState(listener: (state: AppStoreState) => void): () => void {
+  if (!isBrowser()) {
+    return () => undefined;
+  }
+
+  const emit = () => listener(getAppState());
+
+  const onCustomUpdate = () => emit();
+  const onStorage = (event: StorageEvent) => {
+    if (!event.key || event.key === STORAGE_KEY) {
+      emit();
+    }
   };
 
-  localStorage.setItem(KEY, JSON.stringify(merged));
-  window.dispatchEvent(
-    new CustomEvent('app-store-updated', {
-      detail: merged,
-    })
-  );
-}
+  window.addEventListener(EVENT_NAME, onCustomUpdate as EventListener);
+  window.addEventListener('storage', onStorage);
 
-export function getCurrentPage(): AppPage {
-  return readState().currentPage;
-}
-
-export function setCurrentPage(currentPage: AppPage) {
-  const state = readState();
-  writeState({ ...state, currentPage });
-}
-
-export function getUIState() {
-  const state = readState();
-  return {
-    menuOpen: state.menuOpen,
-    paywallOpen: state.paywallOpen,
+  return () => {
+    window.removeEventListener(EVENT_NAME, onCustomUpdate as EventListener);
+    window.removeEventListener('storage', onStorage);
   };
-}
-
-export function setMenuOpen(menuOpen: boolean) {
-  const state = readState();
-  writeState({ ...state, menuOpen });
-}
-
-export function setPaywallOpen(paywallOpen: boolean) {
-  const state = readState();
-  writeState({ ...state, paywallOpen });
-}
-
-export function setWorkoutSummary(workoutSummary: unknown | null) {
-  const state = readState();
-  writeState({ ...state, workoutSummary });
-}
-
-export function getWorkoutSummary<T>() {
-  return readState().workoutSummary as T | null;
-}
-
-export function addXP(amount: number) {
-  return addGamificationXP(amount);
-}
-
-export function getAppStats(): AppStats {
-  const totalXP = getTotalXP();
-  const level = getLevelFromXP(totalXP);
-
-  return {
-    level,
-    totalXP,
-    currentLevelXP: getCurrentLevelXP(totalXP),
-    nextLevelXP: getNextLevelXP(totalXP),
-    progressPercent: Math.round(getProgressPercent(totalXP)),
-    totalWorkouts: getTotalWorkouts(),
-    streak: getStreak(),
-  };
-}
-
-export function resetAppState() {
-  writeState(DEFAULT_STATE);
 }

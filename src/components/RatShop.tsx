@@ -1,25 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
-import {
-  ArrowLeft,
-  Check,
-  Crown,
-  Lock,
-  ShoppingBag,
-  Sparkles,
-  Star,
-} from 'lucide-react';
+import { ArrowLeft, Check, Crown, Lock, ShoppingBag, Sparkles, Star } from 'lucide-react';
+
 import EquippedRatPreview from '@/components/EquippedRatPreview';
 import {
   canAccessShopItem,
   equipItem,
   getEquippedItemIdForSlot,
+  getItemPreviewSrc,
   getShopItems,
   ownItem,
   subscribeShop,
   type ShopItem,
 } from '@/lib/shopStore';
 import type { SlotKey } from '@/lib/assetTypes';
-import { getBackgroundImage, getItemImage } from '@/lib/assetRegistry';
 
 type RatShopProps = {
   onBack?: () => void;
@@ -48,14 +41,6 @@ const slotOrder: SlotKey[] = [
   'background',
 ];
 
-function getDisplayAsset(item: ShopItem) {
-  if (item.slot === 'background') {
-    return getBackgroundImage(item.id);
-  }
-
-  return getItemImage(item.id);
-}
-
 function SlotChip({
   label,
   active,
@@ -71,16 +56,14 @@ function SlotChip({
     <button
       type="button"
       onClick={onClick}
-      className={`relative overflow-hidden rounded-[20px] border px-4 py-3 text-left transition ${
+      className={`rounded-full border px-4 py-2 text-xs font-black uppercase tracking-[0.14em] transition ${
         active
-          ? 'border-lime-300/25 bg-lime-300/10 shadow-[0_0_0_1px_rgba(163,230,53,0.08)]'
-          : 'border-white/10 bg-white/[0.04] hover:border-white/20 hover:bg-white/[0.07]'
+          ? 'border-lime-300/30 bg-lime-300/14 text-lime-200'
+          : 'border-white/10 bg-white/[0.04] text-zinc-300 hover:bg-white/[0.07]'
       }`}
     >
-      <div className="text-[11px] font-black uppercase tracking-[0.14em] text-white">
-        {label}
-      </div>
-      <div className="mt-1 text-[10px] font-bold uppercase tracking-[0.12em] text-white/45">
+      <div>{label}</div>
+      <div className="mt-1 text-[10px] tracking-[0.18em] text-zinc-400">
         {equipped ? 'Equipped' : active ? 'Open' : 'Browse'}
       </div>
     </button>
@@ -99,112 +82,101 @@ function ItemCard({
   onAction: (item: ShopItem) => void;
 }) {
   const locked = !item.accessible;
-  const asset = getDisplayAsset(item);
+  const asset = getItemPreviewSrc(item);
 
   return (
-    <div className="relative overflow-hidden rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.03))] p-4 shadow-[0_18px_50px_rgba(0,0,0,0.24)]">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.05),transparent_36%)]" />
-
-      <div className="relative z-10">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <div className="text-lg font-black text-white">{item.name}</div>
-            <div className="mt-1 text-sm leading-5 text-white/55">{item.description}</div>
-          </div>
-
-          <div className="shrink-0 rounded-full border border-white/10 bg-black/20 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-white/70">
-            {slotLabels[activeSlot]}
-          </div>
+    <div className="rounded-[28px] border border-white/10 bg-zinc-950/90 p-4 shadow-[0_16px_50px_rgba(0,0,0,0.24)]">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h3 className="text-lg font-black tracking-tight text-white">{item.name}</h3>
+          <p className="mt-2 text-sm leading-6 text-zinc-300">{item.description}</p>
         </div>
 
-        <div className="mt-4 overflow-hidden rounded-[22px] border border-white/10 bg-black/20">
-          {asset ? (
+        <div className="shrink-0 rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-zinc-300">
+          {slotLabels[activeSlot]}
+        </div>
+      </div>
+
+      <div className="mt-4 overflow-hidden rounded-[24px] border border-white/10 bg-white/[0.03]">
+        {asset ? (
+          <div className="relative flex aspect-[16/10] items-center justify-center p-3">
             <img
               src={asset}
               alt={item.name}
-              className="h-[120px] w-full object-contain p-3"
+              className="max-h-full max-w-full object-contain"
+              draggable={false}
             />
-          ) : (
-            <div className="flex h-[120px] items-center justify-center text-4xl">
-              {item.icon || item.emoji || '✨'}
-            </div>
-          )}
-        </div>
-
-        <div className="mt-4 flex flex-wrap gap-2">
-          {locked ? (
-            <div className="inline-flex items-center gap-2 rounded-full border border-yellow-300/20 bg-yellow-300/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-yellow-200">
-              <Lock className="h-3.5 w-3.5" />
-              Locked
-            </div>
-          ) : item.isPremium ? (
-            <div className="inline-flex items-center gap-2 rounded-full border border-yellow-300/20 bg-yellow-300/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-yellow-200">
-              <Crown className="h-3.5 w-3.5 text-yellow-300" />
-              Premium
-            </div>
-          ) : (
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-white/70">
-              <ShoppingBag className="h-3.5 w-3.5" />
-              Base
-            </div>
-          )}
-
-          <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-white/70">
-            <Star className="h-3.5 w-3.5 text-lime-300" />
-            {isEquipped
-              ? 'Equipped'
-              : item.owned
-              ? item.isPremium
-                ? 'Premium owned'
-                : 'Owned'
-              : item.priceLabel ?? '9 kr'}
           </div>
-        </div>
+        ) : (
+          <div className="flex aspect-[16/10] items-center justify-center text-4xl">
+            {item.icon || item.emoji || '✨'}
+          </div>
+        )}
+      </div>
 
-        <button
-          type="button"
-          onClick={() => onAction(item)}
-          className={`mt-4 inline-flex min-h-[52px] w-full items-center justify-center gap-2 rounded-[22px] px-4 py-3 text-sm font-black uppercase tracking-[0.14em] transition active:scale-[0.995] ${
-            locked
-              ? 'border border-yellow-300/20 bg-yellow-300/10 text-yellow-100 hover:bg-yellow-300/15'
-              : isEquipped
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        {locked ? (
+          <div className="inline-flex items-center gap-2 rounded-full border border-yellow-300/20 bg-yellow-300/10 px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-yellow-100">
+            <Lock className="h-3.5 w-3.5" />
+            Locked
+          </div>
+        ) : item.isPremium ? (
+          <div className="inline-flex items-center gap-2 rounded-full border border-yellow-300/20 bg-yellow-300/10 px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-yellow-100">
+            <Crown className="h-3.5 w-3.5" />
+            Premium
+          </div>
+        ) : (
+          <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-zinc-200">
+            <Star className="h-3.5 w-3.5" />
+            Base
+          </div>
+        )}
+
+        <div className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-zinc-200">
+          {isEquipped ? 'Equipped' : item.owned ? item.isPremium ? 'Premium owned' : 'Owned' : item.priceLabel}
+        </div>
+      </div>
+
+      <button
+        type="button"
+        onClick={() => onAction(item)}
+        className={`mt-4 inline-flex min-h-[52px] w-full items-center justify-center gap-2 rounded-[22px] px-4 py-3 text-sm font-black uppercase tracking-[0.14em] transition active:scale-[0.995] ${
+          locked
+            ? 'border border-yellow-300/20 bg-yellow-300/10 text-yellow-100 hover:bg-yellow-300/15'
+            : isEquipped
               ? 'border border-white/10 bg-white text-black'
               : item.owned
-              ? 'border border-white/10 bg-white/[0.06] text-white hover:bg-white/[0.09]'
-              : 'bg-lime-300 text-black shadow-[0_18px_50px_rgba(163,230,53,0.18)] hover:brightness-105'
-          }`}
-        >
-          {locked ? (
-            <>
-              <Crown className="h-4 w-4" />
-              Unlock Premium
-            </>
-          ) : isEquipped ? (
-            <>
-              <Check className="h-4 w-4" />
-              Equipped
-            </>
-          ) : item.owned ? (
-            <>
-              <Sparkles className="h-4 w-4" />
-              Equip
-            </>
-          ) : (
-            <>
-              <ShoppingBag className="h-4 w-4" />
-              Buy · {item.priceLabel ?? '9 kr'}
-            </>
-          )}
-        </button>
-      </div>
+                ? 'border border-white/10 bg-white/[0.06] text-white hover:bg-white/[0.09]'
+                : 'bg-lime-300 text-black shadow-[0_18px_50px_rgba(163,230,53,0.18)] hover:brightness-105'
+        }`}
+      >
+        {locked ? (
+          <>
+            <Crown className="h-4 w-4" />
+            Unlock Premium
+          </>
+        ) : isEquipped ? (
+          <>
+            <Check className="h-4 w-4" />
+            Equipped
+          </>
+        ) : item.owned ? (
+          <>
+            <Sparkles className="h-4 w-4" />
+            Equip
+          </>
+        ) : (
+          <>
+            <ShoppingBag className="h-4 w-4" />
+            Buy · {item.priceLabel}
+          </>
+        )}
+      </button>
     </div>
   );
 }
 
-export default function RatShop({
-  onBack,
-  onOpenPremium,
-}: RatShopProps) {
+export default function RatShop({ onBack, onOpenPremium }: RatShopProps) {
   const [activeSlot, setActiveSlot] = useState<SlotKey>('top');
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -245,13 +217,13 @@ export default function RatShop({
   };
 
   return (
-    <div className="min-h-[100dvh] bg-[radial-gradient(circle_at_top,rgba(132,204,22,0.14),transparent_28%),linear-gradient(180deg,#050505_0%,#0d0d0f_58%,#09090b_100%)] px-4 pb-8 pt-5 text-white">
+    <div className="min-h-screen bg-black px-5 py-5 text-white">
       <div className="mx-auto max-w-md">
-        <div className="flex gap-3">
+        <div className="mb-4 flex items-center justify-between gap-3">
           <button
             type="button"
             onClick={onBack}
-            className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-4 text-[11px] font-black uppercase tracking-[0.18em] text-white transition hover:border-white/20 hover:bg-white/[0.08] active:scale-[0.98]"
+            className="inline-flex h-12 items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.05] px-4 text-sm font-black uppercase tracking-[0.14em] text-white transition hover:bg-white/[0.08]"
           >
             <ArrowLeft className="h-4 w-4" />
             Back
@@ -260,119 +232,117 @@ export default function RatShop({
           <button
             type="button"
             onClick={onOpenPremium}
-            className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-yellow-300/20 bg-yellow-300/10 px-4 text-[11px] font-black uppercase tracking-[0.18em] text-yellow-200 transition hover:bg-yellow-300/15 active:scale-[0.98]"
+            className="inline-flex h-12 items-center gap-2 rounded-2xl border border-yellow-300/20 bg-yellow-300/10 px-4 text-sm font-black uppercase tracking-[0.14em] text-yellow-100 transition hover:bg-yellow-300/15"
           >
-            <Crown className="h-4 w-4 text-yellow-300" />
+            <Crown className="h-4 w-4" />
             See Premium
           </button>
         </div>
 
-        <div className="mt-4 overflow-hidden rounded-[32px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.03))] p-5 shadow-[0_28px_90px_rgba(0,0,0,0.38)]">
-          <div className="text-[10px] font-black uppercase tracking-[0.22em] text-lime-300">
+        <div className="rounded-[32px] border border-white/10 bg-zinc-950/90 p-5 shadow-[0_24px_90px_rgba(0,0,0,0.48)]">
+          <div className="inline-flex items-center gap-2 rounded-full border border-lime-300/20 bg-lime-300/10 px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-lime-200">
+            <ShoppingBag className="h-3.5 w-3.5" />
             Cosmetics
           </div>
 
-          <h1 className="mt-2 text-3xl font-black leading-none text-white">
-            Build your look
-          </h1>
-
-          <p className="mt-3 text-sm leading-6 text-white/60">
+          <h1 className="mt-3 text-3xl font-black tracking-tight">Build your look</h1>
+          <p className="mt-3 text-sm leading-6 text-zinc-300">
             Equip backgrounds, aura and item layers directly on your rat so progression feels visible.
           </p>
 
-          <div className="mt-5 overflow-hidden rounded-[26px] border border-white/10 bg-black/20 p-4">
-            <div className="text-[10px] font-black uppercase tracking-[0.18em] text-white/42">
-              Live Preview
-            </div>
-
-            <div className="relative mt-4 h-[220px] overflow-hidden rounded-[24px] border border-white/10 bg-[radial-gradient(circle_at_center,rgba(163,230,53,0.14),rgba(255,255,255,0.02),transparent_72%)]">
-              <EquippedRatPreview
-                className="h-full w-full object-contain p-3"
-              />
-            </div>
-
-            <div className="mt-4 grid grid-cols-3 gap-3">
-              <div className="rounded-[20px] border border-white/10 bg-white/[0.04] px-3 py-3">
-                <div className="text-[10px] font-black uppercase tracking-[0.16em] text-white/42">
-                  Owned
+          <div className="mt-5 rounded-[28px] border border-white/10 bg-white/[0.04] p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <div>
+                <div className="text-[11px] font-black uppercase tracking-[0.18em] text-zinc-400">
+                  Live preview
                 </div>
-                <div className="mt-2 text-xl font-black text-white">{ownedCount}</div>
+                <div className="mt-1 text-lg font-black text-white">Cosmetic loadout</div>
               </div>
 
-              <div className="rounded-[20px] border border-white/10 bg-white/[0.04] px-3 py-3">
-                <div className="text-[10px] font-black uppercase tracking-[0.16em] text-white/42">
-                  Premium
-                </div>
-                <div className="mt-2 text-xl font-black text-white">{premiumCount}</div>
-              </div>
-
-              <div className="rounded-[20px] border border-white/10 bg-white/[0.04] px-3 py-3">
-                <div className="text-[10px] font-black uppercase tracking-[0.16em] text-white/42">
-                  Slot
-                </div>
-                <div className="mt-2 text-xl font-black text-white">
-                  {slotLabels[activeSlot]}
-                </div>
+              <div className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-zinc-300">
+                {slotLabels[activeSlot]}
               </div>
             </div>
-          </div>
-        </div>
 
-        <div className="mt-4 rounded-[30px] border border-white/10 bg-white/[0.04] p-5 shadow-[0_20px_60px_rgba(0,0,0,0.24)]">
-          <div className="text-[10px] font-black uppercase tracking-[0.18em] text-white/42">
-            Slots
+            <EquippedRatPreview level={1} className="mx-auto max-w-[320px]" />
           </div>
 
-          <div className="mt-4 grid grid-cols-2 gap-3">
-            {slotOrder.map((slot) => {
-              const active = activeSlot === slot;
-              const equipped = Boolean(getEquippedItemIdForSlot(slot));
-
-              return (
-                <SlotChip
-                  key={slot}
-                  label={slotLabels[slot]}
-                  active={active}
-                  equipped={equipped}
-                  onClick={() => setActiveSlot(slot)}
-                />
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="mt-4 rounded-[30px] border border-white/10 bg-white/[0.04] p-5 shadow-[0_20px_60px_rgba(0,0,0,0.24)]">
-          <div className="text-[10px] font-black uppercase tracking-[0.18em] text-white/42">
-            Cosmetic loadout
-          </div>
-          <div className="mt-2 text-2xl font-black text-white">
-            {slotLabels[activeSlot]}
-          </div>
-
-          {filteredItems.length === 0 ? (
-            <div className="mt-4 rounded-[24px] border border-dashed border-white/10 bg-black/20 p-6 text-center">
-              <div className="text-lg font-black text-white">No items in this slot yet</div>
-              <div className="mt-2 text-sm leading-6 text-white/55">
-                Fill this slot next so the rat always feels more alive over time.
+          <div className="mt-4 grid grid-cols-3 gap-3">
+            <div className="rounded-[22px] border border-white/10 bg-white/[0.04] px-4 py-3">
+              <div className="text-[10px] font-black uppercase tracking-[0.18em] text-zinc-400">
+                Owned
               </div>
+              <div className="mt-1 text-2xl font-black text-white">{ownedCount}</div>
             </div>
-          ) : (
-            <div className="mt-4 space-y-3">
-              {filteredItems.map((item) => {
-                const isEquipped = currentSlotEquipped === item.id;
+
+            <div className="rounded-[22px] border border-white/10 bg-white/[0.04] px-4 py-3">
+              <div className="text-[10px] font-black uppercase tracking-[0.18em] text-zinc-400">
+                Premium
+              </div>
+              <div className="mt-1 text-2xl font-black text-white">{premiumCount}</div>
+            </div>
+
+            <div className="rounded-[22px] border border-white/10 bg-white/[0.04] px-4 py-3">
+              <div className="text-[10px] font-black uppercase tracking-[0.18em] text-zinc-400">
+                Slot
+              </div>
+              <div className="mt-1 text-base font-black text-white">{slotLabels[activeSlot]}</div>
+            </div>
+          </div>
+
+          <div className="mt-5">
+            <div className="mb-3 text-[11px] font-black uppercase tracking-[0.18em] text-zinc-400">
+              Slots
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              {slotOrder.map((slot) => {
+                const active = activeSlot === slot;
+                const equipped = Boolean(getEquippedItemIdForSlot(slot));
 
                 return (
-                  <ItemCard
-                    key={item.id}
-                    item={item}
-                    activeSlot={activeSlot}
-                    isEquipped={isEquipped}
-                    onAction={handleBuyOrEquip}
+                  <SlotChip
+                    key={slot}
+                    label={slotLabels[slot]}
+                    active={active}
+                    equipped={equipped}
+                    onClick={() => setActiveSlot(slot)}
                   />
                 );
               })}
             </div>
-          )}
+          </div>
+
+          <div className="mt-5">
+            <div className="mb-3 text-[11px] font-black uppercase tracking-[0.18em] text-zinc-400">
+              {slotLabels[activeSlot]}
+            </div>
+
+            {filteredItems.length === 0 ? (
+              <div className="rounded-[24px] border border-dashed border-white/12 bg-white/[0.03] px-4 py-5">
+                <div className="text-lg font-black text-white">No items in this slot yet</div>
+                <p className="mt-2 text-sm leading-6 text-zinc-300">
+                  Fill this slot next so the rat always feels more alive over time.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {filteredItems.map((item) => {
+                  const isCurrentlyEquipped = currentSlotEquipped === item.id;
+
+                  return (
+                    <ItemCard
+                      key={item.id}
+                      item={item}
+                      activeSlot={activeSlot}
+                      isEquipped={isCurrentlyEquipped}
+                      onAction={handleBuyOrEquip}
+                    />
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
