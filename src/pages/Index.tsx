@@ -1,19 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   ArrowLeft,
-  Crown,
   Dumbbell,
   Flame,
   Target,
   User,
   Weight,
-  X,
 } from 'lucide-react';
 
 import SplashScreen from '../components/SplashScreen';
 import HomeScreen from '../components/HomeScreen';
 import WorkoutFlow from '../components/WorkoutFlow';
 import WorkoutComplete from '../components/WorkoutComplete';
+import WorkoutStartScreen from '../components/WorkoutStartScreen';
 import HistoryScreen from '../components/HistoryScreen';
 import NutritionScreen from '../components/NutritionScreen';
 import SettingsScreen from '../components/SettingsScreen';
@@ -49,6 +48,11 @@ import {
 import { addWorkoutHistory } from '../lib/historyStore';
 import { clearWorkoutDraft, saveWorkoutDraft } from '../lib/workoutStore';
 import { checkPremium, subscribePremium } from '../lib/premiumStore';
+import {
+  getPlansForLevel,
+  setSelectedPlanIndex,
+  setTrainingLevel,
+} from '../lib/trainingStore';
 import {
   maybeOpenHistoryPaywall,
   maybeOpenNutritionPaywall,
@@ -89,6 +93,7 @@ function OnboardingGate({ onComplete }: { onComplete: () => void }) {
     };
 
     saveProfile(nextProfile);
+    setTrainingLevel(trainingLevel);
     completeOnboarding();
     onComplete();
   };
@@ -241,7 +246,9 @@ function OnboardingGate({ onComplete }: { onComplete: () => void }) {
                       <div className="mt-1">{option.icon}</div>
                       <div className="text-left">
                         <div className="font-bold text-white">{option.title}</div>
-                        <div className="mt-1 text-sm text-zinc-300">{option.desc}</div>
+                        <div className="mt-1 text-sm text-zinc-300">
+                          {option.desc}
+                        </div>
                       </div>
                     </div>
                   </button>
@@ -382,7 +389,9 @@ function SettingsFallback({ onBack }: { onBack: () => void }) {
               <p className="text-xs uppercase tracking-[0.18em] text-zinc-500">
                 Goal
               </p>
-              <p className="mt-2 font-semibold text-white">{profile?.goal ?? '-'}</p>
+              <p className="mt-2 font-semibold text-white">
+                {profile?.goal ?? '-'}
+              </p>
             </div>
             <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
               <p className="text-xs uppercase tracking-[0.18em] text-zinc-500">
@@ -424,10 +433,19 @@ export default function Index() {
     null
   );
   const [premium, setPremium] = useState(checkPremium().isActive);
+  const [showWorkoutStart, setShowWorkoutStart] = useState(false);
 
   const stats = useMemo(
     () => getAppStats(),
-    [page, finishedWorkout, menuOpenLocal, paywallOpenLocal, profileReady, premium]
+    [
+      page,
+      finishedWorkout,
+      menuOpenLocal,
+      paywallOpenLocal,
+      profileReady,
+      premium,
+      showWorkoutStart,
+    ]
   );
 
   useEffect(() => {
@@ -517,11 +535,59 @@ export default function Index() {
     changePage('complete');
   };
 
-  const startWorkout = () => {
+  const openWorkoutStart = () => {
+    const profile = getProfile();
+
+    if (profile?.trainingLevel) {
+      setTrainingLevel(profile.trainingLevel);
+    }
+
+    setShowWorkoutStart(true);
+  };
+
+  const startPresetWorkout = (planIndex: number) => {
+    const profile = getProfile();
+    const level = profile?.trainingLevel ?? 'beginner';
+    const plans = getPlansForLevel(level);
+    const selectedPlan = plans[planIndex] ?? plans[0];
+    const defaultDay = selectedPlan?.days?.[0];
+
+    if (profile?.trainingLevel) {
+      setTrainingLevel(profile.trainingLevel);
+    }
+
+    setSelectedPlanIndex(planIndex);
+
     saveWorkoutDraft({
       startedAt: new Date().toISOString(),
-      workoutName: 'Workout',
+      workoutName: defaultDay?.label
+        ? `${selectedPlan.name} • ${defaultDay.label}`
+        : selectedPlan?.name ?? 'Workout',
+      planName: selectedPlan?.name ?? 'Workout Plan',
+      dayLabel: defaultDay?.label ?? 'Day 1',
+      isCustom: false,
     });
+
+    setShowWorkoutStart(false);
+    changePage('workout');
+  };
+
+  const startCustomWorkout = () => {
+    const profile = getProfile();
+
+    if (profile?.trainingLevel) {
+      setTrainingLevel(profile.trainingLevel);
+    }
+
+    saveWorkoutDraft({
+      startedAt: new Date().toISOString(),
+      workoutName: 'Custom Workout',
+      planName: 'Custom Workout',
+      dayLabel: 'Custom',
+      isCustom: true,
+    });
+
+    setShowWorkoutStart(false);
     changePage('workout');
   };
 
@@ -558,24 +624,36 @@ export default function Index() {
 
   return (
     <>
-      {page === 'home' && (
+      {!showWorkoutStart && page === 'home' && (
         <HomeScreen
           stats={stats}
           onOpenMenu={openMenu}
-          onStartWorkout={startWorkout}
+          onStartWorkout={openWorkoutStart}
           onOpenGallery={() => changePage('gallery')}
           onOpenShop={() => changePage('shop')}
         />
       )}
 
-      {page === 'workout' && (
+      {showWorkoutStart && (
+        <WorkoutStartScreen
+          isPremium={premium}
+          onBack={() => setShowWorkoutStart(false)}
+          onStartPreset={startPresetWorkout}
+          onStartCustom={startCustomWorkout}
+          onOpenPremium={() => {
+            openManualPaywall(openPaywall);
+          }}
+        />
+      )}
+
+      {!showWorkoutStart && page === 'workout' && (
         <WorkoutFlow
           onBack={() => changePage('home')}
           onComplete={handleWorkoutFinish}
         />
       )}
 
-      {page === 'complete' && finishedWorkout && (
+      {!showWorkoutStart && page === 'complete' && finishedWorkout && (
         <WorkoutComplete
           summary={finishedWorkout}
           onContinue={() => {
@@ -589,34 +667,41 @@ export default function Index() {
         />
       )}
 
-      {page === 'history' && <HistoryScreen onBack={() => changePage('home')} />}
+      {!showWorkoutStart && page === 'history' && (
+        <HistoryScreen onBack={() => changePage('home')} />
+      )}
 
-      {page === 'nutrition' && (
+      {!showWorkoutStart && page === 'nutrition' && (
         <NutritionScreen
           onBack={() => changePage('home')}
           onOpenPaywall={nutritionHandler}
         />
       )}
 
-      {page === 'daily' && <DailyCheckInScreen onBack={() => changePage('home')} />}
+      {!showWorkoutStart && page === 'daily' && (
+        <DailyCheckInScreen onBack={() => changePage('home')} />
+      )}
 
-      {page === 'gallery' && <GymRatGallery onBack={() => changePage('home')} />}
+      {!showWorkoutStart && page === 'gallery' && (
+        <GymRatGallery onBack={() => changePage('home')} />
+      )}
 
-      {page === 'shop' && (
+      {!showWorkoutStart && page === 'shop' && (
         <RatShop
           onBack={() => changePage('home')}
           onOpenPremium={() => openManualPaywall(openPaywall)}
         />
       )}
 
-      {page === 'settings' &&
+      {!showWorkoutStart &&
+        page === 'settings' &&
         (typeof SettingsScreen === 'function' ? (
           <SettingsScreen onBack={() => changePage('home')} />
         ) : (
           <SettingsFallback onBack={() => changePage('home')} />
         ))}
 
-      {menuOpenLocal && (
+      {!showWorkoutStart && menuOpenLocal && (
         <AppMenu
           isPremium={premium}
           onClose={closeMenu}
@@ -651,7 +736,9 @@ export default function Index() {
         />
       )}
 
-      {paywallOpenLocal && <PremiumPaywall onClose={closePaywall} />}
+      {!showWorkoutStart && paywallOpenLocal && (
+        <PremiumPaywall onClose={closePaywall} />
+      )}
     </>
   );
 }

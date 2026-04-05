@@ -2,6 +2,9 @@ export type WorkoutDraft = {
   startedAt: string;
   workoutName?: string;
   notes?: string;
+  planName?: string;
+  dayLabel?: string;
+  isCustom?: boolean;
 };
 
 const KEY = 'gymrat-workout-draft';
@@ -24,6 +27,9 @@ function readDraft(): WorkoutDraft | null {
       workoutName:
         typeof parsed.workoutName === 'string' ? parsed.workoutName : undefined,
       notes: typeof parsed.notes === 'string' ? parsed.notes : undefined,
+      planName: typeof parsed.planName === 'string' ? parsed.planName : undefined,
+      dayLabel: typeof parsed.dayLabel === 'string' ? parsed.dayLabel : undefined,
+      isCustom: typeof parsed.isCustom === 'boolean' ? parsed.isCustom : undefined,
     };
   } catch {
     return null;

@@ -8,7 +8,13 @@ import {
   Timer,
   Trash2,
 } from 'lucide-react';
-import { saveWorkoutDraft, clearWorkoutDraft } from '@/lib/workoutStore';
+import { saveWorkoutDraft, clearWorkoutDraft, getWorkoutDraft } from '@/lib/workoutStore';
+import {
+  getExercisesForWorkoutDay,
+  getRecommendedPlan,
+  getTrainingLevel,
+} from '@/lib/trainingStore';
+import type { ExerciseDefinition } from '@/lib/exerciseData';
 
 type WorkoutRow = {
   id: string;
@@ -28,47 +34,12 @@ type WorkoutFlowProps = {
   }) => void;
 };
 
-const EXERCISE_OPTIONS = [
-  'Bench Press',
-  'Incline Dumbbell Press',
-  'Chest Fly',
-  'Lat Pulldown',
-  'Barbell Row',
-  'Seated Cable Row',
-  'Shoulder Press',
-  'Lateral Raise',
-  'Rear Delt Fly',
-  'Barbell Curl',
-  'Hammer Curl',
-  'Triceps Pushdown',
-  'Overhead Extension',
-  'Squat',
-  'Leg Press',
-  'Romanian Deadlift',
-  'Leg Curl',
-  'Leg Extension',
-  'Calf Raise',
-  'Crunch',
-  'Plank',
-];
-
 function createId() {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
     return crypto.randomUUID();
   }
 
   return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-}
-
-function createRow(overrides?: Partial<WorkoutRow>): WorkoutRow {
-  return {
-    id: createId(),
-    exercise: EXERCISE_OPTIONS[0],
-    sets: 3,
-    reps: 10,
-    weight: 40,
-    ...overrides,
-  };
 }
 
 function clampNumber(value: number, min: number, max: number) {
@@ -88,6 +59,66 @@ function formatMinutes(totalSeconds: number) {
   return `${minutes} min`;
 }
 
+function parseRepValue(raw: string) {
+  const match = raw.match(/\d+/);
+  if (!match) return 10;
+  return clampNumber(Number(match[0]), 1, 50);
+}
+
+function toWorkoutRow(exercise: ExerciseDefinition): WorkoutRow {
+  return {
+    id: createId(),
+    exercise: exercise.name,
+    sets: clampNumber(exercise.defaultSets, 1, 20),
+    reps: parseRepValue(exercise.defaultReps),
+    weight: clampNumber(exercise.defaultWeight ?? 0, 0, 500),
+  };
+}
+
+function createFallbackRow(overrides?: Partial<WorkoutRow>): WorkoutRow {
+  return {
+    id: createId(),
+    exercise: 'Bench Press',
+    sets: 4,
+    reps: 8,
+    weight: 40,
+    ...overrides,
+  };
+}
+
+function buildPresetRows() {
+  const level = getTrainingLevel();
+  const plan = getRecommendedPlan(level);
+  const primaryDay = plan.days[0];
+
+  if (!primaryDay) {
+    return {
+      workoutName: plan.name,
+      subtitle: 'Preset session',
+      rows: [
+        createFallbackRow(),
+        createFallbackRow({ exercise: 'Lat Pulldown', weight: 35 }),
+        createFallbackRow({ exercise: 'Shoulder Press', weight: 20 }),
+      ],
+    };
+  }
+
+  const dayExercises = getExercisesForWorkoutDay(level, primaryDay.muscleGroups).slice(0, 6);
+
+  return {
+    workoutName: `${plan.name} • ${primaryDay.label}`,
+    subtitle: `${plan.name} / ${primaryDay.label}`,
+    rows:
+      dayExercises.length > 0
+        ? dayExercises.map(toWorkoutRow)
+        : [
+            createFallbackRow(),
+            createFallbackRow({ exercise: 'Lat Pulldown', weight: 35 }),
+            createFallbackRow({ exercise: 'Shoulder Press', weight: 20 }),
+          ],
+  };
+}
+
 function SummaryCard({
   icon,
   label,
@@ -100,29 +131,97 @@ function SummaryCard({
   accent?: string;
 }) {
   return (
-    <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-4 shadow-[0_10px_30px_rgba(0,0,0,0.25)]">
-      <div className="flex items-center gap-2 text-xs uppercase tracking-[0.22em] text-zinc-400">
-        <span className={accent}>{icon}</span>
-        <span>{label}</span>
+    <div className="rounded-[22px] border border-white/10 bg-white/[0.04] p-4">
+      <div className="mb-2 flex items-center gap-2 text-zinc-400">
+        <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-black/20">
+          {icon}
+        </div>
+        <span className="text-[10px] font-black uppercase tracking-[0.18em]">
+          {label}
+        </span>
       </div>
-      <div className={`mt-3 text-2xl font-black text-white ${accent ?? ''}`}>
-        {value}
-      </div>
+
+      <div className={`text-xl font-black text-white ${accent ?? ''}`}>{value}</div>
     </div>
   );
 }
 
-export default function WorkoutFlow({
-  onBack,
-  onComplete,
-}: WorkoutFlowProps) {
-  const [workoutName, setWorkoutName] = useState('Push Session');
-  const [rows, setRows] = useState<WorkoutRow[]>([
-    createRow(),
-    createRow({ exercise: 'Incline Dumbbell Press', weight: 26 }),
-    createRow({ exercise: 'Shoulder Press', weight: 22 }),
-  ]);
-  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+export default function WorkoutFlow({ onBack, onComplete }: WorkoutFlowProps) {
+  const initialDraft = useMemo(() => getWorkoutDraft(), []);
+  const preset = useMemo(() => buildPresetRows(), []);
+
+  const [workoutName, setWorkoutName] = useState(
+    initialDraft?.workoutName?.trim()
+      ? initialDraft.workoutName
+      : preset.workoutName
+  );
+
+  const [rows, setRows] = useState<WorkoutRow[]>(() => {
+    if (initialDraft?.notes) {
+      try {
+        const parsed = JSON.parse(initialDraft.notes) as WorkoutRow[];
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed.map((row) => ({
+            id: typeof row.id === 'string' ? row.id : createId(),
+            exercise: typeof row.exercise === 'string' ? row.exercise : 'Exercise',
+            sets: clampNumber(Number(row.sets), 1, 20),
+            reps: clampNumber(Number(row.reps), 1, 50),
+            weight: clampNumber(Number(row.weight), 0, 500),
+          }));
+        }
+      } catch {
+        // ignore broken draft
+      }
+    }
+
+    return initialDraft?.isCustom
+      ? [
+          createFallbackRow(),
+          createFallbackRow({ exercise: 'Incline Dumbbell Press', weight: 24 }),
+          createFallbackRow({ exercise: 'Shoulder Press', weight: 20 }),
+        ]
+      : preset.rows;
+  });
+
+  const initialElapsed = useMemo(() => {
+    if (!initialDraft?.startedAt) return 0;
+
+    const started = new Date(initialDraft.startedAt).getTime();
+    if (!Number.isFinite(started)) return 0;
+
+    const seconds = Math.floor((Date.now() - started) / 1000);
+    return Math.max(0, seconds);
+  }, [initialDraft]);
+
+  const [elapsedSeconds, setElapsedSeconds] = useState(initialElapsed);
+
+  const exerciseOptions = useMemo(() => {
+    const names = new Set<string>();
+
+    preset.rows.forEach((row) => names.add(row.exercise));
+
+    rows.forEach((row) => {
+      if (row.exercise.trim()) names.add(row.exercise.trim());
+    });
+
+    [
+      'Bench Press',
+      'Incline Dumbbell Press',
+      'Lat Pulldown',
+      'Barbell Row',
+      'Shoulder Press',
+      'Lateral Raise',
+      'Biceps Curl',
+      'Triceps Pushdown',
+      'Squat',
+      'Leg Press',
+      'Romanian Deadlift',
+      'Plank',
+      'Cable Crunch',
+    ].forEach((name) => names.add(name));
+
+    return Array.from(names);
+  }, [preset.rows, rows]);
 
   useEffect(() => {
     const interval = window.setInterval(() => {
@@ -137,8 +236,11 @@ export default function WorkoutFlow({
       startedAt: new Date(Date.now() - elapsedSeconds * 1000).toISOString(),
       workoutName,
       notes: JSON.stringify(rows),
+      planName: initialDraft?.planName ?? preset.subtitle,
+      dayLabel: initialDraft?.dayLabel,
+      isCustom: initialDraft?.isCustom ?? false,
     });
-  }, [elapsedSeconds, workoutName, rows]);
+  }, [elapsedSeconds, workoutName, rows, initialDraft, preset.subtitle]);
 
   const volume = useMemo(() => {
     return rows.reduce((sum, row) => sum + row.sets * row.reps * row.weight, 0);
@@ -163,7 +265,7 @@ export default function WorkoutFlow({
   };
 
   const addRow = () => {
-    setRows((current) => [...current, createRow()]);
+    setRows((current) => [...current, createFallbackRow({ exercise: 'Bench Press' })]);
   };
 
   const removeRow = (id: string) => {
@@ -194,53 +296,41 @@ export default function WorkoutFlow({
   };
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(34,197,94,0.18),_transparent_35%),linear-gradient(180deg,_#09090b_0%,_#111113_100%)] px-4 py-5 text-white">
-      <div className="mx-auto flex w-full max-w-3xl flex-col gap-4">
-        <div className="flex items-center justify-between">
-          <button
-            onClick={onBack}
-            type="button"
-            className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-semibold text-zinc-200 transition hover:bg-white/[0.08]"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back
-          </button>
+    <div className="min-h-[100dvh] bg-[linear-gradient(180deg,#060606_0%,#0d0d0d_100%)] px-4 pb-8 pt-6 text-white">
+      <div className="mx-auto max-w-md">
+        <button
+          type="button"
+          onClick={onBack}
+          className="mb-4 inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-4 text-[11px] font-black uppercase tracking-[0.18em] text-white transition hover:border-white/20 hover:bg-white/[0.08] active:scale-[0.98]"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back
+        </button>
 
-          <div className="rounded-full border border-emerald-400/25 bg-emerald-400/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.24em] text-emerald-300">
-            Workout Live
-          </div>
-        </div>
-
-        <div className="overflow-hidden rounded-[32px] border border-white/10 bg-white/[0.04] shadow-[0_20px_60px_rgba(0,0,0,0.35)]">
-          <div className="border-b border-white/10 bg-gradient-to-r from-emerald-500/15 via-lime-400/10 to-transparent p-5">
-            <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-400/15 text-emerald-300">
-                <Dumbbell className="h-6 w-6" />
-              </div>
-
-              <div>
-                <p className="text-xs uppercase tracking-[0.24em] text-zinc-400">
-                  Train clean. Level up.
-                </p>
-                <h1 className="text-2xl font-black sm:text-3xl">Workout Flow</h1>
-              </div>
-            </div>
-
-            <p className="mt-3 max-w-xl text-sm text-zinc-300">
-              Fast workout logging with a premium feel. Clean, simple, and ready
-              to finish strong.
-            </p>
+        <div className="rounded-[30px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.03))] p-5 shadow-[0_24px_70px_rgba(0,0,0,0.35)]">
+          <div className="text-[10px] font-black uppercase tracking-[0.22em] text-zinc-500">
+            Workout live
           </div>
 
-          <div className="grid gap-3 p-4 sm:grid-cols-3">
+          <h1 className="mt-2 text-3xl font-black uppercase tracking-[0.02em] text-white">
+            {initialDraft?.isCustom ? 'Custom Session' : 'Preset Session'}
+          </h1>
+
+          <p className="mt-2 text-sm text-zinc-400">
+            {initialDraft?.isCustom
+              ? 'Build it your way. Fast input, heavy feel.'
+              : `Loaded from ${initialDraft?.planName ?? preset.subtitle}.`}
+          </p>
+
+          <div className="mt-5 grid grid-cols-3 gap-3">
             <SummaryCard
               icon={<Check className="h-4 w-4" />}
               label="Progress"
               value={`${progressPercent}%`}
-              accent="text-emerald-300"
+              accent="text-lime-300"
             />
             <SummaryCard
-              icon={<Flame className="h-4 w-4" />}
+              icon={<Dumbbell className="h-4 w-4" />}
               label="Exercises"
               value={rows.length}
             />
@@ -250,34 +340,34 @@ export default function WorkoutFlow({
               value={formatMinutes(elapsedSeconds)}
             />
           </div>
+
+          <div className="mt-5">
+            <label className="text-[10px] font-black uppercase tracking-[0.18em] text-zinc-500">
+              Workout name
+            </label>
+            <input
+              value={workoutName}
+              onChange={(e) => setWorkoutName(e.target.value)}
+              className="mt-2 w-full rounded-2xl border border-white/10 bg-zinc-900 px-4 py-3 text-white outline-none transition focus:border-lime-400"
+              placeholder="Workout name"
+            />
+          </div>
         </div>
 
-        <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-5 shadow-[0_16px_50px_rgba(0,0,0,0.28)]">
-          <label className="block text-xs font-bold uppercase tracking-[0.22em] text-zinc-400">
-            Workout name
-          </label>
-          <input
-            value={workoutName}
-            onChange={(e) => setWorkoutName(e.target.value)}
-            className="mt-2 w-full rounded-2xl border border-white/10 bg-zinc-900 px-4 py-3 text-white outline-none transition focus:border-emerald-400"
-            placeholder="Push Session"
-          />
-        </div>
-
-        <div className="flex flex-col gap-4">
+        <div className="mt-4 space-y-3">
           {rows.map((row, index) => (
             <div
               key={row.id}
-              className="rounded-[28px] border border-white/10 bg-white/[0.04] p-5 shadow-[0_16px_50px_rgba(0,0,0,0.28)]"
+              className="rounded-[26px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.025))] p-4"
             >
-              <div className="flex items-start justify-between gap-3">
+              <div className="mb-4 flex items-center justify-between">
                 <div>
-                  <p className="text-xs uppercase tracking-[0.22em] text-zinc-400">
+                  <div className="text-[10px] font-black uppercase tracking-[0.18em] text-zinc-500">
                     Exercise {index + 1}
-                  </p>
-                  <h2 className="mt-1 text-lg font-bold text-white">
+                  </div>
+                  <div className="mt-1 text-sm font-semibold text-white/70">
                     Log your work
-                  </h2>
+                  </div>
                 </div>
 
                 <button
@@ -290,19 +380,17 @@ export default function WorkoutFlow({
                 </button>
               </div>
 
-              <div className="mt-4 grid gap-4">
+              <div className="grid gap-3">
                 <div>
-                  <label className="text-xs font-bold uppercase tracking-[0.18em] text-zinc-400">
+                  <label className="text-[10px] font-black uppercase tracking-[0.16em] text-zinc-500">
                     Exercise
                   </label>
                   <select
                     value={row.exercise}
-                    onChange={(e) =>
-                      updateRow(row.id, { exercise: e.target.value })
-                    }
-                    className="mt-2 w-full rounded-2xl border border-white/10 bg-zinc-900 px-4 py-3 text-white outline-none transition focus:border-emerald-400"
+                    onChange={(e) => updateRow(row.id, { exercise: e.target.value })}
+                    className="mt-2 w-full rounded-2xl border border-white/10 bg-zinc-900 px-4 py-3 text-white outline-none transition focus:border-lime-400"
                   >
-                    {EXERCISE_OPTIONS.map((option) => (
+                    {exerciseOptions.map((option) => (
                       <option key={option} value={option}>
                         {option}
                       </option>
@@ -312,56 +400,50 @@ export default function WorkoutFlow({
 
                 <div className="grid grid-cols-3 gap-3">
                   <div>
-                    <label className="text-xs font-bold uppercase tracking-[0.18em] text-zinc-400">
+                    <label className="text-[10px] font-black uppercase tracking-[0.16em] text-zinc-500">
                       Sets
                     </label>
                     <input
                       type="number"
-                      min={1}
-                      max={20}
                       value={row.sets}
                       onChange={(e) =>
                         updateRow(row.id, {
                           sets: clampNumber(Number(e.target.value), 1, 20),
                         })
                       }
-                      className="mt-2 w-full rounded-2xl border border-white/10 bg-zinc-900 px-4 py-3 text-white outline-none transition focus:border-emerald-400"
+                      className="mt-2 w-full rounded-2xl border border-white/10 bg-zinc-900 px-4 py-3 text-white outline-none transition focus:border-lime-400"
                     />
                   </div>
 
                   <div>
-                    <label className="text-xs font-bold uppercase tracking-[0.18em] text-zinc-400">
+                    <label className="text-[10px] font-black uppercase tracking-[0.16em] text-zinc-500">
                       Reps
                     </label>
                     <input
                       type="number"
-                      min={1}
-                      max={50}
                       value={row.reps}
                       onChange={(e) =>
                         updateRow(row.id, {
                           reps: clampNumber(Number(e.target.value), 1, 50),
                         })
                       }
-                      className="mt-2 w-full rounded-2xl border border-white/10 bg-zinc-900 px-4 py-3 text-white outline-none transition focus:border-emerald-400"
+                      className="mt-2 w-full rounded-2xl border border-white/10 bg-zinc-900 px-4 py-3 text-white outline-none transition focus:border-lime-400"
                     />
                   </div>
 
                   <div>
-                    <label className="text-xs font-bold uppercase tracking-[0.18em] text-zinc-400">
+                    <label className="text-[10px] font-black uppercase tracking-[0.16em] text-zinc-500">
                       Weight
                     </label>
                     <input
                       type="number"
-                      min={0}
-                      max={500}
                       value={row.weight}
                       onChange={(e) =>
                         updateRow(row.id, {
                           weight: clampNumber(Number(e.target.value), 0, 500),
                         })
                       }
-                      className="mt-2 w-full rounded-2xl border border-white/10 bg-zinc-900 px-4 py-3 text-white outline-none transition focus:border-emerald-400"
+                      className="mt-2 w-full rounded-2xl border border-white/10 bg-zinc-900 px-4 py-3 text-white outline-none transition focus:border-lime-400"
                     />
                   </div>
                 </div>
@@ -371,42 +453,36 @@ export default function WorkoutFlow({
         </div>
 
         <button
-          onClick={addRow}
           type="button"
-          className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 font-semibold text-zinc-200 transition hover:bg-white/[0.08]"
+          onClick={addRow}
+          className="mt-4 flex h-14 w-full items-center justify-center gap-2 rounded-[22px] border border-white/10 bg-white/[0.05] text-[11px] font-black uppercase tracking-[0.18em] text-white transition hover:border-white/20 hover:bg-white/[0.08] active:scale-[0.99]"
         >
           <Plus className="h-4 w-4" />
           Add exercise
         </button>
 
-        <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-5 shadow-[0_16px_50px_rgba(0,0,0,0.28)]">
-          <div className="flex items-center gap-2 text-xs uppercase tracking-[0.22em] text-zinc-400">
-            <Timer className="h-4 w-4 text-emerald-300" />
+        <div className="mt-4 rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.025))] p-5">
+          <div className="mb-4 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">
             Session summary
           </div>
 
-          <div className="mt-4 grid grid-cols-2 gap-3">
-            <div className="rounded-2xl border border-white/10 bg-zinc-950/60 p-4">
-              <p className="text-xs uppercase tracking-[0.18em] text-zinc-500">
-                Estimated volume
-              </p>
-              <p className="mt-2 text-2xl font-black text-white">{volume} kg</p>
-            </div>
-
-            <div className="rounded-2xl border border-white/10 bg-zinc-950/60 p-4">
-              <p className="text-xs uppercase tracking-[0.18em] text-zinc-500">
-                Duration
-              </p>
-              <p className="mt-2 text-2xl font-black text-white">
-                {durationMinutes} min
-              </p>
-            </div>
+          <div className="grid grid-cols-2 gap-3">
+            <SummaryCard
+              icon={<Flame className="h-4 w-4" />}
+              label="Estimated volume"
+              value={`${volume} kg`}
+            />
+            <SummaryCard
+              icon={<Timer className="h-4 w-4" />}
+              label="Duration"
+              value={`${durationMinutes} min`}
+            />
           </div>
 
           <button
-            onClick={handleComplete}
             type="button"
-            className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-400 via-lime-300 to-emerald-300 px-5 py-4 text-sm font-black text-black shadow-[0_12px_35px_rgba(74,222,128,0.35)] transition hover:scale-[1.01]"
+            onClick={handleComplete}
+            className="mt-4 flex h-16 w-full items-center justify-center gap-2 rounded-[24px] border border-lime-400/25 bg-[linear-gradient(180deg,rgba(124,255,107,0.22),rgba(124,255,107,0.12))] text-sm font-black uppercase tracking-[0.18em] text-white transition hover:border-lime-300/45 hover:bg-[linear-gradient(180deg,rgba(124,255,107,0.3),rgba(124,255,107,0.16))] active:scale-[0.99]"
           >
             <Check className="h-4 w-4" />
             Finish workout

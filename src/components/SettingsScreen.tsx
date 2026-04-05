@@ -1,276 +1,382 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   ArrowLeft,
-  Check,
-  Clock3,
-  Crown,
-  RefreshCw,
-  RotateCcw,
-  Settings,
+  Bug,
+  ChevronRight,
+  Globe,
+  Mail,
+  Save,
   User,
+  Weight,
+  Ruler,
+  Target,
+  Dumbbell,
 } from 'lucide-react';
-import { getProfile } from '../lib/profileStore';
-import { activatePremium, checkPremium, deactivatePremium, subscribePremium } from '../lib/premiumStore';
-import { getTimerSettings, resetTimerSettings, saveTimerSettings } from '../lib/timerStore';
+
+import {
+  getProfile,
+  saveProfile,
+  type TrainingGoal,
+  type TrainingLevel,
+  type UserGender,
+} from '@/lib/profileStore';
+import { setTrainingLevel } from '@/lib/trainingStore';
 
 type SettingsScreenProps = {
   onBack: () => void;
 };
 
-function clampSeconds(value: string | number, fallback: number) {
-  const parsed = typeof value === 'number' ? value : Number(value);
-  if (!Number.isFinite(parsed)) return fallback;
-  return Math.max(5, Math.min(600, Math.floor(parsed)));
+const LANGUAGE_KEY = 'gymrat-language';
+const CONTACT_EMAIL = 'hello@getgymrat.com';
+
+function getStoredLanguage() {
+  if (typeof window === 'undefined') return 'en';
+
+  const value = localStorage.getItem(LANGUAGE_KEY);
+  return value || 'en';
+}
+
+function setStoredLanguage(language: string) {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(LANGUAGE_KEY, language);
+}
+
+function SectionTitle({
+  icon,
+  title,
+  subtitle,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  subtitle?: string;
+}) {
+  return (
+    <div className="mb-4 flex items-start gap-3">
+      <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.05] text-white/90">
+        {icon}
+      </div>
+      <div>
+        <div className="text-[11px] font-black uppercase tracking-[0.2em] text-white/45">
+          {title}
+        </div>
+        {subtitle ? <p className="mt-1 text-sm text-white/55">{subtitle}</p> : null}
+      </div>
+    </div>
+  );
+}
+
+function SelectCard<T extends string>({
+  value,
+  onChange,
+  options,
+}: {
+  value: T;
+  onChange: (value: T) => void;
+  options: { value: T; label: string }[];
+}) {
+  return (
+    <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+      {options.map((option) => {
+        const active = option.value === value;
+
+        return (
+          <button
+            key={option.value}
+            type="button"
+            onClick={() => onChange(option.value)}
+            className={`rounded-2xl border px-4 py-3 text-sm font-bold transition ${
+              active
+                ? 'border-lime-400/30 bg-lime-400/12 text-white'
+                : 'border-white/10 bg-white/[0.04] text-white/75 hover:border-white/20 hover:bg-white/[0.07]'
+            }`}
+          >
+            {option.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function InputBlock({
+  label,
+  value,
+  onChange,
+  suffix,
+  icon,
+  type = 'number',
+}: {
+  label: string;
+  value: string | number;
+  onChange: (value: string) => void;
+  suffix?: string;
+  icon: React.ReactNode;
+  type?: string;
+}) {
+  return (
+    <div className="rounded-[24px] border border-white/10 bg-white/[0.04] p-4">
+      <div className="mb-3 flex items-center gap-2 text-white/45">
+        <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-black/20">
+          {icon}
+        </div>
+        <span className="text-[10px] font-black uppercase tracking-[0.18em]">
+          {label}
+        </span>
+      </div>
+
+      <div className="relative">
+        <input
+          type={type}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          className="w-full rounded-2xl border border-white/10 bg-zinc-950 px-4 py-3 pr-14 text-white outline-none transition focus:border-lime-400/50"
+        />
+        {suffix ? (
+          <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-sm font-semibold text-white/35">
+            {suffix}
+          </span>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function ActionRow({
+  icon,
+  title,
+  subtitle,
+  onClick,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  subtitle: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex w-full items-center justify-between rounded-[24px] border border-white/10 bg-white/[0.04] px-4 py-4 text-left transition hover:border-white/20 hover:bg-white/[0.07] active:scale-[0.99]"
+    >
+      <div className="flex items-start gap-3">
+        <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-black/20 text-white/90">
+          {icon}
+        </div>
+        <div>
+          <div className="text-sm font-black uppercase tracking-[0.1em] text-white">
+            {title}
+          </div>
+          <div className="mt-1 text-sm text-white/50">{subtitle}</div>
+        </div>
+      </div>
+
+      <ChevronRight className="h-4 w-4 text-white/35" />
+    </button>
+  );
 }
 
 export default function SettingsScreen({ onBack }: SettingsScreenProps) {
   const profile = getProfile();
-  const [timerEnabled, setTimerEnabled] = useState(true);
-  const [setSeconds, setSetSeconds] = useState(45);
-  const [restSeconds, setRestSeconds] = useState(90);
-  const [premiumState, setPremiumState] = useState(checkPremium());
+
+  const [gender, setGender] = useState<UserGender>(profile?.gender ?? 'male');
+  const [height, setHeight] = useState(String(profile?.height ?? 180));
+  const [weight, setWeight] = useState(String(profile?.weight ?? 75));
+  const [goal, setGoal] = useState<TrainingGoal>(profile?.goal ?? 'maintain');
+  const [trainingLevel, setTrainingLevelState] = useState<TrainingLevel>(
+    profile?.trainingLevel ?? 'beginner'
+  );
+  const [language, setLanguage] = useState(getStoredLanguage());
   const [message, setMessage] = useState('');
 
-  useEffect(() => {
-    const timer = getTimerSettings();
-    setTimerEnabled(timer.enabled);
-    setSetSeconds(timer.setSeconds);
-    setRestSeconds(timer.restSeconds);
-  }, []);
+  const parsedHeight = useMemo(() => {
+    const value = Number(height);
+    return Number.isFinite(value) ? Math.max(120, Math.min(250, Math.round(value))) : 180;
+  }, [height]);
 
-  useEffect(() => {
-    const unsubscribe = subscribePremium((state) => {
-      setPremiumState(state);
+  const parsedWeight = useMemo(() => {
+    const value = Number(weight);
+    return Number.isFinite(value) ? Math.max(35, Math.min(300, Math.round(value))) : 75;
+  }, [weight]);
+
+  const handleSave = () => {
+    const current = getProfile();
+
+    saveProfile({
+      age: current?.age ?? 25,
+      gender,
+      height: parsedHeight,
+      weight: parsedWeight,
+      goal,
+      trainingLevel,
     });
 
-    return unsubscribe;
-  }, []);
-
-  const identityLabel =
-    profile?.gender === 'female'
-      ? 'Female'
-      : profile?.gender === 'non-binary'
-      ? 'Non-binary'
-      : 'Male';
-
-  const trainingLabel =
-    profile?.trainingLevel === 'advanced'
-      ? 'Advanced'
-      : profile?.trainingLevel === 'intermediate'
-      ? 'Intermediate'
-      : 'Beginner';
-
-  const premiumLabel = useMemo(() => {
-    if (!premiumState.isActive) return 'Free';
-    return 'Premium Active';
-  }, [premiumState]);
-
-  const cardClass =
-    'rounded-[28px] border border-white/10 bg-white/[0.04] p-5 shadow-[0_10px_40px_rgba(0,0,0,0.25)] backdrop-blur';
-  const smallLabelClass =
-    'text-[11px] font-semibold uppercase tracking-[0.2em] text-white/45';
-  const valueClass = 'mt-2 text-base font-semibold text-white';
-  const inputClass =
-    'mt-2 w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-white outline-none transition focus:border-emerald-400/50';
-  const buttonClass =
-    'rounded-2xl px-4 py-3 text-sm font-bold transition hover:scale-[1.01]';
-
-  const handleSaveTimer = () => {
-    saveTimerSettings({
-      enabled: timerEnabled,
-      setSeconds: clampSeconds(setSeconds, 45),
-      restSeconds: clampSeconds(restSeconds, 90),
-    });
-    setMessage('Timer settings saved.');
+    setTrainingLevel(trainingLevel);
+    setStoredLanguage(language);
+    setMessage('Settings saved.');
   };
 
-  const handleResetTimer = () => {
-    resetTimerSettings();
-    const next = getTimerSettings();
-    setTimerEnabled(next.enabled);
-    setSetSeconds(next.setSeconds);
-    setRestSeconds(next.restSeconds);
-    setMessage('Timer settings reset to default.');
+  const openContact = () => {
+    window.location.href = `mailto:${CONTACT_EMAIL}?subject=GymRat%20Contact`;
   };
 
-  const handleActivatePremium = () => {
-    activatePremium({ source: 'test' });
-    setMessage('Preview premium activated.');
-  };
-
-  const handleClearPremium = () => {
-    deactivatePremium();
-    setMessage('Preview premium cleared.');
+  const reportBug = () => {
+    window.location.href = `mailto:${CONTACT_EMAIL}?subject=GymRat%20Bug%20Report&body=Describe%20what%20happened:%0A%0ADevice:%0AApp%20screen:%0ASteps%20to%20reproduce:%0A`;
   };
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(74,222,128,0.16),_transparent_30%),linear-gradient(180deg,_#09090b_0%,_#111113_100%)] px-4 py-5 text-white">
-      <div className="mx-auto flex w-full max-w-4xl flex-col gap-4">
+    <div className="min-h-[100dvh] bg-[linear-gradient(180deg,#060606_0%,#0d0d0d_100%)] px-4 pb-8 pt-6 text-white">
+      <div className="mx-auto max-w-md">
         <button
           type="button"
           onClick={onBack}
-          className="inline-flex w-fit items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-semibold"
+          className="mb-4 inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-4 text-[11px] font-black uppercase tracking-[0.18em] text-white transition hover:border-white/20 hover:bg-white/[0.08] active:scale-[0.98]"
         >
           <ArrowLeft className="h-4 w-4" />
           Back
         </button>
 
-        <div className="rounded-[34px] border border-white/10 bg-white/[0.04] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.4)]">
-          <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.24em] text-zinc-400">
-            <Settings className="h-4 w-4 text-emerald-300" />
-            Control
+        <div className="rounded-[30px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.03))] p-5 shadow-[0_24px_70px_rgba(0,0,0,0.35)]">
+          <div className="text-[10px] font-black uppercase tracking-[0.22em] text-white/45">
+            Settings
           </div>
-
-          <h1 className="mt-3 text-3xl font-black sm:text-4xl">
-            Profile, timer and premium
+          <h1 className="mt-2 text-3xl font-black uppercase tracking-[0.02em] text-white">
+            Control Center
           </h1>
-
-          <p className="mt-3 max-w-3xl text-sm text-zinc-300 sm:text-base">
-            Clean control over your workout flow, recovery timing and premium progression.
+          <p className="mt-2 text-sm text-white/55">
+            Identity, progression setup, language and direct contact in one place.
           </p>
         </div>
 
-        <div className="grid gap-4 lg:grid-cols-2">
-          <div className={cardClass}>
-            <div className="flex items-center gap-2">
-              <User className="h-4 w-4 text-emerald-300" />
-              <p className={smallLabelClass}>Profile</p>
-            </div>
+        <div className="mt-4 rounded-[28px] border border-white/10 bg-white/[0.04] p-5">
+          <SectionTitle
+            icon={<User className="h-5 w-5" />}
+            title="Identity"
+            subtitle="This controls which rat variant the app should use."
+          />
 
-            <div className="mt-5 grid gap-3 sm:grid-cols-2">
-              <div>
-                <p className={smallLabelClass}>Identity</p>
-                <p className={valueClass}>{identityLabel}</p>
-              </div>
-              <div>
-                <p className={smallLabelClass}>Training level</p>
-                <p className={valueClass}>{trainingLabel}</p>
-              </div>
-              <div>
-                <p className={smallLabelClass}>Age</p>
-                <p className={valueClass}>{profile?.age ?? '-'}</p>
-              </div>
-              <div>
-                <p className={smallLabelClass}>Weight</p>
-                <p className={valueClass}>{profile?.weight ?? '-'} kg</p>
-              </div>
-            </div>
-          </div>
+          <SelectCard
+            value={gender}
+            onChange={setGender}
+            options={[
+              { value: 'male', label: 'Male' },
+              { value: 'female', label: 'Female' },
+              { value: 'non-binary', label: 'Non-binary' },
+            ]}
+          />
+        </div>
 
-          <div className={cardClass}>
-            <div className="flex items-center gap-2">
-              <Clock3 className="h-4 w-4 text-emerald-300" />
-              <p className={smallLabelClass}>Workout timer</p>
-            </div>
+        <div className="mt-4 grid gap-4">
+          <InputBlock
+            label="Height"
+            value={height}
+            onChange={setHeight}
+            suffix="cm"
+            icon={<Ruler className="h-4 w-4" />}
+          />
 
-            <div className="mt-5">
-              <p className={smallLabelClass}>Enable workout timer</p>
-              <button
-                type="button"
-                onClick={() => setTimerEnabled((current) => !current)}
-                className={`relative mt-2 h-8 w-14 rounded-full transition ${
-                  timerEnabled ? 'bg-emerald-400/80' : 'bg-white/15'
-                }`}
-              >
-                <span
-                  className={`absolute top-1 h-6 w-6 rounded-full bg-white transition ${
-                    timerEnabled ? 'left-7' : 'left-1'
-                  }`}
-                />
-              </button>
-            </div>
+          <InputBlock
+            label="Weight"
+            value={weight}
+            onChange={setWeight}
+            suffix="kg"
+            icon={<Weight className="h-4 w-4" />}
+          />
+        </div>
 
-            <div className="mt-5 grid gap-4 sm:grid-cols-2">
-              <div>
-                <label className={smallLabelClass}>Set time (seconds)</label>
-                <input
-                  type="number"
-                  value={setSeconds}
-                  onChange={(e) => setSetSeconds(clampSeconds(e.target.value, setSeconds))}
-                  className={inputClass}
-                />
-              </div>
+        <div className="mt-4 rounded-[28px] border border-white/10 bg-white/[0.04] p-5">
+          <SectionTitle
+            icon={<Target className="h-5 w-5" />}
+            title="Goal"
+            subtitle="Used for the overall direction of the app."
+          />
 
-              <div>
-                <label className={smallLabelClass}>Rest time (seconds)</label>
-                <input
-                  type="number"
-                  value={restSeconds}
-                  onChange={(e) => setRestSeconds(clampSeconds(e.target.value, restSeconds))}
-                  className={inputClass}
-                />
-              </div>
-            </div>
+          <SelectCard
+            value={goal}
+            onChange={setGoal}
+            options={[
+              { value: 'lose', label: 'Lose' },
+              { value: 'maintain', label: 'Maintain' },
+              { value: 'build', label: 'Build' },
+            ]}
+          />
+        </div>
 
-            <div className="mt-5 flex gap-3">
-              <button
-                type="button"
-                onClick={handleSaveTimer}
-                className={`${buttonClass} flex-1 bg-emerald-400 text-black`}
-              >
-                <Check className="mr-2 inline h-4 w-4" />
-                Save timer
-              </button>
+        <div className="mt-4 rounded-[28px] border border-white/10 bg-white/[0.04] p-5">
+          <SectionTitle
+            icon={<Dumbbell className="h-5 w-5" />}
+            title="Training setup"
+            subtitle="Controls the kind of workout plans the app prepares."
+          />
 
-              <button
-                type="button"
-                onClick={handleResetTimer}
-                className={`${buttonClass} flex-1 border border-white/10 bg-white/[0.04] text-white`}
-              >
-                <RotateCcw className="mr-2 inline h-4 w-4" />
-                Reset default
-              </button>
-            </div>
+          <SelectCard
+            value={trainingLevel}
+            onChange={setTrainingLevelState}
+            options={[
+              { value: 'beginner', label: 'Beginner' },
+              { value: 'intermediate', label: 'Intermediate' },
+              { value: 'advanced', label: 'Advanced' },
+            ]}
+          />
+        </div>
+
+        <div className="mt-4 rounded-[28px] border border-white/10 bg-white/[0.04] p-5">
+          <SectionTitle
+            icon={<Globe className="h-5 w-5" />}
+            title="Language"
+            subtitle="Stored now so the app can use this preference."
+          />
+
+          <SelectCard
+            value={language}
+            onChange={setLanguage}
+            options={[
+              { value: 'en', label: 'English' },
+              { value: 'sv', label: 'Svenska' },
+              { value: 'es', label: 'Español' },
+              { value: 'ru', label: 'Русский' },
+              { value: 'zh', label: '中文' },
+            ]}
+          />
+        </div>
+
+        <div className="mt-4 rounded-[28px] border border-white/10 bg-white/[0.04] p-5">
+          <SectionTitle
+            icon={<Mail className="h-5 w-5" />}
+            title="Support"
+            subtitle="Fast contact straight from the app."
+          />
+
+          <div className="space-y-3">
+            <ActionRow
+              icon={<Mail className="h-4 w-4" />}
+              title="Contact"
+              subtitle={CONTACT_EMAIL}
+              onClick={openContact}
+            />
+
+            <ActionRow
+              icon={<Bug className="h-4 w-4" />}
+              title="Report bug"
+              subtitle="Open an email draft with bug-report subject"
+              onClick={reportBug}
+            />
           </div>
         </div>
 
-        <div className={cardClass}>
-          <div className="flex items-center gap-2">
-            <Crown className="h-4 w-4 text-yellow-300" />
-            <p className={smallLabelClass}>Premium</p>
+        <button
+          type="button"
+          onClick={handleSave}
+          className="mt-4 flex h-16 w-full items-center justify-center gap-2 rounded-[24px] border border-lime-400/25 bg-[linear-gradient(180deg,rgba(124,255,107,0.22),rgba(124,255,107,0.12))] text-sm font-black uppercase tracking-[0.18em] text-white transition hover:border-lime-300/45 hover:bg-[linear-gradient(180deg,rgba(124,255,107,0.3),rgba(124,255,107,0.16))] active:scale-[0.99]"
+        >
+          <Save className="h-4 w-4" />
+          Save Settings
+        </button>
+
+        {message ? (
+          <div className="mt-3 rounded-2xl border border-lime-400/20 bg-lime-400/10 px-4 py-3 text-sm font-semibold text-lime-200">
+            {message}
           </div>
-
-          <div className="mt-5 grid gap-3 sm:grid-cols-3">
-            <div>
-              <p className={smallLabelClass}>Status</p>
-              <p className={valueClass}>{premiumState.isActive ? 'Active' : 'Free'}</p>
-            </div>
-            <div>
-              <p className={smallLabelClass}>Source</p>
-              <p className={valueClass}>{premiumState.source}</p>
-            </div>
-            <div>
-              <p className={smallLabelClass}>Tier</p>
-              <p className={valueClass}>{premiumLabel}</p>
-            </div>
-          </div>
-
-          <div className="mt-5 flex flex-wrap gap-3">
-            <button
-              type="button"
-              onClick={handleActivatePremium}
-              className={`${buttonClass} bg-emerald-400 text-black`}
-            >
-              <Crown className="mr-2 inline h-4 w-4" />
-              Preview unlock
-            </button>
-
-            <button
-              type="button"
-              onClick={handleClearPremium}
-              className={`${buttonClass} border border-white/10 bg-transparent text-zinc-300`}
-            >
-              <RefreshCw className="mr-2 inline h-4 w-4" />
-              Clear preview
-            </button>
-          </div>
-
-          {message ? (
-            <div className="mt-4 rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-zinc-200">
-              {message}
-            </div>
-          ) : null}
-        </div>
+        ) : null}
       </div>
     </div>
   );

@@ -15,7 +15,6 @@ export type WorkoutXPInput = {
 };
 
 const STORAGE_KEY = 'gymrat-gamification';
-const XP_PER_LEVEL = 250;
 
 type GamificationState = {
   totalXP: number;
@@ -77,6 +76,17 @@ function dayDiff(a: Date, b: Date) {
   return Math.round(ms / 86400000);
 }
 
+function getXPSpanForLevel(level: number) {
+  const safeLevel = Math.max(1, Math.floor(level));
+
+  return Math.floor(
+    250 +
+      (safeLevel - 1) * 18 +
+      Math.max(0, safeLevel - 10) * 6 +
+      Math.max(0, safeLevel - 25) * 8
+  );
+}
+
 export function getTotalXP() {
   return readState().totalXP;
 }
@@ -98,13 +108,31 @@ export function getStreak() {
 }
 
 export function getLevelFromXP(xp: number) {
-  if (xp < 0) return 1;
-  return Math.floor(xp / XP_PER_LEVEL) + 1;
+  if (xp <= 0) return 1;
+
+  let remaining = Math.floor(xp);
+  let level = 1;
+
+  while (remaining >= getXPSpanForLevel(level)) {
+    remaining -= getXPSpanForLevel(level);
+    level += 1;
+  }
+
+  return level;
 }
 
 export function getXPForLevel(level: number) {
-  if (level <= 1) return 0;
-  return (level - 1) * XP_PER_LEVEL;
+  const safeLevel = Math.max(1, Math.floor(level));
+
+  if (safeLevel <= 1) return 0;
+
+  let total = 0;
+
+  for (let current = 1; current < safeLevel; current += 1) {
+    total += getXPSpanForLevel(current);
+  }
+
+  return total;
 }
 
 export function getCurrentLevelXP(xp: number) {
@@ -115,20 +143,16 @@ export function getCurrentLevelXP(xp: number) {
 
 export function getNextLevelXP(xp: number) {
   const level = getLevelFromXP(xp);
-  const currentLevelStart = getXPForLevel(level);
-  return getXPForLevel(level + 1) - currentLevelStart;
+  return getXPSpanForLevel(level);
 }
 
 export function getProgressPercent(xp: number) {
-  const level = getLevelFromXP(xp);
-  const currentLevelStart = getXPForLevel(level);
-  const nextLevelStart = getXPForLevel(level + 1);
-  const span = nextLevelStart - currentLevelStart;
+  const nextLevelXP = getNextLevelXP(xp);
+  const currentLevelXP = getCurrentLevelXP(xp);
 
-  if (span <= 0) return 0;
+  if (nextLevelXP <= 0) return 0;
 
-  const inLevel = xp - currentLevelStart;
-  return Math.max(0, Math.min(100, (inLevel / span) * 100));
+  return Math.max(0, Math.min(100, (currentLevelXP / nextLevelXP) * 100));
 }
 
 export function getRatTier(levelOrXP: number) {
@@ -156,12 +180,12 @@ export function calculateWorkoutXP(input: WorkoutXPInput): XPBreakdown {
     currentStreak >= 30
       ? 40
       : currentStreak >= 14
-      ? 25
-      : currentStreak >= 7
-      ? 15
-      : currentStreak >= 3
-      ? 8
-      : 0;
+        ? 25
+        : currentStreak >= 7
+          ? 15
+          : currentStreak >= 3
+            ? 8
+            : 0;
 
   const subtotal = baseXP + volumeXP + consistencyXP;
   const premiumBoostXP = isPremium() ? Math.floor(subtotal * 0.15) : 0;
