@@ -3,14 +3,14 @@ import {
   ArrowLeft,
   Bug,
   ChevronRight,
+  Dumbbell,
   Globe,
   Mail,
+  Ruler,
   Save,
+  Target,
   User,
   Weight,
-  Ruler,
-  Target,
-  Dumbbell,
 } from 'lucide-react';
 
 import {
@@ -21,25 +21,19 @@ import {
   type UserGender,
 } from '@/lib/profileStore';
 import { setTrainingLevel } from '@/lib/trainingStore';
+import {
+  getLanguage,
+  getLanguageLabel,
+  languageOptions,
+  setLanguage,
+  type AppLanguage,
+} from '@/lib/languageStore';
 
 type SettingsScreenProps = {
   onBack: () => void;
 };
 
-const LANGUAGE_KEY = 'gymrat-language';
 const CONTACT_EMAIL = 'hello@getgymrat.com';
-
-function getStoredLanguage() {
-  if (typeof window === 'undefined') return 'en';
-
-  const value = localStorage.getItem(LANGUAGE_KEY);
-  return value || 'en';
-}
-
-function setStoredLanguage(language: string) {
-  if (typeof window === 'undefined') return;
-  localStorage.setItem(LANGUAGE_KEY, language);
-}
 
 function SectionTitle({
   icon,
@@ -104,14 +98,12 @@ function InputBlock({
   onChange,
   suffix,
   icon,
-  type = 'number',
 }: {
   label: string;
   value: string | number;
   onChange: (value: string) => void;
   suffix?: string;
   icon: React.ReactNode;
-  type?: string;
 }) {
   return (
     <div className="rounded-[24px] border border-white/10 bg-white/[0.04] p-4">
@@ -126,7 +118,7 @@ function InputBlock({
 
       <div className="relative">
         <input
-          type={type}
+          type="number"
           value={value}
           onChange={(event) => onChange(event.target.value)}
           className="w-full rounded-2xl border border-white/10 bg-zinc-950 px-4 py-3 pr-14 text-white outline-none transition focus:border-lime-400/50"
@@ -183,19 +175,23 @@ export default function SettingsScreen({ onBack }: SettingsScreenProps) {
   const [weight, setWeight] = useState(String(profile?.weight ?? 75));
   const [goal, setGoal] = useState<TrainingGoal>(profile?.goal ?? 'maintain');
   const [trainingLevel, setTrainingLevelState] = useState<TrainingLevel>(
-    profile?.trainingLevel ?? 'beginner'
+    profile?.trainingLevel ?? 'beginner',
   );
-  const [language, setLanguage] = useState(getStoredLanguage());
+  const [language, setLanguageState] = useState<AppLanguage>(getLanguage());
   const [message, setMessage] = useState('');
 
   const parsedHeight = useMemo(() => {
     const value = Number(height);
-    return Number.isFinite(value) ? Math.max(120, Math.min(250, Math.round(value))) : 180;
+    return Number.isFinite(value)
+      ? Math.max(120, Math.min(250, Math.round(value)))
+      : 180;
   }, [height]);
 
   const parsedWeight = useMemo(() => {
     const value = Number(weight);
-    return Number.isFinite(value) ? Math.max(35, Math.min(300, Math.round(value))) : 75;
+    return Number.isFinite(value)
+      ? Math.max(35, Math.min(300, Math.round(value)))
+      : 75;
   }, [weight]);
 
   const handleSave = () => {
@@ -211,8 +207,8 @@ export default function SettingsScreen({ onBack }: SettingsScreenProps) {
     });
 
     setTrainingLevel(trainingLevel);
-    setStoredLanguage(language);
-    setMessage('Settings saved.');
+    setLanguage(language);
+    setMessage(`Saved. Language: ${getLanguageLabel(language)}`);
   };
 
   const openContact = () => {
@@ -243,7 +239,7 @@ export default function SettingsScreen({ onBack }: SettingsScreenProps) {
             Control Center
           </h1>
           <p className="mt-2 text-sm text-white/55">
-            Identity, progression setup, language and direct contact in one place.
+            Identity, progression setup, language and support in one place.
           </p>
         </div>
 
@@ -251,7 +247,7 @@ export default function SettingsScreen({ onBack }: SettingsScreenProps) {
           <SectionTitle
             icon={<User className="h-5 w-5" />}
             title="Identity"
-            subtitle="This controls which rat variant the app should use."
+            subtitle="This decides which rat variant the app should use."
           />
 
           <SelectCard
@@ -287,7 +283,7 @@ export default function SettingsScreen({ onBack }: SettingsScreenProps) {
           <SectionTitle
             icon={<Target className="h-5 w-5" />}
             title="Goal"
-            subtitle="Used for the overall direction of the app."
+            subtitle="Controls the main direction of the app."
           />
 
           <SelectCard
@@ -305,7 +301,7 @@ export default function SettingsScreen({ onBack }: SettingsScreenProps) {
           <SectionTitle
             icon={<Dumbbell className="h-5 w-5" />}
             title="Training setup"
-            subtitle="Controls the kind of workout plans the app prepares."
+            subtitle="Controls the kind of workout plan the app prepares."
           />
 
           <SelectCard
@@ -323,19 +319,13 @@ export default function SettingsScreen({ onBack }: SettingsScreenProps) {
           <SectionTitle
             icon={<Globe className="h-5 w-5" />}
             title="Language"
-            subtitle="Stored now so the app can use this preference."
+            subtitle="Stored now so the app can use this preference next."
           />
 
           <SelectCard
             value={language}
-            onChange={setLanguage}
-            options={[
-              { value: 'en', label: 'English' },
-              { value: 'sv', label: 'Svenska' },
-              { value: 'es', label: 'Español' },
-              { value: 'ru', label: 'Русский' },
-              { value: 'zh', label: '中文' },
-            ]}
+            onChange={setLanguageState}
+            options={languageOptions}
           />
         </div>
 
@@ -343,7 +333,7 @@ export default function SettingsScreen({ onBack }: SettingsScreenProps) {
           <SectionTitle
             icon={<Mail className="h-5 w-5" />}
             title="Support"
-            subtitle="Fast contact straight from the app."
+            subtitle="Direct access from inside the app."
           />
 
           <div className="space-y-3">
@@ -357,7 +347,7 @@ export default function SettingsScreen({ onBack }: SettingsScreenProps) {
             <ActionRow
               icon={<Bug className="h-4 w-4" />}
               title="Report bug"
-              subtitle="Open an email draft with bug-report subject"
+              subtitle="Open a mail draft with bug-report subject"
               onClick={reportBug}
             />
           </div>

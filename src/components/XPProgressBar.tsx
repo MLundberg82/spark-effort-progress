@@ -1,3 +1,6 @@
+import { useEffect, useState } from 'react';
+import { getLanguage, t, type AppLanguage } from '@/lib/languageStore';
+
 type Props = {
   level: number;
   currentXP: number;
@@ -13,6 +16,20 @@ export default function XPProgressBar({
   currentXP,
   nextLevelXP,
 }: Props) {
+  const [language, setLanguage] = useState<AppLanguage>(getLanguage());
+
+  useEffect(() => {
+    const syncLanguage = () => setLanguage(getLanguage());
+
+    window.addEventListener('gymrat-language-updated', syncLanguage);
+    window.addEventListener('storage', syncLanguage);
+
+    return () => {
+      window.removeEventListener('gymrat-language-updated', syncLanguage);
+      window.removeEventListener('storage', syncLanguage);
+    };
+  }, []);
+
   const safeNext = Math.max(1, nextLevelXP);
   const progressPercent = clamp((currentXP / safeNext) * 100, 0, 100);
   const xpLeft = Math.max(0, safeNext - currentXP);
@@ -22,16 +39,16 @@ export default function XPProgressBar({
       <div className="mb-3 flex items-center justify-between gap-3">
         <div>
           <p className="text-[10px] font-black uppercase tracking-[0.22em] text-zinc-500">
-            Progression
+            {t('xp.progression', language)}
           </p>
           <h3 className="mt-1 text-lg font-black uppercase text-white">
-            Level {level}
+            {t('xp.level', language)} {level}
           </h3>
         </div>
 
         <div className="text-right">
           <p className="text-[10px] font-black uppercase tracking-[0.18em] text-zinc-500">
-            Progress
+            {t('xp.progress', language)}
           </p>
           <p className="mt-1 text-base font-black text-lime-300">
             {progressPercent.toFixed(0)}%
@@ -53,8 +70,10 @@ export default function XPProgressBar({
       </div>
 
       <div className="mt-3 flex items-center justify-between text-[10px] font-black uppercase tracking-[0.16em] text-zinc-500">
-        <span>{xpLeft} XP to next level</span>
-        <span>Keep stacking reps</span>
+        <span>
+          {t('xp.nextLevelIn', language)} {xpLeft} XP
+        </span>
+        <span>{t('xp.status', language)}</span>
       </div>
     </div>
   );

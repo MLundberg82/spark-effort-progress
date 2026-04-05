@@ -1,7 +1,9 @@
+import { useEffect, useState } from 'react';
 import { Images, Menu, Play, ShoppingBag } from 'lucide-react';
 import type { AppStats } from '@/lib/appStore';
 import EquippedRatPreview from '@/components/EquippedRatPreview';
 import XPProgressBar from '@/components/XPProgressBar';
+import { getLanguage, t, type AppLanguage } from '@/lib/languageStore';
 
 type HomeScreenProps = {
   stats: AppStats;
@@ -34,7 +36,9 @@ function ActionButton({
       ].join(' ')}
     >
       <Icon className="mb-1 h-4 w-4 transition-transform duration-200 group-hover:scale-110" />
-      <span className="text-[10px] font-black uppercase tracking-[0.18em]">{label}</span>
+      <span className="px-1 text-center text-[10px] font-black uppercase tracking-[0.18em]">
+        {label}
+      </span>
     </button>
   );
 }
@@ -46,6 +50,20 @@ export default function HomeScreen({
   onOpenGallery,
   onOpenShop,
 }: HomeScreenProps) {
+  const [language, setLanguage] = useState<AppLanguage>(getLanguage());
+
+  useEffect(() => {
+    const syncLanguage = () => setLanguage(getLanguage());
+
+    window.addEventListener('gymrat-language-updated', syncLanguage);
+    window.addEventListener('storage', syncLanguage);
+
+    return () => {
+      window.removeEventListener('gymrat-language-updated', syncLanguage);
+      window.removeEventListener('storage', syncLanguage);
+    };
+  }, []);
+
   return (
     <div className="relative h-[100dvh] w-full overflow-hidden bg-black text-white">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.05),transparent_38%)]" />
@@ -55,7 +73,7 @@ export default function HomeScreen({
         type="button"
         onClick={onOpenMenu}
         aria-label="Open menu"
-        className="absolute right-4 top-4 z-[60] flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-black/50 text-white backdrop-blur-md transition-all duration-200 hover:scale-[1.03] hover:border-white/20 hover:bg-black/65 active:scale-[0.98]"
+        className="absolute right-4 top-4 z-[80] flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-black/55 text-white backdrop-blur-md transition-all duration-200 hover:scale-[1.03] hover:border-white/20 hover:bg-black/70 active:scale-[0.98]"
       >
         <Menu className="h-5 w-5" />
       </button>
@@ -76,18 +94,18 @@ export default function HomeScreen({
             <div className="mt-3 grid grid-cols-3 gap-2">
               <ActionButton
                 icon={Play}
-                label="Start Workout"
+                label={t('home.startWorkout', language)}
                 onClick={onStartWorkout}
                 primary
               />
               <ActionButton
                 icon={ShoppingBag}
-                label="Shop"
+                label={t('home.shop', language)}
                 onClick={onOpenShop}
               />
               <ActionButton
                 icon={Images}
-                label="Level Gallery"
+                label={t('home.levelGallery', language)}
                 onClick={onOpenGallery}
               />
             </div>
