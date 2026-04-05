@@ -1,246 +1,198 @@
-import type { AssetShopItem, ItemSlot, RatVariant } from './assetTypes';
+import { getProfile } from '@/lib/profileStore';
+import { getEquippedState } from '@/lib/shopStore';
+import { getBackgroundImage, getItemImage, getRatImage } from '@/lib/assetRegistry';
+import type { CosmeticSlot, RatVariant } from '@/lib/assetTypes';
 
-const ratModules = import.meta.glob('../assets/rats/**/*.{png,jpg,jpeg,webp}', {
-  eager: true,
-  import: 'default',
-}) as Record<string, string>;
+type EquippedRatPreviewProps = {
+  level: number;
+  variant?: RatVariant;
+  className?: string;
+};
 
-const itemModules = import.meta.glob('../assets/items/**/*.{png,jpg,jpeg,webp}', {
-  eager: true,
-  import: 'default',
-}) as Record<string, string>;
-
-const backgroundModules = import.meta.glob(
-  '../assets/backgrounds/**/*.{png,jpg,jpeg,webp}',
-  {
-    eager: true,
-    import: 'default',
-  }
-) as Record<string, string>;
-
-function normalize(value: string) {
-  return value.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+function getTierBucket(level: number) {
+  if (level >= 100) return 100;
+  if (level >= 90) return 90;
+  if (level >= 80) return 80;
+  if (level >= 70) return 70;
+  if (level >= 60) return 60;
+  if (level >= 50) return 50;
+  if (level >= 40) return 40;
+  if (level >= 35) return 35;
+  if (level >= 30) return 30;
+  if (level >= 25) return 25;
+  if (level >= 20) return 20;
+  if (level >= 15) return 15;
+  if (level >= 10) return 10;
+  if (level >= 5) return 5;
+  return 1;
 }
 
-function padLevel(level: number) {
-  return String(level).padStart(3, '0');
-}
+function resolveVariant(explicit?: RatVariant): RatVariant {
+  if (explicit) return explicit;
 
-function nearestMilestone(level: number) {
-  const milestones = [100, 90, 80, 70, 60, 50, 40, 35, 30, 25, 20, 15, 10, 5, 1];
-  return milestones.find((entry) => level >= entry) ?? 1;
-}
-
-function scoreMatch(path: string, tokens: string[]) {
-  const normalizedPath = normalize(path);
-  let score = 0;
-
-  for (const token of tokens) {
-    const normalizedToken = normalize(token);
-    if (!normalizedToken) continue;
-
-    if (normalizedPath.includes(normalizedToken)) {
-      score += normalizedToken.length;
-    } else {
-      return -1;
-    }
-  }
-
-  if (normalizedPath.endsWith('.png')) score += 8;
-  if (normalizedPath.endsWith('.webp')) score += 6;
-  if (normalizedPath.includes('/premium/')) score += 2;
-
-  return score;
-}
-
-function findBest(modules: Record<string, string>, tokenSets: string[][]) {
-  const entries = Object.entries(modules);
-  let bestPath: string | undefined;
-  let bestValue: string | undefined;
-  let bestScore = -1;
-
-  for (const tokens of tokenSets) {
-    for (const [path, value] of entries) {
-      const score = scoreMatch(path, tokens);
-      if (score > bestScore) {
-        bestScore = score;
-        bestPath = path;
-        bestValue = value;
-      }
-    }
-
-    if (bestScore >= 0 && bestValue) {
-      return bestValue;
-    }
-  }
-
-  return bestPath ? modules[bestPath] : undefined;
-}
-
-export function toRatVariant(gender?: 'male' | 'female' | 'non-binary'): RatVariant {
-  if (gender === 'female') return 'female';
-  if (gender === 'non-binary') return 'nonbinary';
+  const profile = getProfile();
+  if (profile?.gender === 'female') return 'female';
+  if (profile?.gender === 'non-binary') return 'non-binary';
   return 'male';
 }
 
-export function getRatImage(level: number, variant: RatVariant): string | undefined {
-  const milestone = nearestMilestone(level);
-  const padded = padLevel(milestone);
+function getBaseRatCandidates(level: number, variant: RatVariant) {
+  const tier = getTierBucket(level);
 
-  return findBest(ratModules, [
-    [`rat-lv-${padded}`, variant],
-    [`rat-lv-${milestone}`, variant],
-    [`lv-${padded}`, variant],
-    [`lv-${milestone}`, variant],
-    [padded, variant],
-    [String(milestone), variant],
-  ]);
+  const variantAliases =
+    variant === 'non-binary'
+      ? ['non-binary', 'nonbinary', 'nb']
+      : [variant];
+
+  const ids: string[] = [];
+
+  for (const alias of variantAliases) {
+    ids.push(`rat-lv-${String(tier).padStart(3, '0')}-${alias}`);
+    ids.push(`rat-level-${tier}-${alias}`);
+    ids.push(`rat-${tier}-${alias}`);
+    ids.push(`rat-${alias}-${tier}`);
+    ids.push(`rat-${alias}-lv-${String(tier).padStart(3, '0')}`);
+  }
+
+  ids.push(`rat-lv-${String(tier).padStart(3, '0')}`);
+  ids.push(`rat-level-${tier}`);
+  ids.push(`rat-${tier}`);
+
+  return ids;
 }
 
-export const ASSET_SHOP_CATALOG_BASE: Omit<AssetShopItem, 'image'>[] = [
-  {
-    id: 'cap-black-core',
-    name: 'Black Core Cap',
-    description: 'Clean starter head item.',
-    price: 60,
-    emoji: '🧢',
-    slot: 'head',
-    isPremium: false,
-    unlockLevel: 1,
-  },
-  {
-    id: 'hoodie-black-core',
-    name: 'Black Core Hoodie',
-    description: 'Classic gym-rat top.',
-    price: 90,
-    emoji: '🧥',
-    slot: 'top',
-    isPremium: false,
-    unlockLevel: 1,
-  },
-  {
-    id: 'joggers-core-grey',
-    name: 'Core Grey Joggers',
-    description: 'Starter lower-body cosmetic.',
-    price: 85,
-    emoji: '👖',
-    slot: 'pants',
-    isPremium: false,
-    unlockLevel: 1,
-  },
-  {
-    id: 'shoes-street-core',
-    name: 'Street Core Shoes',
-    description: 'Starter shoe cosmetic.',
-    price: 75,
-    emoji: '👟',
-    slot: 'feet',
-    isPremium: false,
-    unlockLevel: 1,
-  },
-  {
-    id: 'chain-gold-heavy',
-    name: 'Gold Heavy Chain',
-    description: 'Extra alpha energy.',
-    price: 180,
-    emoji: '⛓️',
-    slot: 'neck',
-    isPremium: false,
-    unlockLevel: 30,
-  },
-  {
-    id: 'shades-alpha',
-    name: 'Alpha Shades',
-    description: 'Clean upper-tier look.',
-    price: 160,
-    emoji: '🕶️',
-    slot: 'eyes',
-    isPremium: false,
-    unlockLevel: 35,
-  },
-  {
-    id: 'tank-alpha-gold',
-    name: 'Alpha Tank Gold',
-    description: 'High-visibility alpha tank.',
-    price: 260,
-    emoji: '🎽',
-    slot: 'top',
-    isPremium: false,
-    unlockLevel: 35,
-  },
-  {
-    id: 'legend-pants-black',
-    name: 'Legend Black Pants',
-    description: 'Late-game lower-body flex.',
-    price: 320,
-    emoji: '⚫',
-    slot: 'pants',
-    isPremium: false,
-    unlockLevel: 80,
-  },
-  {
-    id: 'shoes-legend-high',
-    name: 'Legend High Shoes',
-    description: 'Premium footwear flex.',
-    price: 360,
-    emoji: '👑',
-    slot: 'feet',
-    isPremium: true,
-    unlockLevel: 70,
-  },
-  {
-    id: 'aura-purple-smoke',
-    name: 'Purple Smoke Aura',
-    description: 'Premium glow effect.',
-    price: 340,
-    emoji: '✨',
-    slot: 'aura',
-    isPremium: true,
-    unlockLevel: 50,
-  },
-  {
-    id: 'aura-mythic-flame',
-    name: 'Mythic Flame Aura',
-    description: 'Late-game mythic aura.',
-    price: 520,
-    emoji: '🔥',
-    slot: 'aura',
-    isPremium: true,
-    unlockLevel: 90,
-  },
-];
+function resolveBaseRat(level: number, variant: RatVariant) {
+  const candidates = getBaseRatCandidates(level, variant);
 
-export function getItemImage(itemId: string): string | undefined {
-  return findBest(itemModules, [
-    [itemId],
-    [itemId.replace(/-/g, ' ')],
-    [itemId.split('-')[0], itemId.split('-').slice(1).join('-')],
-  ]);
+  for (const candidate of candidates) {
+    const hit = getRatImage(candidate);
+    if (hit) return hit;
+  }
+
+  return null;
 }
 
-export function getItemAsset(itemId?: string) {
-  if (!itemId) return undefined;
-
-  const base = ASSET_SHOP_CATALOG_BASE.find((item) => item.id === itemId);
-  if (!base) return undefined;
-
-  return {
-    ...base,
-    image: getItemImage(itemId),
-  };
+function resolveLayerImage(itemId?: string | null) {
+  if (!itemId) return null;
+  return getItemImage(itemId);
 }
 
-export function getItemsForSlot(slot: ItemSlot) {
-  return ASSET_SHOP_CATALOG_BASE.filter((item) => item.slot === slot).map((item) => ({
-    ...item,
-    image: getItemImage(item.id),
+function Layer({
+  src,
+  alt,
+  className,
+}: {
+  src: string | null;
+  alt: string;
+  className?: string;
+}) {
+  if (!src) return null;
+
+  return (
+    <img
+      src={src}
+      alt={alt}
+      className={`pointer-events-none absolute inset-0 h-full w-full object-contain ${className ?? ''}`}
+    />
+  );
+}
+
+export default function EquippedRatPreview({
+  level,
+  variant,
+  className,
+}: EquippedRatPreviewProps) {
+  const resolvedVariant = resolveVariant(variant);
+  const equipped = getEquippedState();
+
+  const backgroundSrc = equipped.background
+    ? getBackgroundImage(equipped.background)
+    : null;
+
+  const baseRatSrc = resolveBaseRat(level, resolvedVariant);
+
+  const layerOrder: CosmeticSlot[] = [
+    'aura',
+    'pants',
+    'feet',
+    'top',
+    'neck',
+    'head',
+    'eyes',
+  ];
+
+  const layers = layerOrder.map((slot) => ({
+    slot,
+    itemId: equipped[slot],
+    src: resolveLayerImage(equipped[slot]),
   }));
-}
 
-export function getBackgroundImage(backgroundId: string): string | undefined {
-  return findBest(backgroundModules, [
-    [backgroundId],
-    [backgroundId.replace(/-/g, ' ')],
-    [backgroundId.split('-').slice(0, 2).join('-')],
-  ]);
+  return (
+    <div className={`relative w-full ${className ?? ''}`}>
+      <div className="relative aspect-square w-full overflow-hidden rounded-[2rem]">
+        {backgroundSrc ? (
+          <img
+            src={backgroundSrc}
+            alt="Equipped background"
+            className="absolute inset-0 h-full w-full object-cover"
+          />
+        ) : (
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(16,185,129,0.16),transparent_28%),linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.01))]" />
+        )}
+
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_22%,rgba(255,255,255,0.08),transparent_24%)]" />
+
+        <div className="absolute inset-[8%] flex items-center justify-center">
+          <div className="relative h-full w-full">
+            <Layer
+              src={layers.find((entry) => entry.slot === 'aura')?.src ?? null}
+              alt="Aura"
+              className="scale-[1.12] drop-shadow-[0_0_28px_rgba(52,211,153,0.28)]"
+            />
+
+            {baseRatSrc ? (
+              <img
+                src={baseRatSrc}
+                alt="GymRat"
+                className="pointer-events-none absolute inset-0 h-full w-full object-contain drop-shadow-[0_12px_30px_rgba(0,0,0,0.38)]"
+              />
+            ) : (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="flex h-40 w-40 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-6xl shadow-[0_12px_40px_rgba(0,0,0,0.35)]">
+                  🐀
+                </div>
+              </div>
+            )}
+
+            {layers
+              .filter((entry) => entry.slot !== 'aura')
+              .map((entry) => (
+                <Layer
+                  key={entry.slot}
+                  src={entry.src}
+                  alt={entry.itemId ?? entry.slot}
+                />
+              ))}
+          </div>
+        </div>
+
+        <div className="pointer-events-none absolute inset-x-6 bottom-4 rounded-2xl border border-white/10 bg-black/25 px-4 py-2 backdrop-blur-sm">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-[0.62rem] font-semibold uppercase tracking-[0.16em] text-white/45">
+                Current form
+              </p>
+              <p className="mt-1 text-sm font-black text-white">
+                Level {level}
+              </p>
+            </div>
+
+            <div className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-[0.62rem] font-black uppercase tracking-[0.14em] text-emerald-300">
+              {resolvedVariant}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }

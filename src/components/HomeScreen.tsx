@@ -1,7 +1,17 @@
-import { Images, Menu, Play, ShoppingBag, Trophy, Zap } from 'lucide-react';
+import {
+  Flame,
+  Images,
+  Menu,
+  Play,
+  ShoppingBag,
+  Trophy,
+  Zap,
+} from 'lucide-react';
 import type { AppStats } from '@/lib/appStore';
 import { getProfile } from '@/lib/profileStore';
-import EquippedRatPreview from '@/components/EquippedRatPreview';
+import GymRatStage from '@/components/GymRatStage';
+import XPProgressBar from '@/components/XPProgressBar';
+import { getLevelVisual } from '@/lib/levelVisuals';
 
 type HomeScreenProps = {
   stats: AppStats;
@@ -11,26 +21,64 @@ type HomeScreenProps = {
   onOpenShop: () => void;
 };
 
-function getTierFromLevel(level: number) {
-  if (level >= 100) return 'Mythic Tier';
-  if (level >= 80) return 'King Tier';
-  if (level >= 60) return 'Legend Tier';
-  if (level >= 40) return 'Beast Tier';
-  if (level >= 25) return 'Buff Tier';
-  if (level >= 15) return 'Strong Tier';
-  if (level >= 8) return 'Regular Tier';
-  if (level >= 3) return 'Rookie Tier';
-  return 'Baby Tier';
-}
-
-function clamp(value: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, value));
-}
-
 function formatGoal(goal?: string) {
   if (goal === 'lose') return 'Cut';
   if (goal === 'build') return 'Build';
   return 'Maintain';
+}
+
+function formatTrainingLevel(level?: string) {
+  if (level === 'advanced') return 'Advanced';
+  if (level === 'intermediate') return 'Intermediate';
+  return 'Beginner';
+}
+
+function StatCard({
+  icon,
+  label,
+  value,
+  accent,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string | number;
+  accent?: string;
+}) {
+  return (
+    <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.05] p-4 shadow-[0_12px_35px_rgba(0,0,0,0.22)] backdrop-blur-sm">
+      <div className="mb-2 flex items-center gap-2">
+        <div className="rounded-full border border-white/10 bg-black/20 p-2 text-white/80">
+          {icon}
+        </div>
+        <p className="text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-white/45">
+          {label}
+        </p>
+      </div>
+      <p className={`text-2xl font-black tracking-tight ${accent ?? 'text-white'}`}>
+        {value}
+      </p>
+    </div>
+  );
+}
+
+function ActionButton({
+  icon,
+  label,
+  onClick,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className="flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-3 text-sm font-bold text-white transition-transform duration-200 hover:scale-[1.02] hover:bg-white/[0.1] active:scale-[0.99]"
+    >
+      {icon}
+      <span>{label}</span>
+    </button>
+  );
 }
 
 export default function HomeScreen({
@@ -41,130 +89,114 @@ export default function HomeScreen({
   onOpenShop,
 }: HomeScreenProps) {
   const profile = getProfile();
-  const tierLabel = getTierFromLevel(stats.level);
-
-  const currentLevelXP = Math.max(0, stats.currentLevelXP ?? 0);
-  const nextLevelXP = Math.max(currentLevelXP + 1, stats.nextLevelXP ?? 250);
-  const xpLeft = Math.max(0, nextLevelXP - currentLevelXP);
-  const progressPercent = clamp((currentLevelXP / nextLevelXP) * 100, 0, 100);
+  const visual = getLevelVisual(stats.level);
 
   return (
-    <div className="min-h-screen bg-[#09090b] text-white">
-      <div className="mx-auto flex min-h-screen w-full max-w-[430px] flex-col px-4 pb-8 pt-5">
-        <div className="mb-5 flex items-center justify-between">
+    <div
+      className={`relative min-h-screen overflow-hidden ${visual.backgroundClass} text-white`}
+    >
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_18%,rgba(255,255,255,0.08),transparent_24%)]" />
+      <div className="pointer-events-none absolute left-1/2 top-24 h-72 w-72 -translate-x-1/2 rounded-full bg-emerald-400/10 blur-3xl" />
+
+      <div className="relative mx-auto flex min-h-screen w-full max-w-md flex-col px-4 pb-8 pt-4">
+        <div className="mb-4 flex items-center justify-between">
+          <div className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-1.5 text-[0.68rem] font-black uppercase tracking-[0.2em] text-white/75">
+            {visual.tierLabel}
+          </div>
+
           <button
-            type="button"
             onClick={onOpenMenu}
-            className="inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] transition hover:bg-white/[0.08]"
+            className="flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-white transition hover:bg-white/[0.1]"
             aria-label="Open menu"
           >
             <Menu className="h-5 w-5" />
           </button>
-
-          <div className="rounded-2xl border border-emerald-400/10 bg-emerald-400/10 px-3 py-2 text-right">
-            <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-300/80">
-              Current level
-            </div>
-            <div className="text-lg font-black leading-none">LVL {stats.level}</div>
-          </div>
         </div>
 
-        <div className="rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.02))] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.45)]">
-          <div className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-300/80">
-            {tierLabel}
-          </div>
-          <h1 className="mt-2 text-3xl font-black tracking-tight">GymRat</h1>
-          <p className="mt-2 text-sm text-zinc-400">
-            Level up in real life.
+        <div className="text-center">
+          <p className="text-[0.72rem] font-black uppercase tracking-[0.28em] text-emerald-300/80">
+            GymRat
           </p>
+          <h1 className="mt-2 text-4xl font-black tracking-tight text-white">
+            Level up in real life
+          </h1>
+          <p className="mx-auto mt-3 max-w-[22rem] text-sm leading-6 text-white/62">
+            Build momentum, stack workouts, unlock your look, and push your rat into the next form.
+          </p>
+        </div>
 
-          <div className="mt-5 rounded-[1.75rem] border border-white/10 bg-black/20 p-4">
-            <EquippedRatPreview />
-          </div>
+        <div className="mt-6">
+          <GymRatStage level={stats.level} />
+        </div>
 
-          <div className="mt-4 grid grid-cols-2 gap-3">
-            <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-              <div className="text-xs text-zinc-400">Training level</div>
-              <div className="mt-1 text-sm font-bold capitalize">
-                {profile?.trainingLevel ?? 'beginner'}
-              </div>
-            </div>
+        <div className="mt-4">
+          <XPProgressBar
+            level={stats.level}
+            currentXP={stats.currentLevelXP}
+            nextLevelXP={stats.nextLevelXP}
+            progressPercent={stats.progressPercent}
+          />
+        </div>
 
-            <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-              <div className="text-xs text-zinc-400">Goal</div>
-              <div className="mt-1 text-sm font-bold">
-                {formatGoal(profile?.goal)}
-              </div>
-            </div>
-          </div>
+        <button
+          onClick={onStartWorkout}
+          className="mt-4 flex items-center justify-center gap-3 rounded-[1.6rem] border border-emerald-300/20 bg-[linear-gradient(90deg,rgba(16,185,129,0.95),rgba(132,204,22,0.95))] px-5 py-4 text-base font-black tracking-[0.04em] text-black shadow-[0_18px_45px_rgba(16,185,129,0.28)] transition-transform duration-200 hover:scale-[1.01] active:scale-[0.99]"
+        >
+          <Play className="h-5 w-5 fill-current" />
+          <span>Start Workout</span>
+        </button>
 
-          <div className="mt-5">
-            <div className="mb-2 flex items-center justify-between text-sm">
-              <span className="text-zinc-300">XP Progress</span>
-              <span className="font-semibold text-white">
-                {currentLevelXP} / {nextLevelXP} XP
-              </span>
-            </div>
-
-            <div className="h-3 overflow-hidden rounded-full bg-white/10">
-              <div
-                className="h-full rounded-full bg-emerald-400 transition-all duration-500"
-                style={{ width: `${progressPercent}%` }}
-              />
-            </div>
-
-            <div className="mt-2 flex items-center justify-between text-xs text-zinc-400">
-              <span>Level {stats.level}</span>
-              <span>XP left: {xpLeft}</span>
-            </div>
-          </div>
-
-          <div className="mt-5 grid grid-cols-2 gap-3">
-            <button
-              type="button"
-              onClick={onOpenGallery}
-              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-semibold transition hover:bg-white/[0.08]"
-            >
-              <Images className="h-4 w-4" />
-              Level Gallery
-            </button>
-
-            <button
-              type="button"
-              onClick={onOpenShop}
-              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-semibold transition hover:bg-white/[0.08]"
-            >
-              <ShoppingBag className="h-4 w-4" />
-              Shop
-            </button>
-          </div>
-
-          <button
-            type="button"
-            onClick={onStartWorkout}
-            className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-400 px-4 py-4 text-sm font-black uppercase tracking-[0.14em] text-black transition hover:scale-[1.01]"
-          >
-            <Play className="h-4 w-4 fill-current" />
-            Start Workout
-          </button>
+        <div className="mt-3 grid grid-cols-2 gap-3">
+          <ActionButton
+            icon={<Images className="h-4 w-4" />}
+            label="Level Gallery"
+            onClick={onOpenGallery}
+          />
+          <ActionButton
+            icon={<ShoppingBag className="h-4 w-4" />}
+            label="Shop"
+            onClick={onOpenShop}
+          />
         </div>
 
         <div className="mt-4 grid grid-cols-2 gap-3">
-          <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-            <div className="mb-2 inline-flex rounded-xl bg-white/[0.05] p-2">
-              <Zap className="h-4 w-4 text-emerald-300" />
-            </div>
-            <div className="text-xs text-zinc-400">Total XP</div>
-            <div className="mt-1 text-lg font-bold">{stats.totalXP}</div>
+          <div className="rounded-[1.5rem] border border-white/10 bg-black/20 px-4 py-4 backdrop-blur-sm">
+            <p className="text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-white/45">
+              Training level
+            </p>
+            <p className="mt-2 text-base font-black text-white">
+              {formatTrainingLevel(profile?.trainingLevel)}
+            </p>
           </div>
 
-          <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-            <div className="mb-2 inline-flex rounded-xl bg-white/[0.05] p-2">
-              <Trophy className="h-4 w-4 text-emerald-300" />
-            </div>
-            <div className="text-xs text-zinc-400">Workouts</div>
-            <div className="mt-1 text-lg font-bold">{stats.totalWorkouts}</div>
+          <div className="rounded-[1.5rem] border border-white/10 bg-black/20 px-4 py-4 backdrop-blur-sm">
+            <p className="text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-white/45">
+              Goal
+            </p>
+            <p className="mt-2 text-base font-black text-white">
+              {formatGoal(profile?.goal)}
+            </p>
           </div>
+        </div>
+
+        <div className="mt-4 grid grid-cols-3 gap-3">
+          <StatCard
+            icon={<Zap className="h-4 w-4" />}
+            label="Total XP"
+            value={stats.totalXP}
+            accent="text-emerald-300"
+          />
+          <StatCard
+            icon={<Trophy className="h-4 w-4" />}
+            label="Workouts"
+            value={stats.totalWorkouts}
+          />
+          <StatCard
+            icon={<Flame className="h-4 w-4" />}
+            label="Streak"
+            value={stats.streak}
+            accent="text-orange-300"
+          />
         </div>
       </div>
     </div>

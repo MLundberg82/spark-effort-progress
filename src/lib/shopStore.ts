@@ -1,355 +1,329 @@
-import { checkPremium } from './premiumStore';
-import type { EquippedItems, ItemSlot } from './assetTypes';
-
-export type ShopCategory = 'cosmetic' | 'glow' | 'background' | 'premium';
+import { checkPremium } from '@/lib/premiumStore';
+import type { ItemSlot } from '@/lib/assetTypes';
 
 export type ShopItem = {
   id: string;
   name: string;
   description: string;
-  category: ShopCategory;
-  icon: string;
-  premiumOnly?: boolean;
-  requiresPremiumAccess?: boolean;
-  productId?: string;
+  slot: ItemSlot | 'background';
+  owned: boolean;
+  isPremium: boolean;
+  accessible: boolean;
+  price: number;
   priceLabel?: string;
-  slot?: ItemSlot | 'background';
+  icon?: string;
+  emoji?: string;
+  unlockLevel?: number;
 };
 
-type EquippedState = EquippedItems;
+type EquippedState = Partial<Record<ItemSlot | 'background', string>>;
+type ShopState = {
+  ownedItemIds: string[];
+  equipped: EquippedState;
+};
 
-const SHOP_ITEMS_KEY = 'gymrat-shop-items-owned';
-const SHOP_EQUIPPED_KEY = 'gymrat-shop-equipped-v2';
+const STORAGE_KEY = 'gymrat-shop-state';
 
-export const shopItems: ShopItem[] = [
+const BASE_ITEMS: Omit<ShopItem, 'owned' | 'accessible'>[] = [
   {
     id: 'cap-black-core',
     name: 'Black Core Cap',
     description: 'Clean starter head item.',
-    category: 'cosmetic',
-    icon: '🧢',
     slot: 'head',
-    productId: 'item_cap_black_core',
+    isPremium: false,
+    price: 9,
     priceLabel: '9 kr',
-  },
-  {
-    id: 'shades-alpha',
-    name: 'Alpha Shades',
-    description: 'Sharp upper-tier face detail.',
-    category: 'cosmetic',
-    icon: '🕶️',
-    slot: 'eyes',
-    productId: 'item_shades_alpha',
-    priceLabel: '9 kr',
-  },
-  {
-    id: 'chain-gold-heavy',
-    name: 'Gold Heavy Chain',
-    description: 'Extra alpha energy around the neck.',
-    category: 'cosmetic',
-    icon: '⛓️',
-    slot: 'neck',
-    productId: 'item_chain_gold_heavy',
-    priceLabel: '9 kr',
+    icon: '🧢',
+    unlockLevel: 1,
   },
   {
     id: 'hoodie-black-core',
     name: 'Black Core Hoodie',
     description: 'Classic gym-rat top.',
-    category: 'cosmetic',
-    icon: '🧥',
     slot: 'top',
-    productId: 'item_hoodie_black_core',
+    isPremium: false,
+    price: 9,
     priceLabel: '9 kr',
-  },
-  {
-    id: 'tank-alpha-gold',
-    name: 'Alpha Tank Gold',
-    description: 'Higher-tier premium-looking top.',
-    category: 'cosmetic',
-    icon: '🎽',
-    slot: 'top',
-    productId: 'item_tank_alpha_gold',
-    priceLabel: '9 kr',
+    icon: '🖤',
+    unlockLevel: 1,
   },
   {
     id: 'joggers-core-grey',
     name: 'Core Grey Joggers',
     description: 'Starter lower-body cosmetic.',
-    category: 'cosmetic',
+    slot: 'pants',
+    isPremium: false,
+    price: 9,
+    priceLabel: '9 kr',
     icon: '👖',
-    slot: 'pants',
-    productId: 'item_joggers_core_grey',
-    priceLabel: '9 kr',
-  },
-  {
-    id: 'legend-pants-black',
-    name: 'Legend Black Pants',
-    description: 'Late-game lower-body flex.',
-    category: 'cosmetic',
-    icon: '⚫',
-    slot: 'pants',
-    productId: 'item_legend_pants_black',
-    priceLabel: '9 kr',
+    unlockLevel: 1,
   },
   {
     id: 'shoes-street-core',
     name: 'Street Core Shoes',
     description: 'Starter shoe cosmetic.',
-    category: 'cosmetic',
-    icon: '👟',
     slot: 'feet',
-    productId: 'item_shoes_street_core',
+    isPremium: false,
+    price: 9,
     priceLabel: '9 kr',
+    icon: '👟',
+    unlockLevel: 1,
+  },
+  {
+    id: 'chain-gold-heavy',
+    name: 'Gold Heavy Chain',
+    description: 'Extra alpha energy.',
+    slot: 'neck',
+    isPremium: false,
+    price: 9,
+    priceLabel: '9 kr',
+    icon: '⛓️',
+    unlockLevel: 30,
+  },
+  {
+    id: 'shades-alpha',
+    name: 'Alpha Shades',
+    description: 'Clean upper-tier look.',
+    slot: 'eyes',
+    isPremium: false,
+    price: 9,
+    priceLabel: '9 kr',
+    icon: '🕶️',
+    unlockLevel: 35,
+  },
+  {
+    id: 'tank-alpha-gold',
+    name: 'Alpha Tank Gold',
+    description: 'High-visibility alpha tank.',
+    slot: 'top',
+    isPremium: false,
+    price: 9,
+    priceLabel: '9 kr',
+    icon: '🏆',
+    unlockLevel: 35,
+  },
+  {
+    id: 'legend-pants-black',
+    name: 'Legend Black Pants',
+    description: 'Late-game lower-body flex.',
+    slot: 'pants',
+    isPremium: false,
+    price: 9,
+    priceLabel: '9 kr',
+    icon: '⚫',
+    unlockLevel: 80,
   },
   {
     id: 'shoes-legend-high',
     name: 'Legend High Shoes',
     description: 'Premium footwear flex.',
-    category: 'premium',
-    icon: '👑',
     slot: 'feet',
-    premiumOnly: true,
-    requiresPremiumAccess: true,
-    productId: 'item_shoes_legend_high',
-    priceLabel: 'Included in Premium',
+    isPremium: true,
+    price: 9,
+    priceLabel: 'Premium',
+    icon: '👑',
+    unlockLevel: 70,
   },
   {
     id: 'aura-purple-smoke',
     name: 'Purple Smoke Aura',
-    description: 'Premium glow effect around the hero.',
-    category: 'glow',
-    icon: '✨',
+    description: 'Premium glow effect.',
     slot: 'aura',
-    premiumOnly: true,
-    requiresPremiumAccess: true,
-    productId: 'item_aura_purple_smoke',
-    priceLabel: 'Included in Premium',
+    isPremium: true,
+    price: 9,
+    priceLabel: 'Premium',
+    icon: '✨',
+    unlockLevel: 50,
   },
   {
     id: 'aura-mythic-flame',
     name: 'Mythic Flame Aura',
     description: 'Late-game mythic aura.',
-    category: 'premium',
-    icon: '🔥',
     slot: 'aura',
-    premiumOnly: true,
-    requiresPremiumAccess: true,
-    productId: 'item_aura_mythic_flame',
-    priceLabel: 'Included in Premium',
+    isPremium: true,
+    price: 9,
+    priceLabel: 'Premium',
+    icon: '🔥',
+    unlockLevel: 90,
   },
   {
     id: 'bg-underground-1',
-    name: 'Underground Scene',
-    description: 'Dark grind atmosphere behind your rat.',
-    category: 'background',
-    icon: '🏙️',
+    name: 'Underground Background',
+    description: 'Dark starter background.',
     slot: 'background',
-    productId: 'item_bg_underground_1',
+    isPremium: false,
+    price: 9,
     priceLabel: '9 kr',
-  },
-  {
-    id: 'bg-grind-1',
-    name: 'Grind Scene',
-    description: 'Clean progression backdrop.',
-    category: 'background',
     icon: '🌆',
-    slot: 'background',
-    productId: 'item_bg_grind_1',
-    priceLabel: '9 kr',
+    unlockLevel: 1,
   },
   {
-    id: 'bg-king-1',
-    name: 'King Backdrop',
-    description: 'Elite premium hero background.',
-    category: 'premium',
-    icon: '👑',
+    id: 'bg-alpha-1',
+    name: 'Alpha Background',
+    description: 'Higher-tier alpha environment.',
     slot: 'background',
-    premiumOnly: true,
-    requiresPremiumAccess: true,
-    productId: 'item_bg_king_1',
-    priceLabel: 'Included in Premium',
+    isPremium: true,
+    price: 9,
+    priceLabel: 'Premium',
+    icon: '⚡',
+    unlockLevel: 35,
   },
 ];
 
-function emitShopUpdate() {
-  if (typeof window === 'undefined') return;
-  window.dispatchEvent(new CustomEvent('shop-updated'));
+const listeners = new Set<() => void>();
+
+function getDefaultState(): ShopState {
+  return {
+    ownedItemIds: [
+      'cap-black-core',
+      'hoodie-black-core',
+      'joggers-core-grey',
+      'shoes-street-core',
+      'bg-underground-1',
+    ],
+    equipped: {
+      head: 'cap-black-core',
+      top: 'hoodie-black-core',
+      pants: 'joggers-core-grey',
+      feet: 'shoes-street-core',
+      background: 'bg-underground-1',
+    },
+  };
 }
 
-export function getOwnedItems(): string[] {
-  if (typeof window === 'undefined') return [];
+function readState(): ShopState {
+  if (typeof window === 'undefined') return getDefaultState();
 
   try {
-    const raw = localStorage.getItem(SHOP_ITEMS_KEY);
-    const parsed = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed) ? parsed : [];
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return getDefaultState();
+
+    const parsed = JSON.parse(raw) as Partial<ShopState>;
+
+    return {
+      ownedItemIds: Array.isArray(parsed.ownedItemIds)
+        ? parsed.ownedItemIds
+        : getDefaultState().ownedItemIds,
+      equipped:
+        parsed.equipped && typeof parsed.equipped === 'object'
+          ? parsed.equipped
+          : getDefaultState().equipped,
+    };
   } catch {
-    return [];
+    return getDefaultState();
   }
 }
 
-export function ownItem(itemId: string): void {
+function writeState(next: ShopState) {
   if (typeof window === 'undefined') return;
-
-  const current = getOwnedItems();
-  if (current.includes(itemId)) return;
-
-  localStorage.setItem(SHOP_ITEMS_KEY, JSON.stringify([...current, itemId]));
-  emitShopUpdate();
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
 }
 
-function getDefaultEquippedState(): EquippedState {
-  return {};
+function emit() {
+  listeners.forEach((listener) => listener());
 }
 
-export function getEquippedItems(): EquippedState {
-  if (typeof window === 'undefined') return getDefaultEquippedState();
-
-  try {
-    const raw = localStorage.getItem(SHOP_EQUIPPED_KEY);
-    if (!raw) return getDefaultEquippedState();
-
-    const parsed = JSON.parse(raw);
-    if (!parsed || typeof parsed !== 'object') return getDefaultEquippedState();
-
-    return parsed as EquippedState;
-  } catch {
-    return getDefaultEquippedState();
-  }
+export function subscribeShop(listener: () => void) {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
 }
 
-function writeEquippedItems(next: EquippedState) {
-  if (typeof window === 'undefined') return;
-  localStorage.setItem(SHOP_EQUIPPED_KEY, JSON.stringify(next));
-  emitShopUpdate();
-}
+export function getShopItems(): ShopItem[] {
+  const state = readState();
+  const hasPremium = checkPremium();
 
-export function getEquippedItem(): string | null {
-  const equipped = getEquippedItems();
-
-  return (
-    equipped.head ??
-    equipped.eyes ??
-    equipped.neck ??
-    equipped.top ??
-    equipped.pants ??
-    equipped.feet ??
-    equipped.aura ??
-    equipped.background ??
-    null
-  );
-}
-
-export function getEquippedItemIds(): string[] {
-  const equipped = getEquippedItems();
-
-  return [
-    equipped.head,
-    equipped.eyes,
-    equipped.neck,
-    equipped.top,
-    equipped.pants,
-    equipped.feet,
-    equipped.aura,
-    equipped.background,
-  ].filter(Boolean) as string[];
-}
-
-export function isOwned(itemId: string): boolean {
-  return getOwnedItems().includes(itemId);
-}
-
-export function canAccessShopItem(item: ShopItem): boolean {
-  if (!item.requiresPremiumAccess) return true;
-  return checkPremium();
-}
-
-export function isItemOwnedOrIncluded(item: ShopItem): boolean {
-  if (item.requiresPremiumAccess || item.premiumOnly) {
-    return checkPremium();
-  }
-
-  return isOwned(item.id);
-}
-
-export function equipItem(itemId: string): void {
-  const item = shopItems.find((entry) => entry.id === itemId);
-  if (!item || !item.slot) return;
-  if (!isItemOwnedOrIncluded(item)) return;
-
-  const current = getEquippedItems();
-  const next: EquippedState = { ...current };
-
-  if (item.slot === 'background') {
-    next.background = item.id;
-  } else {
-    next[item.slot] = item.id;
-  }
-
-  writeEquippedItems(next);
-}
-
-export function unequipSlot(slot: ItemSlot | 'background'): void {
-  const current = getEquippedItems();
-  const next: EquippedState = { ...current };
-
-  if (slot === 'background') {
-    delete next.background;
-  } else {
-    delete next[slot];
-  }
-
-  writeEquippedItems(next);
-}
-
-export function getEquippedItemIdForSlot(slot: ItemSlot | 'background'): string | undefined {
-  const equipped = getEquippedItems();
-
-  if (slot === 'background') {
-    return equipped.background;
-  }
-
-  return equipped[slot];
-}
-
-export function getShopItems() {
-  const premium = checkPremium();
-  const ownedItems = getOwnedItems();
-  const equipped = getEquippedItems();
-
-  return shopItems.map((item) => {
-    const premiumIncluded = !!item.requiresPremiumAccess || !!item.premiumOnly;
-    const owned = premiumIncluded ? premium : ownedItems.includes(item.id);
-    const equippedForSlot =
-      item.slot === 'background'
-        ? equipped.background === item.id
-        : item.slot
-        ? equipped[item.slot] === item.id
-        : false;
+  return BASE_ITEMS.map((item) => {
+    const owned = state.ownedItemIds.includes(item.id);
+    const accessible = item.isPremium ? hasPremium : true;
 
     return {
       ...item,
-      isPremium: premiumIncluded,
-      accessible: canAccessShopItem(item),
       owned,
-      equipped: equippedForSlot,
+      accessible,
     };
   });
 }
 
-export function subscribeShop(listener: () => void) {
-  if (typeof window === 'undefined') {
-    return () => {};
+export function getEquippedItemIdForSlot(slot: ItemSlot | 'background') {
+  const state = readState();
+  return state.equipped[slot];
+}
+
+export function ownItem(itemId: string) {
+  const state = readState();
+
+  if (state.ownedItemIds.includes(itemId)) {
+    return state;
   }
 
-  const handler = () => listener();
-
-  window.addEventListener('shop-updated', handler);
-  window.addEventListener('premium-updated', handler);
-
-  return () => {
-    window.removeEventListener('shop-updated', handler);
-    window.removeEventListener('premium-updated', handler);
+  const next: ShopState = {
+    ...state,
+    ownedItemIds: [...state.ownedItemIds, itemId],
   };
+
+  writeState(next);
+  emit();
+  return next;
+}
+
+export function equipItem(itemId: string) {
+  const item = BASE_ITEMS.find((entry) => entry.id === itemId);
+  if (!item) return readState();
+
+  const state = readState();
+
+  if (!state.ownedItemIds.includes(itemId) && !item.isPremium) {
+    return state;
+  }
+
+  if (item.isPremium && !checkPremium()) {
+    return state;
+  }
+
+  const next: ShopState = {
+    ...state,
+    equipped: {
+      ...state.equipped,
+      [item.slot]: itemId,
+    },
+  };
+
+  if (!next.ownedItemIds.includes(itemId) && item.isPremium && checkPremium()) {
+    next.ownedItemIds = [...next.ownedItemIds, itemId];
+  }
+
+  writeState(next);
+  emit();
+  return next;
+}
+
+export function canAccessShopItem(item: Pick<ShopItem, 'isPremium'>) {
+  if (!item.isPremium) return true;
+  return checkPremium();
+}
+
+export function clearEquippedItem(slot: ItemSlot | 'background') {
+  const state = readState();
+  const next: ShopState = {
+    ...state,
+    equipped: {
+      ...state.equipped,
+    },
+  };
+
+  delete next.equipped[slot];
+
+  writeState(next);
+  emit();
+  return next;
+}
+
+export function getOwnedItemIds() {
+  return readState().ownedItemIds;
+}
+
+export function getEquippedState() {
+  return readState().equipped;
 }

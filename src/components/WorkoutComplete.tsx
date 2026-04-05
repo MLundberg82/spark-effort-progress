@@ -44,6 +44,34 @@ function formatMinutes(minutes: number) {
   return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
 }
 
+function StatTile({
+  icon,
+  label,
+  value,
+  accent,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string | number;
+  accent?: string;
+}) {
+  return (
+    <div className="rounded-[1.4rem] border border-white/10 bg-white/[0.05] p-4 shadow-[0_12px_35px_rgba(0,0,0,0.24)]">
+      <div className="mb-2 flex items-center gap-2 text-white/60">
+        <div className="rounded-full border border-white/10 bg-black/20 p-2">
+          {icon}
+        </div>
+        <span className="text-[0.68rem] font-semibold uppercase tracking-[0.16em]">
+          {label}
+        </span>
+      </div>
+      <div className={`text-xl font-black tracking-tight ${accent ?? 'text-white'}`}>
+        {value}
+      </div>
+    </div>
+  );
+}
+
 export default function WorkoutComplete({
   summary,
   onContinue,
@@ -55,7 +83,6 @@ export default function WorkoutComplete({
     try {
       const raw = localStorage.getItem('gymrat-app-store');
       if (!raw) return summary.earnedXP;
-
       const parsed = JSON.parse(raw) as { xp?: number };
       return typeof parsed?.xp === 'number' ? parsed.xp : summary.earnedXP;
     } catch {
@@ -131,156 +158,152 @@ export default function WorkoutComplete({
     };
 
     raf = requestAnimationFrame(step);
-
     return () => cancelAnimationFrame(raf);
   }, [currentTotalXP, finalLevel, previousTotalXP, startLevel]);
 
   const currentLevelXP = getLevelProgressXP(displayXP);
   const progressPercent = clamp((currentLevelXP / XP_PER_LEVEL) * 100, 0, 100);
   const coinsEarned = Math.max(10, Math.floor(summary.earnedXP / 5));
-  const ratScaleClass = levelFlash ? 'scale-[1.08]' : 'scale-100';
+  const ratScaleClass = levelFlash ? 'scale-[1.04]' : 'scale-100';
   const xpBarScaleClass = levelFlash ? 'scale-y-[1.12]' : 'scale-y-100';
 
   return (
-    <div className="min-h-screen bg-[#09090b] px-4 pb-8 pt-6 text-white">
-      <div className="mx-auto max-w-[430px]">
-        <div className="rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.02))] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.45)]">
-          <div className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-300/80">
-            Workout complete
+    <div className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top,rgba(16,185,129,0.18),transparent_28%),linear-gradient(180deg,#07110d_0%,#0b1511_38%,#050806_100%)] px-4 pb-8 pt-6 text-white">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_20%,rgba(163,230,53,0.10),transparent_26%)]" />
+      <div className="pointer-events-none absolute left-1/2 top-28 h-72 w-72 -translate-x-1/2 rounded-full bg-emerald-400/10 blur-3xl" />
+
+      {showExplosion ? (
+        <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center">
+          <div className="animate-ping rounded-full bg-emerald-300/20 px-10 py-10 blur-sm" />
+          <div className="absolute text-5xl">✨ ⚡ ✨</div>
+        </div>
+      ) : null}
+
+      {showLevelUpText && levelsGained > 0 ? (
+        <div className="pointer-events-none absolute inset-x-0 top-16 z-20 flex justify-center">
+          <div className="rounded-full border border-emerald-300/20 bg-emerald-400/10 px-5 py-2 text-sm font-black uppercase tracking-[0.22em] text-emerald-300 shadow-[0_0_30px_rgba(52,211,153,0.22)]">
+            LEVEL UP
           </div>
+        </div>
+      ) : null}
 
-          <div className="relative mt-4 flex min-h-[220px] items-center justify-center overflow-hidden rounded-[1.75rem] border border-white/10 bg-black/20">
-            {showExplosion ? (
-              <div className="absolute inset-0 flex items-center justify-center text-4xl">
-                <span className="animate-pulse">✨</span>
-                <span className="mx-3 animate-pulse">⚡</span>
-                <span className="animate-pulse">✨</span>
-              </div>
-            ) : null}
+      <div className="mx-auto max-w-md">
+        <div className="rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.07),rgba(255,255,255,0.03))] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.42)] backdrop-blur-md">
+          <div className="mb-4 flex items-center justify-between">
+            <div className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-[0.68rem] font-black uppercase tracking-[0.18em] text-emerald-300">
+              Workout complete
+            </div>
 
-            {showLevelUpText && levelsGained > 0 ? (
-              <div className="absolute top-4 rounded-full border border-amber-400/20 bg-amber-400/10 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-amber-200">
-                LEVEL UP
-              </div>
-            ) : null}
-
-            <div
-              className={`flex h-36 w-36 items-center justify-center rounded-full border border-emerald-400/20 bg-emerald-400/10 text-6xl transition ${ratScaleClass}`}
-            >
-              🐀
+            <div className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[0.68rem] font-black uppercase tracking-[0.18em] text-white/70">
+              Real progress
             </div>
           </div>
 
-          <h1 className="mt-5 text-3xl font-black tracking-tight">
+          <h1 className="text-3xl font-black tracking-tight text-white">
             Real effort. Real progress.
           </h1>
-          <p className="mt-2 text-sm text-zinc-400">
-            {summary.workoutName} is done. Your effort turned into XP, progression and a stronger GymRat identity.
+
+          <p className="mt-3 text-sm leading-6 text-white/65">
+            <span className="font-semibold text-white">{summary.workoutName}</span>{' '}
+            is done. Your effort turned into XP, progression and a stronger GymRat identity.
           </p>
 
-          <div className="mt-5 grid grid-cols-2 gap-3">
-            <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-              <div className="mb-2 inline-flex rounded-xl bg-white/[0.05] p-2">
-                <Zap className="h-4 w-4 text-emerald-300" />
-              </div>
-              <div className="text-xs text-zinc-400">XP gained</div>
-              <div className="mt-1 text-xl font-black">+{summary.earnedXP}</div>
-            </div>
-
-            <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-              <div className="mb-2 inline-flex rounded-xl bg-white/[0.05] p-2">
-                <Trophy className="h-4 w-4 text-emerald-300" />
-              </div>
-              <div className="text-xs text-zinc-400">Coins earned</div>
-              <div className="mt-1 text-xl font-black">+{coinsEarned}</div>
-            </div>
+          <div className="mt-6 grid grid-cols-2 gap-3">
+            <StatTile
+              icon={<Zap className="h-4 w-4" />}
+              label="XP gained"
+              value={`+${summary.earnedXP}`}
+              accent="text-emerald-300"
+            />
+            <StatTile
+              icon={<Crown className="h-4 w-4" />}
+              label="Coins earned"
+              value={`+${coinsEarned}`}
+              accent="text-yellow-300"
+            />
           </div>
 
-          <div className="mt-4 rounded-3xl border border-white/10 bg-white/[0.04] p-4">
-            <div className="flex items-start justify-between gap-3">
+          <div className="mt-5 overflow-hidden rounded-[1.6rem] border border-white/10 bg-black/20 p-4">
+            <div className="mb-3 flex items-center justify-between">
               <div>
-                <div className="text-sm font-semibold text-white">Level progression</div>
-                <div className="mt-1 text-xs text-zinc-400">
-                  XP flows from the previous level state into the new one.
-                </div>
+                <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-white/45">
+                  Level progression
+                </p>
+                <h2 className="mt-1 text-lg font-black text-white">
+                  Level {displayLevel}
+                </h2>
               </div>
 
-              <div className="rounded-2xl border border-emerald-400/10 bg-emerald-400/10 px-3 py-2 text-right">
-                <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-emerald-300/80">
-                  Level
-                </div>
-                <div className="text-lg font-black">{displayLevel}</div>
-              </div>
-            </div>
-
-            <div
-              className={`mt-4 h-3 overflow-hidden rounded-full bg-white/10 transition ${xpBarScaleClass}`}
-            >
               <div
-                className="h-full rounded-full bg-emerald-400 transition-all duration-300"
-                style={{ width: `${progressPercent}%` }}
-              />
+                className={`rounded-full border border-emerald-300/20 bg-emerald-400/10 px-3 py-1 text-[0.7rem] font-black uppercase tracking-[0.16em] text-emerald-300 transition-transform duration-300 ${ratScaleClass}`}
+              >
+                {progressPercent.toFixed(0)}%
+              </div>
             </div>
 
-            <div className="mt-2 flex items-center justify-between text-xs text-zinc-400">
-              <span>
+            <div className="relative overflow-hidden rounded-full border border-white/10 bg-white/5 p-1">
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(16,185,129,0.18),transparent_60%)]" />
+              <div className="h-5 overflow-hidden rounded-full bg-black/30">
+                <div
+                  className={`h-full rounded-full bg-[linear-gradient(90deg,#34d399_0%,#22c55e_45%,#a3e635_100%)] shadow-[0_0_25px_rgba(52,211,153,0.55)] transition-all duration-300 ${xpBarScaleClass}`}
+                  style={{ width: `${progressPercent}%` }}
+                />
+              </div>
+            </div>
+
+            <div className="mt-3 flex items-center justify-between text-sm">
+              <p className="text-white/55">
                 {currentLevelXP} / {XP_PER_LEVEL} XP
-              </span>
-              <span>Total XP: {displayXP}</span>
+              </p>
+              <p className="font-bold text-white">
+                Total XP: <span className="text-emerald-300">{displayXP}</span>
+              </p>
             </div>
 
-            <div className="mt-3 text-sm text-zinc-300">
+            <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white/72">
               {levelsGained > 0
                 ? `You went from level ${startLevel} to level ${finalLevel}.`
                 : `Level ${displayLevel} progression updated.`}
             </div>
           </div>
 
-          <div className="mt-4 grid grid-cols-2 gap-3">
-            <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-              <div className="mb-2 inline-flex rounded-xl bg-white/[0.05] p-2">
-                <Dumbbell className="h-4 w-4 text-emerald-300" />
-              </div>
-              <div className="text-xs text-zinc-400">Exercises</div>
-              <div className="mt-1 text-lg font-bold">{summary.exercisesCompleted}</div>
-            </div>
-
-            <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-              <div className="mb-2 inline-flex rounded-xl bg-white/[0.05] p-2">
-                <Flame className="h-4 w-4 text-emerald-300" />
-              </div>
-              <div className="text-xs text-zinc-400">Duration</div>
-              <div className="mt-1 text-lg font-bold">{formatMinutes(summary.durationMinutes)}</div>
-            </div>
+          <div className="mt-5 grid grid-cols-3 gap-3">
+            <StatTile
+              icon={<Dumbbell className="h-4 w-4" />}
+              label="Exercises"
+              value={summary.exercisesCompleted}
+            />
+            <StatTile
+              icon={<Flame className="h-4 w-4" />}
+              label="Duration"
+              value={formatMinutes(summary.durationMinutes)}
+            />
+            <StatTile
+              icon={<Trophy className="h-4 w-4" />}
+              label="Volume"
+              value={`${summary.volume} kg`}
+            />
           </div>
 
-          <div className="mt-3 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-            <div className="mb-2 inline-flex rounded-xl bg-white/[0.05] p-2">
-              <Sparkles className="h-4 w-4 text-emerald-300" />
-            </div>
-            <div className="text-xs text-zinc-400">Volume</div>
-            <div className="mt-1 text-lg font-bold">{summary.volume} kg</div>
-          </div>
-
-          <button
-            type="button"
-            onClick={onContinue}
-            className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-400 px-4 py-4 text-sm font-black uppercase tracking-[0.14em] text-black transition hover:scale-[1.01]"
-          >
-            Continue
-            <ArrowRight className="h-4 w-4" />
-          </button>
-
-          {animationDone ? (
+          <div className="mt-6 flex flex-col gap-3">
             <button
-              type="button"
-              onClick={onOpenPaywall}
-              className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-amber-400/20 bg-amber-400/10 px-4 py-4 text-sm font-bold text-amber-100 transition hover:bg-amber-400/15"
+              onClick={onContinue}
+              className="flex items-center justify-center gap-3 rounded-[1.4rem] border border-emerald-300/20 bg-[linear-gradient(90deg,rgba(16,185,129,0.95),rgba(132,204,22,0.95))] px-5 py-4 text-base font-black tracking-[0.04em] text-black shadow-[0_18px_45px_rgba(16,185,129,0.28)] transition-transform duration-200 hover:scale-[1.01] active:scale-[0.99]"
             >
-              <Crown className="h-4 w-4" />
-              Unlock Premium
+              <span>Continue</span>
+              <ArrowRight className="h-5 w-5" />
             </button>
-          ) : null}
+
+            {animationDone ? (
+              <button
+                onClick={onOpenPaywall}
+                className="flex items-center justify-center gap-2 rounded-[1.3rem] border border-white/10 bg-white/[0.06] px-5 py-3 text-sm font-bold text-white transition hover:bg-white/[0.1]"
+              >
+                <Sparkles className="h-4 w-4 text-emerald-300" />
+                <span>Unlock Premium</span>
+              </button>
+            ) : null}
+          </div>
         </div>
       </div>
     </div>

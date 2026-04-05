@@ -48,6 +48,11 @@ import {
 import { addWorkoutHistory } from '../lib/historyStore';
 import { clearWorkoutDraft, saveWorkoutDraft } from '../lib/workoutStore';
 import { checkPremium, subscribePremium } from '../lib/premiumStore';
+import {
+  maybeOpenHistoryPaywall,
+  maybeOpenNutritionPaywall,
+  openManualPaywall,
+} from '../lib/paywallTriggers';
 
 type FinishedWorkout = {
   workoutName: string;
@@ -70,7 +75,8 @@ function OnboardingGate({ onComplete }: { onComplete: () => void }) {
     existing?.trainingLevel ?? 'beginner'
   );
 
-  const shellClass = 'min-h-screen bg-[#09090b] px-4 pb-8 pt-6 text-white';
+  const shellClass =
+    'min-h-screen bg-[#09090b] px-4 pb-8 pt-6 text-white';
   const wrapClass = 'mx-auto max-w-[430px]';
   const cardClass =
     'overflow-hidden rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.02))] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.45)]';
@@ -98,99 +104,94 @@ function OnboardingGate({ onComplete }: { onComplete: () => void }) {
   return (
     <div className={shellClass}>
       <div className={wrapClass}>
-        <div className="mb-6 flex items-center justify-between">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-emerald-300/80">
-              First launch setup
-            </p>
-            <h1 className="mt-2 text-3xl font-black tracking-tight">GymRat</h1>
-            <p className="mt-2 max-w-sm text-sm text-zinc-400">
-              Quick setup once. Then straight into the app with a premium feel from start.
-            </p>
-          </div>
-
-          <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3">
-            <Sparkles className="h-5 w-5 text-emerald-300" />
-          </div>
-        </div>
-
-        <div className="mb-6 flex gap-2">
-          {[1, 2, 3].map((entry) => (
-            <div
-              key={entry}
-              className={`h-2 flex-1 rounded-full ${
-                step >= entry ? 'bg-emerald-400' : 'bg-white/10'
-              }`}
-            />
-          ))}
-        </div>
-
         <div className={cardClass}>
+          <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-[0.68rem] font-black uppercase tracking-[0.18em] text-emerald-300">
+            <Sparkles className="h-3.5 w-3.5" />
+            <span>First launch setup</span>
+          </div>
+
+          <h1 className="text-3xl font-black tracking-tight text-white">
+            GymRat
+          </h1>
+
+          <p className="mt-3 text-sm leading-6 text-white/65">
+            Quick setup once. Then straight into the app with a premium feel from start.
+          </p>
+
+          <div className="mt-5 flex items-center gap-2">
+            {[1, 2, 3].map((entry) => (
+              <div
+                key={entry}
+                className={`h-2 flex-1 rounded-full ${
+                  step >= entry ? 'bg-emerald-400' : 'bg-white/10'
+                }`}
+              />
+            ))}
+          </div>
+
           {step === 1 && (
-            <div>
-              <div className="mb-5 flex items-center gap-3">
-                <div className="rounded-2xl bg-emerald-400/10 p-3">
-                  <User className="h-5 w-5 text-emerald-300" />
-                </div>
-                <div>
-                  <h2 className="text-xl font-bold">Base profile</h2>
-                </div>
-              </div>
+            <div className="mt-6">
+              <h2 className="text-xl font-black text-white">Base profile</h2>
 
-              <div className="space-y-4">
-                <label className="block">
-                  <span className="text-sm text-zinc-300">Age</span>
-                  <input
-                    type="number"
-                    value={age}
-                    onChange={(e) => setAge(Number(e.target.value))}
-                    className={inputClass}
-                  />
-                </label>
+              <label className="mt-4 block text-sm text-white/70">
+                <span className="mb-2 flex items-center gap-2">
+                  <User className="h-4 w-4" />
+                  Age
+                </span>
+                <input
+                  type="number"
+                  value={age}
+                  onChange={(e) => setAge(Number(e.target.value))}
+                  className={inputClass}
+                />
+              </label>
 
-                <label className="block">
-                  <span className="text-sm text-zinc-300">Height (cm)</span>
-                  <input
-                    type="number"
-                    value={height}
-                    onChange={(e) => setHeight(Number(e.target.value))}
-                    className={inputClass}
-                  />
-                </label>
+              <label className="mt-4 block text-sm text-white/70">
+                <span className="mb-2 flex items-center gap-2">
+                  <Ruler className="h-4 w-4" />
+                  Height (cm)
+                </span>
+                <input
+                  type="number"
+                  value={height}
+                  onChange={(e) => setHeight(Number(e.target.value))}
+                  className={inputClass}
+                />
+              </label>
 
-                <label className="block">
-                  <span className="text-sm text-zinc-300">Weight (kg)</span>
-                  <input
-                    type="number"
-                    value={weight}
-                    onChange={(e) => setWeight(Number(e.target.value))}
-                    className={inputClass}
-                  />
-                </label>
+              <label className="mt-4 block text-sm text-white/70">
+                <span className="mb-2 flex items-center gap-2">
+                  <Weight className="h-4 w-4" />
+                  Weight (kg)
+                </span>
+                <input
+                  type="number"
+                  value={weight}
+                  onChange={(e) => setWeight(Number(e.target.value))}
+                  className={inputClass}
+                />
+              </label>
 
-                <div>
-                  <span className="text-sm text-zinc-300">Gender</span>
-                  <div className="mt-2 grid grid-cols-3 gap-2">
-                    {(['male', 'female', 'non-binary'] as const).map((option) => (
-                      <button
-                        key={option}
-                        type="button"
-                        onClick={() => setGender(option)}
-                        className={`rounded-2xl px-3 py-3 text-sm capitalize transition ${
-                          gender === option
-                            ? 'bg-emerald-400 font-semibold text-black'
-                            : 'border border-white/10 bg-white/[0.04] text-white'
-                        }`}
-                      >
-                        {option}
-                      </button>
-                    ))}
-                  </div>
+              <div className="mt-5">
+                <p className="mb-3 text-sm font-semibold text-white/75">Gender</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {(['male', 'female', 'non-binary'] as const).map((option) => (
+                    <button
+                      key={option}
+                      onClick={() => setGender(option)}
+                      className={`rounded-2xl px-3 py-3 text-sm capitalize transition ${
+                        gender === option
+                          ? 'bg-emerald-400 font-semibold text-black'
+                          : 'border border-white/10 bg-white/[0.04] text-white'
+                      }`}
+                    >
+                      {option}
+                    </button>
+                  ))}
                 </div>
               </div>
 
               <button
-                type="button"
                 onClick={() => setStep(2)}
                 disabled={!canStepOneContinue}
                 className="mt-6 w-full rounded-2xl bg-emerald-400 px-4 py-3 font-black uppercase tracking-[0.14em] text-black transition disabled:cursor-not-allowed disabled:opacity-50"
@@ -201,37 +202,32 @@ function OnboardingGate({ onComplete }: { onComplete: () => void }) {
           )}
 
           {step === 2 && (
-            <div>
-              <div className="mb-5 flex items-center gap-3">
-                <div className="rounded-2xl bg-emerald-400/10 p-3">
-                  <Target className="h-5 w-5 text-emerald-300" />
-                </div>
-                <div>
-                  <h2 className="text-xl font-bold">Training goal</h2>
-                </div>
-              </div>
+            <div className="mt-6">
+              <h2 className="text-xl font-black text-white">Training goal</h2>
 
-              <div className="space-y-3">
+              <div className="mt-4 space-y-3">
                 {[
                   {
                     key: 'lose' as const,
                     title: 'Lose',
                     desc: 'Cut body fat and stay high-protein in nutrition.',
+                    icon: <Target className="h-4 w-4" />,
                   },
                   {
                     key: 'maintain' as const,
                     title: 'Maintain',
                     desc: 'Stay steady, recover well and keep momentum.',
+                    icon: <Flame className="h-4 w-4" />,
                   },
                   {
                     key: 'build' as const,
                     title: 'Build',
                     desc: 'Push progression and support muscle growth.',
+                    icon: <Dumbbell className="h-4 w-4" />,
                   },
                 ].map((option) => (
                   <button
                     key={option.key}
-                    type="button"
                     onClick={() => setGoal(option.key)}
                     className={`${optionClass} w-full ${
                       goal === option.key
@@ -239,22 +235,23 @@ function OnboardingGate({ onComplete }: { onComplete: () => void }) {
                         : 'border-white/10 bg-white/[0.04]'
                     }`}
                   >
-                    <div className="text-base font-bold">{option.title}</div>
-                    <div className="mt-1 text-sm text-zinc-400">{option.desc}</div>
+                    <div className="flex items-center gap-2 text-white">
+                      {option.icon}
+                      <span className="font-bold">{option.title}</span>
+                    </div>
+                    <p className="mt-2 text-sm text-white/65">{option.desc}</p>
                   </button>
                 ))}
               </div>
 
               <div className="mt-6 flex gap-3">
                 <button
-                  type="button"
                   onClick={() => setStep(1)}
                   className="flex-1 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 font-semibold"
                 >
                   Back
                 </button>
                 <button
-                  type="button"
                   onClick={() => setStep(3)}
                   className="flex-1 rounded-2xl bg-emerald-400 px-4 py-3 font-black uppercase tracking-[0.14em] text-black"
                 >
@@ -265,17 +262,10 @@ function OnboardingGate({ onComplete }: { onComplete: () => void }) {
           )}
 
           {step === 3 && (
-            <div>
-              <div className="mb-5 flex items-center gap-3">
-                <div className="rounded-2xl bg-emerald-400/10 p-3">
-                  <Dumbbell className="h-5 w-5 text-emerald-300" />
-                </div>
-                <div>
-                  <h2 className="text-xl font-bold">Training level</h2>
-                </div>
-              </div>
+            <div className="mt-6">
+              <h2 className="text-xl font-black text-white">Training level</h2>
 
-              <div className="space-y-3">
+              <div className="mt-4 space-y-3">
                 {[
                   {
                     key: 'beginner' as const,
@@ -295,7 +285,6 @@ function OnboardingGate({ onComplete }: { onComplete: () => void }) {
                 ].map((option) => (
                   <button
                     key={option.key}
-                    type="button"
                     onClick={() => setTrainingLevel(option.key)}
                     className={`${optionClass} w-full ${
                       trainingLevel === option.key
@@ -303,31 +292,30 @@ function OnboardingGate({ onComplete }: { onComplete: () => void }) {
                         : 'border-white/10 bg-white/[0.04]'
                     }`}
                   >
-                    <div className="text-base font-bold">{option.label}</div>
-                    <div className="mt-1 text-sm text-zinc-400">{option.desc}</div>
+                    <p className="font-bold text-white">{option.label}</p>
+                    <p className="mt-2 text-sm text-white/65">{option.desc}</p>
                   </button>
                 ))}
               </div>
 
-              <div className="mt-5 rounded-2xl border border-emerald-400/10 bg-emerald-400/5 p-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-300/80">
+              <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+                <p className="text-sm font-bold text-white">
                   Nutrition will auto-follow your goal
                 </p>
-                <p className="mt-2 text-sm text-zinc-300">
-                  Goal + body data carry into nutrition automatically, so the app feels connected from day one.
+                <p className="mt-2 text-sm text-white/65">
+                  Goal + body data carry into nutrition automatically, so the app
+                  feels connected from day one.
                 </p>
               </div>
 
               <div className="mt-6 flex gap-3">
                 <button
-                  type="button"
                   onClick={() => setStep(2)}
                   className="flex-1 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 font-semibold"
                 >
                   Back
                 </button>
                 <button
-                  type="button"
                   onClick={finish}
                   className="flex-1 rounded-2xl bg-emerald-400 px-4 py-3 font-black uppercase tracking-[0.14em] text-black"
                 >
@@ -387,6 +375,7 @@ export default function Index() {
   };
 
   const openPaywall = () => {
+    openManualPaywall();
     setPaywallOpen(true);
     setPaywallOpenLocal(true);
   };
@@ -435,6 +424,28 @@ export default function Index() {
     });
 
     changePage('workout');
+  };
+
+  const openHistory = () => {
+    if (!premium) {
+      maybeOpenHistoryPaywall();
+      setPaywallOpen(true);
+      setPaywallOpenLocal(true);
+      return;
+    }
+
+    changePage('history');
+  };
+
+  const openNutrition = () => {
+    if (!premium) {
+      maybeOpenNutritionPaywall();
+      setPaywallOpen(true);
+      setPaywallOpenLocal(true);
+      return;
+    }
+
+    changePage('nutrition');
   };
 
   if (showSplash) {
@@ -492,11 +503,17 @@ export default function Index() {
         />
       )}
 
-      {page === 'settings' && <SettingsScreen onBack={() => changePage('home')} />}
+      {page === 'settings' && (
+        <SettingsScreen onBack={() => changePage('home')} />
+      )}
 
-      {page === 'daily' && <DailyCheckInScreen onBack={() => changePage('home')} />}
+      {page === 'daily' && (
+        <DailyCheckInScreen onBack={() => changePage('home')} />
+      )}
 
-      {page === 'gallery' && <GymRatGallery onBack={() => changePage('home')} />}
+      {page === 'gallery' && (
+        <GymRatGallery onBack={() => changePage('home')} />
+      )}
 
       {page === 'shop' && (
         <RatShop
@@ -505,22 +522,32 @@ export default function Index() {
         />
       )}
 
-      <AppMenu
-        isOpen={menuOpenLocal}
-        onClose={closeMenu}
-        onNavigate={(nextPage) => {
-          closeMenu();
-          changePage(nextPage);
-        }}
-        onOpenPaywall={() => {
-          closeMenu();
-          openPaywall();
-        }}
-      />
+      {menuOpenLocal && (
+        <AppMenu
+          onClose={closeMenu}
+          onNavigate={(nextPage) => {
+            closeMenu();
 
-      {paywallOpenLocal && (
-        <PremiumPaywall isOpen={paywallOpenLocal} onClose={closePaywall} />
+            if (nextPage === 'history') {
+              openHistory();
+              return;
+            }
+
+            if (nextPage === 'nutrition') {
+              openNutrition();
+              return;
+            }
+
+            changePage(nextPage);
+          }}
+          onOpenPaywall={() => {
+            closeMenu();
+            openPaywall();
+          }}
+        />
       )}
+
+      {paywallOpenLocal && <PremiumPaywall isOpen={true} onClose={closePaywall} />}
     </>
   );
 }

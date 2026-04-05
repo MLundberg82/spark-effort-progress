@@ -1,79 +1,139 @@
 export type PaywallTrigger =
+  | 'manual'
   | 'workout_complete'
   | 'level_up'
-  | 'feature_lock'
-  | 'manual'
-  | 'nutrition'
+  | 'pr'
   | 'history'
+  | 'nutrition'
   | 'custom_workout'
-  | 'shop_premium';
+  | 'shop_premium'
+  | 'feature_lock';
 
-const LAST_PAYWALL_SHOWN_KEY = 'gymrat_last_paywall_shown';
-const PAYWALL_SESSION_KEY = 'gymrat_paywall_session_shown';
-const DEFAULT_COOLDOWN_HOURS = 24;
+type PaywallState = {
+  isOpen: boolean;
+  lastTrigger: PaywallTrigger | null;
+  seenThisSession: PaywallTrigger[];
+};
 
-export function resetPaywallSession(): void {
-  sessionStorage.removeItem(PAYWALL_SESSION_KEY);
+const STORAGE_KEY = 'gymrat-paywall-state';
+
+function getDefaultState(): PaywallState {
+  return {
+    isOpen: false,
+    lastTrigger: null,
+    seenThisSession: [],
+  };
 }
 
-export function markPaywallShown(): void {
-  localStorage.setItem(LAST_PAYWALL_SHOWN_KEY, String(Date.now()));
-  sessionStorage.setItem(PAYWALL_SESSION_KEY, 'true');
-}
+function readState(): PaywallState {
+  if (typeof window === 'undefined') return getDefaultState();
 
-export function getLastPaywallShown(): number | null {
-  const raw = localStorage.getItem(LAST_PAYWALL_SHOWN_KEY);
-  if (!raw) return null;
+  try {
+    const raw = sessionStorage.getItem(STORAGE_KEY);
+    if (!raw) return getDefaultState();
 
-  const parsed = Number(raw);
-  return Number.isFinite(parsed) ? parsed : null;
-}
+    const parsed = JSON.parse(raw) as Partial<PaywallState>;
 
-export function hasShownPaywallThisSession(): boolean {
-  return sessionStorage.getItem(PAYWALL_SESSION_KEY) === 'true';
-}
-
-export function shouldShowPaywall(
-  cooldownHours: number = DEFAULT_COOLDOWN_HOURS
-): boolean {
-  if (hasShownPaywallThisSession()) return false;
-
-  const lastShown = getLastPaywallShown();
-  if (!lastShown) return true;
-
-  const now = Date.now();
-  const hoursSince = (now - lastShown) / (1000 * 60 * 60);
-
-  return hoursSince >= cooldownHours;
-}
-
-export function getPaywallHeadline(trigger: PaywallTrigger): string {
-  switch (trigger) {
-    case 'workout_complete':
-      return 'Keep Your Momentum Going';
-    case 'level_up':
-      return 'You’re Leveling Up';
-    case 'history':
-      return 'See Your Full Progress';
-    case 'nutrition':
-      return 'Dial In Your Nutrition';
-    case 'custom_workout':
-      return 'Build Workouts Your Way';
-    case 'shop_premium':
-      return 'Unlock Premium Rewards';
-    case 'feature_lock':
-    case 'manual':
-    default:
-      return 'Unlock Your Full Potential';
+    return {
+      isOpen: Boolean(parsed.isOpen),
+      lastTrigger: parsed.lastTrigger ?? null,
+      seenThisSession: Array.isArray(parsed.seenThisSession)
+        ? parsed.seenThisSession
+        : [],
+    };
+  } catch {
+    return getDefaultState();
   }
 }
 
-export function getPaywallSubheadline(trigger: PaywallTrigger): string {
+function writeState(next: PaywallState) {
+  if (typeof window === 'undefined') return;
+  sessionStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+}
+
+export function getPaywallState() {
+  return readState();
+}
+
+export function isPaywallOpen() {
+  return readState().isOpen;
+}
+
+export function getLastPaywallTrigger() {
+  return readState().lastTrigger;
+}
+
+export function openPaywall(trigger: PaywallTrigger = 'manual') {
+  const current = readState();
+
+  const next: PaywallState = {
+    ...current,
+    isOpen: true,
+    lastTrigger: trigger,
+    seenThisSession: current.seenThisSession.includes(trigger)
+      ? current.seenThisSession
+      : [...current.seenThisSession, trigger],
+  };
+
+  writeState(next);
+  return next;
+}
+
+export function closePaywall() {
+  const current = readState();
+  const next: PaywallState = {
+    ...current,
+    isOpen: false,
+  };
+  writeState(next);
+  return next;
+}
+
+export function hasSeenPaywallTrigger(trigger: PaywallTrigger) {
+  return readState().seenThisSession.includes(trigger);
+}
+
+export function shouldOpenPaywall(trigger: PaywallTrigger) {
+  if (trigger === 'manual') return true;
+  return !hasSeenPaywallTrigger(trigger);
+}
+
+export function resetPaywallSession() {
+  writeState(getDefaultState());
+}
+
+export function getPaywallHeadline(trigger: PaywallTrigger) {
   switch (trigger) {
     case 'workout_complete':
-      return 'Track every session, review your progress, and train smarter with Premium.';
+      return 'You finished the work. Now unlock the deeper systems.';
     case 'level_up':
-      return 'You’re improving. Unlock the tools that help you keep pushing forward.';
+      return 'You leveled up. Keep that momentum going.';
+    case 'pr':
+      return 'You hit a new high. Build on it with Premium.';
+    case 'history':
+      return 'See the bigger picture of your progress.';
+    case 'nutrition':
+      return 'Fuel your results, not just your workouts.';
+    case 'custom_workout':
+      return 'Train your way with custom sessions.';
+    case 'shop_premium':
+      return 'Unlock the premium side of your GymRat identity.';
+    case 'feature_lock':
+      return 'This feature is part of the deeper progression layer.';
+    case 'manual':
+    default:
+      return 'Train smarter. Track everything. Become unstoppable.';
+  }
+}
+
+export function getPaywallSubtext(trigger: PaywallTrigger) {
+  switch (trigger) {
+    case 'workout_complete':
+      return 'You already did the hard part. Premium helps you keep the streak alive with better tracking and more control.';
+    case 'level_up':
+      return 'A stronger rat deserves deeper progression, more insight and stronger personalization.';
+    case 'pr':
+      return 'When momentum is high, the right tools make it easier to keep stacking wins.';
     case 'history':
       return 'Get full workout history, progress stats, and long-term tracking.';
     case 'nutrition':
