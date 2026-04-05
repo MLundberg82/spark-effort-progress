@@ -1,387 +1,282 @@
-export type FocusArea = 'chest' | 'back' | 'arms' | 'legs';
+// src/lib/historyStore.ts
 
-export type WorkoutExerciseDetail = {
-  exercise: string;
-  sets: number;
+export type MuscleGroup = 'chest' | 'back' | 'arms' | 'legs' | 'shoulders' | 'core';
+
+export type ExerciseSet = {
   reps: number;
-  weight: number;
-  volume: number;
+  weight: number; // kg
 };
 
-export type WorkoutHistoryEntry = {
+export type ExerciseEntry = {
+  name: string;
+  muscleGroup: MuscleGroup;
+  sets: ExerciseSet[];
+};
+
+export type WorkoutEntry = {
   id: string;
   workoutName: string;
+  exercises: ExerciseEntry[];
   durationMinutes: number;
-  exercisesCompleted: number;
-  volume: number;
   completedAt: string;
-  focusArea: FocusArea;
-  details: WorkoutExerciseDetail[];
 };
 
-const KEY = 'gymrat-history-store';
-const HISTORY_UPDATED_EVENT = 'history-updated';
+// ---------- STORAGE ----------
 
-const FOCUS_AREAS: FocusArea[] = ['chest', 'back', 'arms', 'legs'];
+const STORAGE_KEY = 'gymrat-workout-history';
 
-const EXERCISE_TO_FOCUS: Record<string, FocusArea> = {
-  'bench press': 'chest',
-  'incline dumbbell press': 'chest',
-  'chest fly': 'chest',
-  'push up': 'chest',
-  'dip': 'chest',
-
-  'lat pulldown': 'back',
-  'pull up': 'back',
-  'chin up': 'back',
-  'barbell row': 'back',
-  'seated cable row': 'back',
-  'deadlift': 'back',
-  'romanian deadlift': 'back',
-
-  'shoulder press': 'arms',
-  'lateral raise': 'arms',
-  'rear delt fly': 'arms',
-  'barbell curl': 'arms',
-  'hammer curl': 'arms',
-  'triceps pushdown': 'arms',
-  'overhead extension': 'arms',
-  'skull crusher': 'arms',
-
-  'squat': 'legs',
-  'leg press': 'legs',
-  'leg curl': 'legs',
-  'leg extension': 'legs',
-  'calf raise': 'legs',
-  'lunge': 'legs',
-  'bulgarian split squat': 'legs',
-  'hip thrust': 'legs',
-};
-
-function createId() {
-  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
-    return crypto.randomUUID();
-  }
-
-  return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-}
-
-function normalizeDetail(input: unknown): WorkoutExerciseDetail | null {
-  if (!input || typeof input !== 'object') return null;
-
-  const value = input as Partial<WorkoutExerciseDetail>;
-
-  const exercise =
-    typeof value.exercise === 'string' && value.exercise.trim().length > 0
-      ? value.exercise.trim()
-      : '';
-
-  const sets = Number.isFinite(value.sets) ? Math.max(0, Math.round(value.sets as number)) : 0;
-  const reps = Number.isFinite(value.reps) ? Math.max(0, Math.round(value.reps as number)) : 0;
-  const weight = Number.isFinite(value.weight) ? Math.max(0, Number(value.weight)) : 0;
-
-  const volume =
-    Number.isFinite(value.volume) && Number(value.volume) >= 0
-      ? Number(value.volume)
-      : sets * reps * weight;
-
-  if (!exercise) return null;
-
-  return {
-    exercise,
-    sets,
-    reps,
-    weight,
-    volume,
-  };
-}
-
-function inferFocusAreaFromDetails(details: WorkoutExerciseDetail[]): FocusArea {
-  const score: Record<FocusArea, number> = {
-    chest: 0,
-    back: 0,
-    arms: 0,
-    legs: 0,
-  };
-
-  for (const detail of details) {
-    const key = detail.exercise.trim().toLowerCase();
-    const mapped = EXERCISE_TO_FOCUS[key];
-    if (!mapped) continue;
-
-    score[mapped] += Math.max(1, detail.sets) * Math.max(1, detail.reps);
-  }
-
-  const ranked = FOCUS_AREAS
-    .map((area) => ({ area, value: score[area] }))
-    .sort((a, b) => b.value - a.value);
-
-  if (ranked[0]?.value > 0) {
-    return ranked[0].area;
-  }
-
-  return 'chest';
-}
-
-function inferFocusAreaFromWorkoutName(name: string): FocusArea {
-  const lower = name.trim().toLowerCase();
-
-  if (
-    lower.includes('back') ||
-    lower.includes('pull') ||
-    lower.includes('row') ||
-    lower.includes('lat')
-  ) {
-    return 'back';
-  }
-
-  if (
-    lower.includes('leg') ||
-    lower.includes('lower') ||
-    lower.includes('squat') ||
-    lower.includes('hamstring') ||
-    lower.includes('quad')
-  ) {
-    return 'legs';
-  }
-
-  if (
-    lower.includes('arm') ||
-    lower.includes('shoulder') ||
-    lower.includes('biceps') ||
-    lower.includes('triceps')
-  ) {
-    return 'arms';
-  }
-
-  return 'chest';
-}
-
-function inferFocusArea(
-  details: WorkoutExerciseDetail[],
-  provided?: FocusArea,
-  workoutName?: string,
-): FocusArea {
-  if (provided && FOCUS_AREAS.includes(provided)) {
-    return provided;
-  }
-
-  if (details.length > 0) {
-    return inferFocusAreaFromDetails(details);
-  }
-
-  return inferFocusAreaFromWorkoutName(workoutName ?? '');
-}
-
-function normalizeEntry(input: unknown): WorkoutHistoryEntry | null {
-  if (!input || typeof input !== 'object') return null;
-
-  const value = input as Partial<WorkoutHistoryEntry>;
-  const workoutName =
-    typeof value.workoutName === 'string' && value.workoutName.trim().length > 0
-      ? value.workoutName.trim()
-      : 'Workout';
-
-  const durationMinutes = Number.isFinite(value.durationMinutes)
-    ? Math.max(0, Math.round(value.durationMinutes as number))
-    : 0;
-
-  const exercisesCompleted = Number.isFinite(value.exercisesCompleted)
-    ? Math.max(0, Math.round(value.exercisesCompleted as number))
-    : 0;
-
-  const details = Array.isArray(value.details)
-    ? value.details.map(normalizeDetail).filter((entry): entry is WorkoutExerciseDetail => entry !== null)
-    : [];
-
-  const calculatedVolumeFromDetails = details.reduce((sum, detail) => sum + detail.volume, 0);
-
-  const volume =
-    Number.isFinite(value.volume) && Number(value.volume) >= 0
-      ? Number(value.volume)
-      : calculatedVolumeFromDetails;
-
-  const completedAt =
-    typeof value.completedAt === 'string' && value.completedAt.length > 0
-      ? value.completedAt
-      : new Date().toISOString();
-
-  const focusArea = inferFocusArea(details, value.focusArea, workoutName);
-
-  return {
-    id: typeof value.id === 'string' && value.id.length > 0 ? value.id : createId(),
-    workoutName,
-    durationMinutes,
-    exercisesCompleted: exercisesCompleted || details.length,
-    volume,
-    completedAt,
-    focusArea,
-    details,
-  };
-}
-
-function read(): WorkoutHistoryEntry[] {
-  if (typeof window === 'undefined') return [];
-
+function load(): WorkoutEntry[] {
   try {
-    const raw = localStorage.getItem(KEY);
-    if (!raw) return [];
-
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-
-    return parsed
-      .map(normalizeEntry)
-      .filter((entry): entry is WorkoutHistoryEntry => entry !== null);
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
   } catch {
     return [];
   }
 }
 
-function write(entries: WorkoutHistoryEntry[]) {
-  if (typeof window === 'undefined') return;
+function save(data: WorkoutEntry[]) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
 
-  localStorage.setItem(KEY, JSON.stringify(entries));
-  window.dispatchEvent(
-    new CustomEvent(HISTORY_UPDATED_EVENT, {
-      detail: entries,
-    }),
+// ---------- CORE API ----------
+
+export function getWorkoutHistory(): WorkoutEntry[] {
+  return load().sort(
+    (a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime()
   );
 }
 
-export function getWorkoutHistory(): WorkoutHistoryEntry[] {
-  return read().sort(
-    (a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime(),
-  );
-}
-
-export function addWorkoutHistory(
-  entry: Omit<WorkoutHistoryEntry, 'id' | 'focusArea'> & { focusArea?: FocusArea },
-): WorkoutHistoryEntry {
-  const normalizedDetails = Array.isArray(entry.details)
-    ? entry.details
-        .map(normalizeDetail)
-        .filter((detail): detail is WorkoutExerciseDetail => detail !== null)
-    : [];
-
-  const next: WorkoutHistoryEntry = {
-    id: createId(),
-    workoutName: entry.workoutName.trim() || 'Workout',
-    durationMinutes: Math.max(0, Math.round(entry.durationMinutes)),
-    exercisesCompleted: Math.max(
-      0,
-      Math.round(entry.exercisesCompleted || normalizedDetails.length),
-    ),
-    volume:
-      Number.isFinite(entry.volume) && entry.volume >= 0
-        ? entry.volume
-        : normalizedDetails.reduce((sum, detail) => sum + detail.volume, 0),
-    completedAt: entry.completedAt || new Date().toISOString(),
-    focusArea: inferFocusArea(normalizedDetails, entry.focusArea, entry.workoutName),
-    details: normalizedDetails,
-  };
-
-  const current = read();
-  write([next, ...current]);
-  return next;
+export function addWorkoutHistory(entry: WorkoutEntry) {
+  const current = load();
+  current.push(entry);
+  save(current);
 }
 
 export function clearWorkoutHistory() {
-  write([]);
+  save([]);
 }
 
-export function getWorkoutFocusBreakdown(): Record<FocusArea, number> {
-  const history = getWorkoutHistory();
+// ---------- HELPERS ----------
 
-  return history.reduce<Record<FocusArea, number>>(
-    (acc, entry) => {
-      acc[entry.focusArea] += 1;
-      return acc;
-    },
-    {
-      chest: 0,
-      back: 0,
-      arms: 0,
-      legs: 0,
-    },
-  );
+export function calculateWorkoutVolume(entry: WorkoutEntry): number {
+  return entry.exercises.reduce((total, ex) => {
+    const exVolume = ex.sets.reduce(
+      (sum, set) => sum + set.reps * set.weight,
+      0
+    );
+    return total + exVolume;
+  }, 0);
 }
 
-export function getLastCompletedAtForFocusArea(
-  focusArea: FocusArea,
-): string | null {
-  const history = getWorkoutHistory();
-  const match = history.find((entry) => entry.focusArea === focusArea);
+// ---------- ANALYTICS ----------
 
-  return match?.completedAt ?? null;
+// Hur mycket varje muskelgrupp tränats senaste passen
+export function getWorkoutFocusBreakdown(
+  limit: number = 10
+): Record<MuscleGroup, number> {
+  const history = getWorkoutHistory().slice(0, limit);
+
+  const breakdown: Record<MuscleGroup, number> = {
+    chest: 0,
+    back: 0,
+    arms: 0,
+    legs: 0,
+    shoulders: 0,
+    core: 0,
+  };
+
+  history.forEach((workout) => {
+    workout.exercises.forEach((ex) => {
+      const volume = ex.sets.reduce(
+        (sum, set) => sum + set.reps * set.weight,
+        0
+      );
+
+      breakdown[ex.muscleGroup] += volume;
+    });
+  });
+
+  return breakdown;
 }
 
-export function getRecommendedNextFocusArea(): FocusArea {
-  const history = getWorkoutHistory();
+// Rekommendera vad användaren ska träna härnäst
+export function getRecommendedNextFocusArea(): MuscleGroup {
+  const breakdown = getWorkoutFocusBreakdown(10);
 
-  if (history.length === 0) {
-    return 'chest';
-  }
+  let lowest: MuscleGroup = 'chest';
+  let lowestValue = Infinity;
 
-  const lastSeenByArea = new Map<FocusArea, number>();
-
-  for (const area of FOCUS_AREAS) {
-    lastSeenByArea.set(area, Number.NEGATIVE_INFINITY);
-  }
-
-  history.forEach((entry, index) => {
-    if (!lastSeenByArea.has(entry.focusArea)) return;
-    if (lastSeenByArea.get(entry.focusArea) === Number.NEGATIVE_INFINITY) {
-      lastSeenByArea.set(entry.focusArea, index);
+  (Object.keys(breakdown) as MuscleGroup[]).forEach((group) => {
+    if (breakdown[group] < lowestValue) {
+      lowestValue = breakdown[group];
+      lowest = group;
     }
   });
 
-  const ranked = FOCUS_AREAS.map((area) => ({
-    area,
-    index: lastSeenByArea.get(area) ?? Number.NEGATIVE_INFINITY,
-  })).sort((a, b) => a.index - b.index);
-
-  return ranked[0]?.area ?? 'chest';
+  return lowest;
 }
 
-export function getWorkoutNameOptions(): string[] {
-  return Array.from(
-    new Set(
-      getWorkoutHistory()
-        .map((entry) => entry.workoutName.trim())
-        .filter(Boolean),
-    ),
+// ---------- HISTORY HELPERS ----------
+
+export function getExerciseHistory(exerciseName: string) {
+  const history = getWorkoutHistory();
+
+  return history.flatMap((workout) =>
+    workout.exercises
+      .filter((ex) => ex.name === exerciseName)
+      .map((ex) => ({
+        date: workout.completedAt,
+        sets: ex.sets,
+      }))
   );
 }
 
 export function getExerciseNameOptions(): string[] {
-  return Array.from(
-    new Set(
-      getWorkoutHistory()
-        .flatMap((entry) => entry.details.map((detail) => detail.exercise.trim()))
-        .filter(Boolean),
-    ),
-  ).sort((a, b) => a.localeCompare(b));
+  const history = getWorkoutHistory();
+
+  const names = new Set<string>();
+
+  history.forEach((w) =>
+    w.exercises.forEach((ex) => names.add(ex.name))
+  );
+
+  return Array.from(names);
 }
 
-export function getExerciseHistory(exerciseName: string) {
-  const normalized = exerciseName.trim().toLowerCase();
+export function getWorkoutNameOptions(): string[] {
+  const history = getWorkoutHistory();
 
-  return getWorkoutHistory()
-    .flatMap((entry) =>
-      entry.details
-        .filter((detail) => detail.exercise.trim().toLowerCase() === normalized)
-        .map((detail) => ({
-          completedAt: entry.completedAt,
-          workoutName: entry.workoutName,
-          focusArea: entry.focusArea,
-          sets: detail.sets,
-          reps: detail.reps,
-          weight: detail.weight,
-          volume: detail.volume,
-        })),
-    )
-    .sort(
-      (a, b) => new Date(a.completedAt).getTime() - new Date(b.completedAt).getTime(),
+  const names = new Set<string>();
+
+  history.forEach((w) => names.add(w.workoutName));
+
+  return Array.from(names);
+}
+// ---------- PR SYSTEM ----------
+
+export function getAllTimeBestWeight(exerciseName: string): number {
+  const history = getWorkoutHistory();
+
+  let best = 0;
+
+  history.forEach((workout) => {
+    workout.exercises.forEach((ex) => {
+      if (ex.name === exerciseName) {
+        ex.sets.forEach((set) => {
+          if (set.weight > best) {
+            best = set.weight;
+          }
+        });
+      }
+    });
+  });
+
+  return best;
+}
+
+export type PRResult = {
+  exercise: string;
+  newWeight: number;
+  previousBest: number;
+};
+
+export function detectPRs(
+  exercises: ExerciseEntry[]
+): PRResult[] {
+  const prs: PRResult[] = [];
+
+  exercises.forEach((ex) => {
+    const bestBefore = getAllTimeBestWeight(ex.name);
+
+    const bestNow = Math.max(
+      ...ex.sets.map((s) => s.weight)
     );
+
+    if (bestNow > bestBefore) {
+      prs.push({
+        exercise: ex.name,
+        newWeight: bestNow,
+        previousBest: bestBefore,
+      });
+    }
+  });
+
+  return prs;
+}
+// ---------- SMART PROGRESSION ----------
+
+export function getLastWorkoutForExercise(exerciseName: string) {
+  const history = getWorkoutHistory();
+
+  for (const workout of history) {
+    const found = workout.exercises.find(
+      (ex) => ex.name === exerciseName
+    );
+
+    if (found) {
+      return found;
+    }
+  }
+
+  return null;
+}
+
+export function getSuggestedWeight(
+  exerciseName: string
+): number | null {
+  const last = getLastWorkoutForExercise(exerciseName);
+
+  if (!last) return null;
+
+  const lastTopWeight = Math.max(
+    ...last.sets.map((s) => s.weight)
+  );
+
+  // 🔥 progression rule
+  const increment = lastTopWeight >= 100 ? 5 : 2.5;
+
+  return lastTopWeight + increment;
+}
+// ---------- PR PROXIMITY ----------
+
+export type PRProximity = {
+  exercise: string;
+  currentBest: number;
+  lastWeight: number;
+  diff: number;
+};
+
+export function getPRProximity(): PRProximity[] {
+  const history = getWorkoutHistory();
+
+  const result: PRProximity[] = [];
+
+  const seen = new Set<string>();
+
+  history.forEach((workout) => {
+    workout.exercises.forEach((ex) => {
+      if (seen.has(ex.name)) return;
+
+      const best = getAllTimeBestWeight(ex.name);
+
+      const lastSet = ex.sets[ex.sets.length - 1];
+      const lastWeight = lastSet?.weight ?? 0;
+
+      const diff = best - lastWeight;
+
+      // 🔥 nära PR (inom 5kg)
+      if (diff > 0 && diff <= 5) {
+        result.push({
+          exercise: ex.name,
+          currentBest: best,
+          lastWeight,
+          diff,
+        });
+      }
+
+      seen.add(ex.name);
+    });
+  });
+
+  return result;
 }
