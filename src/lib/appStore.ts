@@ -6,7 +6,8 @@ export type AppPage =
   | 'nutrition'
   | 'shop'
   | 'settings'
-  | 'daily';
+  | 'daily'
+  | 'gallery';
 
 export type AppStats = {
   level: number;
@@ -37,18 +38,24 @@ const defaultState: UIState = {
 
 function readState(): UIState {
   if (typeof window === 'undefined') return defaultState;
+
   const raw = localStorage.getItem(KEY);
   if (!raw) return defaultState;
 
   try {
-    return { ...defaultState, ...JSON.parse(raw) } as UIState;
+    return {
+      ...defaultState,
+      ...JSON.parse(raw),
+    } as UIState;
   } catch {
     return defaultState;
   }
 }
 
 function writeState(state: UIState) {
+  if (typeof window === 'undefined') return;
   localStorage.setItem(KEY, JSON.stringify(state));
+  window.dispatchEvent(new CustomEvent('gymrat:app-state-updated'));
 }
 
 export function getUIState() {
@@ -79,35 +86,89 @@ export function setWorkoutSummary(workoutSummary: unknown | null) {
   writeState({ ...state, workoutSummary });
 }
 
+export function getWorkoutSummary() {
+  return readState().workoutSummary;
+}
+
 export function addXP(amount: number) {
   const state = readState();
   writeState({
     ...state,
-    xp: state.xp + amount,
+    xp: Math.max(0, state.xp + Math.max(0, amount)),
   });
 }
 
+export function setXP(xp: number) {
+  const state = readState();
+  writeState({
+    ...state,
+    xp: Math.max(0, xp),
+  });
+}
+
+export function getXP() {
+  return readState().xp;
+}
+
 export function getLevelFromXP(xp: number) {
-  return Math.floor(xp / 250) + 1;
+  return Math.floor(Math.max(0, xp) / 250) + 1;
+}
+
+export function getLevelProgress(xp: number) {
+  const safeXP = Math.max(0, xp);
+  const level = getLevelFromXP(safeXP);
+  const levelStartXP = (level - 1) * 250;
+  const currentLevelXP = safeXP - levelStartXP;
+  const nextLevelXP = 250;
+  const progressPercent = Math.min(100, (currentLevelXP / nextLevelXP) * 100);
+
+  return {
+    level,
+    currentLevelXP,
+    nextLevelXP,
+    progressPercent,
+  };
 }
 
 export function getAppStats(): AppStats {
   const state = readState();
-  const level = getLevelFromXP(state.xp);
-  const levelStart = (level - 1) * 250;
-  const nextLevelXP = 250;
-  const currentLevelXP = state.xp - levelStart;
-  const progressPercent = Math.min(100, (currentLevelXP / 250) * 100);
+  const progress = getLevelProgress(state.xp);
 
-  const historyRaw = localStorage.getItem('gymrat-history-store');
-  const workouts = historyRaw ? (JSON.parse(historyRaw) as unknown[]) : [];
+  let totalWorkouts = 0;
+
+  if (typeof window !== 'undefined') {
+    try {
+      const historyRaw = localStorage.getItem('gymrat-history-store');
+      const workouts = historyRaw ? (JSON.parse(historyRaw) as unknown[]) : [];
+      totalWorkouts = Array.isArray(workouts) ? workouts.length : 0;
+    } catch {
+      totalWorkouts = 0;
+    }
+  }
 
   return {
-    level,
+    level: progress.level,
     totalXP: state.xp,
-    currentLevelXP,
-    nextLevelXP,
-    progressPercent,
-    totalWorkouts: workouts.length,
+    currentLevelXP: progress.currentLevelXP,
+    nextLevelXP: progress.nextLevelXP,
+    progressPercent: progress.progressPercent,
+    totalWorkouts,
+  };
+}
+
+export function resetAppUIState() {
+  writeState(defaultState);
+}
+
+export function subscribeAppState(listener: () => void) {
+  if (typeof window === 'undefined') {
+    return () => {};
+  }
+
+  const handler = () => listener();
+  window.addEventListener('gymrat:app-state-updated', handler);
+
+  return () => {
+    window.removeEventListener('gymrat:app-state-updated', handler);
   };
 }

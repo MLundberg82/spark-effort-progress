@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import type { AppStats } from '@/lib/appStore';
 import { getProfile } from '@/lib/profileStore';
+import { getEquippedItemIds } from '@/lib/shopStore';
 import EquippedRatPreview from '@/components/EquippedRatPreview';
 
 type HomeScreenProps = {
@@ -32,6 +33,12 @@ function getTierFromLevel(level: number) {
   return 'Baby Tier';
 }
 
+function formatGoal(goal?: string) {
+  if (goal === 'lose') return 'Cut';
+  if (goal === 'build') return 'Build';
+  return 'Maintain';
+}
+
 export default function HomeScreen({
   stats,
   onOpenMenu,
@@ -42,142 +49,169 @@ export default function HomeScreen({
   const profile = getProfile();
   const tierLabel = getTierFromLevel(stats.level);
   const xpLeft = Math.max(0, stats.nextLevelXP - stats.currentLevelXP);
+  const hasAnyEquipped = getEquippedItemIds().length > 0;
 
   return (
-    <div className="h-screen overflow-hidden bg-[#0a0d12] px-4 py-4 text-white">
-      <div className="mx-auto flex h-full w-full max-w-5xl flex-col">
-        <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-[34px] border border-white/10 bg-[radial-gradient(circle_at_top,rgba(16,185,129,0.16),rgba(255,255,255,0.03),rgba(0,0,0,0.20)),linear-gradient(180deg,rgba(17,24,39,0.96),rgba(10,13,18,1))] px-5 pb-5 pt-4 shadow-[0_20px_70px_rgba(0,0,0,0.38)]">
-          <div className="flex items-start justify-between gap-3">
-            <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-2 shadow-[0_0_30px_rgba(16,185,129,0.12)]">
-              <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-300/80">
-                Current level
-              </div>
-              <div className="mt-1 text-xl font-black tracking-tight text-white">
-                LVL {stats.level}
-              </div>
-            </div>
+    <div className="min-h-screen bg-[#09090b] text-white">
+      <div className="mx-auto flex min-h-screen w-full max-w-[430px] flex-col px-4 pb-6 pt-4">
+        <div className="mb-4 flex items-center justify-between">
+          <button
+            type="button"
+            onClick={onOpenMenu}
+            className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-xl transition hover:scale-[1.02] hover:bg-white/[0.08]"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
 
-            <button
-              type="button"
-              onClick={onOpenMenu}
-              className="inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.05] text-white/80 transition hover:bg-white/[0.10] hover:text-white"
-              aria-label="Open menu"
-            >
-              <Menu size={20} />
-            </button>
+          <div className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-300">
+            {tierLabel}
           </div>
+        </div>
 
-          <div className="mt-3 flex flex-col items-center justify-center text-center">
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/20 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.2em] text-white/60">
-              <Sparkles size={13} />
-              {tierLabel}
+        <div className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.02))] p-4 shadow-[0_24px_80px_rgba(0,0,0,0.45)]">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(74,222,128,0.16),transparent_34%),radial-gradient(circle_at_bottom,rgba(163,230,53,0.08),transparent_30%)]" />
+          <div className="relative z-10">
+            <div className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/55">
+              <Sparkles className="h-3.5 w-3.5 text-emerald-300" />
+              Premium hero mode
             </div>
 
-            <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-4xl">
+            <h1 className="text-[2rem] font-black leading-none tracking-[-0.04em]">
               GymRat
             </h1>
 
-            <p className="mt-2 max-w-xl text-sm leading-6 text-white/65">
-              Level up in real life.
+            <p className="mt-2 max-w-[22rem] text-sm text-white/68">
+              Level up in real life. Train harder, look stronger, build identity.
             </p>
-          </div>
 
-          <div className="relative mt-2 flex min-h-0 flex-1 items-center justify-center">
-            <div className="absolute h-[70%] w-[70%] rounded-full bg-emerald-400/10 blur-3xl" />
-            <div className="absolute h-[50%] w-[50%] rounded-full bg-amber-300/10 blur-3xl" />
-
-            <div className="relative flex w-full max-w-[440px] flex-1 items-center justify-center">
-              <EquippedRatPreview className="h-full max-h-[420px] w-full" />
-            </div>
-          </div>
-
-          <div className="mt-2 rounded-[26px] border border-white/10 bg-black/25 p-4 shadow-[0_10px_30px_rgba(0,0,0,0.18)]">
-            <div className="flex items-center justify-between gap-3 text-sm">
-              <div className="min-w-0">
-                <div className="font-bold text-white">XP Progress</div>
-                <div className="mt-1 text-xs text-white/55">
-                  {stats.currentLevelXP} / {stats.nextLevelXP} XP
-                </div>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <div className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs text-white/75">
+                LVL {stats.level}
               </div>
 
-              <div className="text-right">
-                <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/45">
-                  XP left
-                </div>
-                <div className="mt-1 text-sm font-bold text-emerald-300">
-                  {xpLeft}
-                </div>
+              <div className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs text-white/75">
+                {profile?.trainingLevel ?? 'beginner'}
               </div>
+
+              <div className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs text-white/75">
+                Goal: {formatGoal(profile?.goal)}
+              </div>
+
+              {hasAnyEquipped ? (
+                <div className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1.5 text-xs text-emerald-300">
+                  Look equipped
+                </div>
+              ) : null}
             </div>
 
-            <div className="mt-3 h-4 overflow-hidden rounded-full border border-white/10 bg-white/[0.06]">
-              <div
-                className="h-full rounded-full bg-[linear-gradient(90deg,rgba(16,185,129,1),rgba(250,204,21,0.95))] shadow-[0_0_24px_rgba(16,185,129,0.35)] transition-[width] duration-500"
-                style={{ width: `${stats.progressPercent}%` }}
-              />
+            <div className="mt-5 flex justify-center">
+              <EquippedRatPreview level={stats.level} gender={profile?.gender} size="hero" />
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-4 rounded-[1.75rem] border border-white/10 bg-white/[0.035] p-4 shadow-[0_16px_60px_rgba(0,0,0,0.35)]">
+          <div className="mb-3 flex items-center justify-between">
+            <div>
+              <div className="text-xs font-semibold uppercase tracking-[0.18em] text-white/45">
+                XP Progress
+              </div>
+              <div className="mt-1 text-lg font-bold">Level {stats.level}</div>
             </div>
 
-            <div className="mt-3 flex items-center justify-between text-[11px] font-semibold uppercase tracking-[0.16em] text-white/45">
-              <span>Level {stats.level}</span>
-              <span>Goal: next level</span>
+            <div className="text-right">
+              <div className="text-xs text-white/45">Current</div>
+              <div className="text-sm font-semibold text-emerald-300">
+                {stats.currentLevelXP} / {stats.nextLevelXP} XP
+              </div>
             </div>
           </div>
 
-          <div className="mt-3 grid grid-cols-2 gap-3">
-            <button
-              type="button"
-              onClick={onOpenGallery}
-              className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.05] px-4 text-sm font-bold text-white transition hover:bg-white/[0.09]"
-            >
-              <Images size={16} />
-              Level Gallery
-            </button>
-
-            <button
-              type="button"
-              onClick={onOpenShop}
-              className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.05] px-4 text-sm font-bold text-white transition hover:bg-white/[0.09]"
-            >
-              <ShoppingBag size={16} />
-              Shop
-            </button>
+          <div className="h-4 overflow-hidden rounded-full bg-white/[0.05] p-[3px]">
+            <div
+              className="h-full rounded-full bg-[linear-gradient(90deg,#34d399,#bef264)] shadow-[0_0_30px_rgba(74,222,128,0.35)] transition-all duration-500"
+              style={{ width: `${stats.progressPercent}%` }}
+            />
           </div>
 
-          <button
-            type="button"
-            onClick={onStartWorkout}
-            className="mt-3 inline-flex h-14 items-center justify-center gap-2 rounded-[22px] bg-emerald-400 text-base font-black text-black shadow-[0_12px_30px_rgba(16,185,129,0.25)] transition hover:brightness-105"
-          >
-            <Play size={18} />
-            Start Workout
-          </button>
+          <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+            <div className="rounded-2xl border border-white/8 bg-black/20 px-3 py-3">
+              <div className="text-[11px] uppercase tracking-[0.15em] text-white/45">XP left</div>
+              <div className="mt-1 text-lg font-black text-white">{xpLeft}</div>
+            </div>
 
-          <div className="mt-3 grid grid-cols-3 gap-3">
-            <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-3 text-center">
-              <div className="flex items-center justify-center gap-1 text-[10px] font-bold uppercase tracking-[0.18em] text-white/45">
-                <Zap size={12} />
-                Total XP
-              </div>
+            <div className="rounded-2xl border border-white/8 bg-black/20 px-3 py-3">
+              <div className="text-[11px] uppercase tracking-[0.15em] text-white/45">Total XP</div>
               <div className="mt-1 text-lg font-black text-white">{stats.totalXP}</div>
             </div>
 
-            <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-3 text-center">
-              <div className="flex items-center justify-center gap-1 text-[10px] font-bold uppercase tracking-[0.18em] text-white/45">
-                <Trophy size={12} />
-                Workouts
-              </div>
+            <div className="rounded-2xl border border-white/8 bg-black/20 px-3 py-3">
+              <div className="text-[11px] uppercase tracking-[0.15em] text-white/45">Workouts</div>
               <div className="mt-1 text-lg font-black text-white">{stats.totalWorkouts}</div>
             </div>
+          </div>
+        </div>
 
-            <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-3 text-center">
-              <div className="flex items-center justify-center gap-1 text-[10px] font-bold uppercase tracking-[0.18em] text-white/45">
-                <Target size={12} />
-                Profile
-              </div>
-              <div className="mt-1 truncate text-sm font-bold text-white">
-                {profile?.trainingLevel ? profile.trainingLevel : 'Not set'}
-              </div>
+        <button
+          type="button"
+          onClick={onStartWorkout}
+          className="mt-4 flex h-14 items-center justify-center gap-2 rounded-[1.25rem] bg-[linear-gradient(90deg,#ffffff,#d4d4d8)] text-sm font-black uppercase tracking-[0.14em] text-black transition hover:scale-[1.01]"
+        >
+          <Play className="h-4 w-4" />
+          Start workout
+        </button>
+
+        <div className="mt-3 grid grid-cols-2 gap-3">
+          <button
+            type="button"
+            onClick={onOpenGallery}
+            className="rounded-[1.25rem] border border-white/10 bg-white/[0.04] px-4 py-4 text-left transition hover:bg-white/[0.07]"
+          >
+            <div className="mb-2 flex items-center gap-2 text-emerald-300">
+              <Images className="h-4 w-4" />
+              <span className="text-xs font-semibold uppercase tracking-[0.14em]">Gallery</span>
             </div>
+            <div className="text-base font-bold">Level gallery</div>
+            <div className="mt-1 text-sm text-white/55">See your evolution and milestones.</div>
+          </button>
+
+          <button
+            type="button"
+            onClick={onOpenShop}
+            className="rounded-[1.25rem] border border-white/10 bg-white/[0.04] px-4 py-4 text-left transition hover:bg-white/[0.07]"
+          >
+            <div className="mb-2 flex items-center gap-2 text-emerald-300">
+              <ShoppingBag className="h-4 w-4" />
+              <span className="text-xs font-semibold uppercase tracking-[0.14em]">Shop</span>
+            </div>
+            <div className="text-base font-bold">Cosmetics</div>
+            <div className="mt-1 text-sm text-white/55">Equip looks, aura and backgrounds.</div>
+          </button>
+        </div>
+
+        <div className="mt-4 grid grid-cols-3 gap-3">
+          <div className="rounded-[1.1rem] border border-white/10 bg-white/[0.035] px-3 py-3">
+            <div className="mb-2 flex items-center gap-2 text-white/55">
+              <Zap className="h-4 w-4 text-yellow-300" />
+              <span className="text-[11px] uppercase tracking-[0.14em]">Momentum</span>
+            </div>
+            <div className="text-sm font-semibold">Progress feels alive</div>
+          </div>
+
+          <div className="rounded-[1.1rem] border border-white/10 bg-white/[0.035] px-3 py-3">
+            <div className="mb-2 flex items-center gap-2 text-white/55">
+              <Target className="h-4 w-4 text-emerald-300" />
+              <span className="text-[11px] uppercase tracking-[0.14em]">Goal</span>
+            </div>
+            <div className="text-sm font-semibold">{formatGoal(profile?.goal)}</div>
+          </div>
+
+          <div className="rounded-[1.1rem] border border-white/10 bg-white/[0.035] px-3 py-3">
+            <div className="mb-2 flex items-center gap-2 text-white/55">
+              <Trophy className="h-4 w-4 text-orange-300" />
+              <span className="text-[11px] uppercase tracking-[0.14em]">Tier</span>
+            </div>
+            <div className="text-sm font-semibold">{tierLabel}</div>
           </div>
         </div>
       </div>

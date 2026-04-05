@@ -59,7 +59,7 @@ export const shopItems: ShopItem[] = [
     name: 'Black Core Hoodie',
     description: 'Classic gym-rat top.',
     category: 'cosmetic',
-    icon: '🧥',
+    icon: '🖤',
     slot: 'top',
     productId: 'item_hoodie_black_core',
     priceLabel: '9 kr',
@@ -69,7 +69,7 @@ export const shopItems: ShopItem[] = [
     name: 'Alpha Tank Gold',
     description: 'Higher-tier premium-looking top.',
     category: 'cosmetic',
-    icon: '🎽',
+    icon: '💪',
     slot: 'top',
     productId: 'item_tank_alpha_gold',
     priceLabel: '9 kr',
@@ -89,7 +89,7 @@ export const shopItems: ShopItem[] = [
     name: 'Legend Black Pants',
     description: 'Late-game lower-body flex.',
     category: 'cosmetic',
-    icon: '🖤',
+    icon: '⚫',
     slot: 'pants',
     productId: 'item_legend_pants_black',
     priceLabel: '9 kr',
@@ -145,7 +145,7 @@ export const shopItems: ShopItem[] = [
     name: 'Underground Scene',
     description: 'Dark grind atmosphere behind your rat.',
     category: 'background',
-    icon: '🌒',
+    icon: '🌆',
     slot: 'background',
     productId: 'item_bg_underground_1',
     priceLabel: '9 kr',
@@ -155,7 +155,7 @@ export const shopItems: ShopItem[] = [
     name: 'Grind Scene',
     description: 'Clean progression backdrop.',
     category: 'background',
-    icon: '🌆',
+    icon: '🏙️',
     slot: 'background',
     productId: 'item_bg_grind_1',
     priceLabel: '9 kr',
@@ -230,7 +230,7 @@ function writeEquippedItems(next: EquippedState) {
 export function getEquippedItem(): string | null {
   const equipped = getEquippedItems();
 
-  const first =
+  return (
     equipped.head ??
     equipped.eyes ??
     equipped.neck ??
@@ -239,9 +239,8 @@ export function getEquippedItem(): string | null {
     equipped.feet ??
     equipped.aura ??
     equipped.background ??
-    null;
-
-  return first ?? null;
+    null
+  );
 }
 
 export function getEquippedItemIds(): string[] {
@@ -269,7 +268,7 @@ export function canAccessShopItem(item: ShopItem): boolean {
 }
 
 export function isItemOwnedOrIncluded(item: ShopItem): boolean {
-  if (item.requiresPremiumAccess) {
+  if (item.requiresPremiumAccess || item.premiumOnly) {
     return checkPremium();
   }
 
@@ -279,7 +278,6 @@ export function isItemOwnedOrIncluded(item: ShopItem): boolean {
 export function equipItem(itemId: string): void {
   const item = shopItems.find((entry) => entry.id === itemId);
   if (!item || !item.slot) return;
-
   if (!isItemOwnedOrIncluded(item)) return;
 
   const current = getEquippedItems();
@@ -349,7 +347,6 @@ export function subscribeShop(listener: () => void) {
   }
 
   const handler = () => listener();
-
   window.addEventListener('shop-updated', handler);
   window.addEventListener('gymrat:premium-updated', handler);
 

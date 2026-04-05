@@ -19,37 +19,62 @@ function normalize(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, '-');
 }
 
-function includesAll(haystack: string, needles: string[]) {
-  const h = normalize(haystack);
-  return needles.every((needle) => h.includes(normalize(needle)));
-}
-
-function findFirst(
-  modules: Record<string, string>,
-  tokenSets: string[][]
-): string | undefined {
-  const entries = Object.entries(modules);
-
-  for (const tokens of tokenSets) {
-    const match = entries.find(([path]) => includesAll(path, tokens));
-    if (match) return match[1];
-  }
-
-  return undefined;
-}
-
 function padLevel(level: number) {
   return String(level).padStart(3, '0');
 }
 
 function nearestMilestone(level: number) {
   const milestones = [100, 90, 80, 70, 60, 50, 40, 35, 30, 25, 20, 15, 10, 5, 1];
-  return milestones.find((m) => level >= m) ?? 1;
+  return milestones.find((entry) => level >= entry) ?? 1;
 }
 
-export function toRatVariant(
-  gender?: 'male' | 'female' | 'non-binary'
-): RatVariant {
+function scoreMatch(path: string, tokens: string[]) {
+  const normalizedPath = normalize(path);
+
+  let score = 0;
+  for (const token of tokens) {
+    const normalizedToken = normalize(token);
+    if (!normalizedToken) continue;
+    if (normalizedPath.includes(normalizedToken)) {
+      score += normalizedToken.length;
+    } else {
+      return -1;
+    }
+  }
+
+  if (normalizedPath.endsWith('.png')) score += 8;
+  if (normalizedPath.endsWith('.webp')) score += 6;
+  if (normalizedPath.includes('/premium/')) score += 2;
+
+  return score;
+}
+
+function findBest(modules: Record<string, string>, tokenSets: string[][]) {
+  const entries = Object.entries(modules);
+
+  let bestPath: string | undefined;
+  let bestValue: string | undefined;
+  let bestScore = -1;
+
+  for (const tokens of tokenSets) {
+    for (const [path, value] of entries) {
+      const score = scoreMatch(path, tokens);
+      if (score > bestScore) {
+        bestScore = score;
+        bestPath = path;
+        bestValue = value;
+      }
+    }
+
+    if (bestScore >= 0 && bestValue) {
+      return bestValue;
+    }
+  }
+
+  return bestPath ? modules[bestPath] : undefined;
+}
+
+export function toRatVariant(gender?: 'male' | 'female' | 'non-binary'): RatVariant {
   if (gender === 'female') return 'female';
   if (gender === 'non-binary') return 'nonbinary';
   return 'male';
@@ -59,7 +84,7 @@ export function getRatImage(level: number, variant: RatVariant): string | undefi
   const milestone = nearestMilestone(level);
   const padded = padLevel(milestone);
 
-  return findFirst(ratModules, [
+  return findBest(ratModules, [
     [`rat-lv-${padded}`, variant],
     [`rat-lv-${milestone}`, variant],
     [`lv-${padded}`, variant],
@@ -85,7 +110,7 @@ export const ASSET_SHOP_CATALOG_BASE: Omit<AssetShopItem, 'owned' | 'image'>[] =
     name: 'Black Core Hoodie',
     description: 'Classic gym-rat top.',
     price: 90,
-    emoji: '🧥',
+    emoji: '🖤',
     slot: 'top',
     isPremium: false,
     unlockLevel: 1,
@@ -115,7 +140,7 @@ export const ASSET_SHOP_CATALOG_BASE: Omit<AssetShopItem, 'owned' | 'image'>[] =
     name: 'Gold Heavy Chain',
     description: 'Extra alpha energy.',
     price: 180,
-    emoji: '📿',
+    emoji: '⛓️',
     slot: 'neck',
     isPremium: false,
     unlockLevel: 30,
@@ -131,21 +156,11 @@ export const ASSET_SHOP_CATALOG_BASE: Omit<AssetShopItem, 'owned' | 'image'>[] =
     unlockLevel: 35,
   },
   {
-    id: 'hoodie-purple-grind',
-    name: 'Purple Grind Hoodie',
-    description: 'Grind-tier cosmetic top.',
-    price: 210,
-    emoji: '🟣',
-    slot: 'top',
-    isPremium: false,
-    unlockLevel: 20,
-  },
-  {
     id: 'tank-alpha-gold',
     name: 'Alpha Tank Gold',
     description: 'High-visibility alpha tank.',
     price: 260,
-    emoji: '🥇',
+    emoji: '💪',
     slot: 'top',
     isPremium: false,
     unlockLevel: 35,
@@ -159,16 +174,6 @@ export const ASSET_SHOP_CATALOG_BASE: Omit<AssetShopItem, 'owned' | 'image'>[] =
     slot: 'pants',
     isPremium: false,
     unlockLevel: 80,
-  },
-  {
-    id: 'chain-legend-diamond',
-    name: 'Legend Diamond Chain',
-    description: 'Prestige premium chain.',
-    price: 420,
-    emoji: '💎',
-    slot: 'neck',
-    isPremium: true,
-    unlockLevel: 90,
   },
   {
     id: 'shoes-legend-high',
@@ -203,14 +208,16 @@ export const ASSET_SHOP_CATALOG_BASE: Omit<AssetShopItem, 'owned' | 'image'>[] =
 ];
 
 export function getItemImage(itemId: string): string | undefined {
-  return findFirst(itemModules, [
+  return findBest(itemModules, [
     [itemId],
     [itemId.replace(/-/g, ' ')],
+    [itemId.split('-')[0], itemId.split('-').slice(1).join('-')],
   ]);
 }
 
 export function getItemAsset(itemId?: string) {
   if (!itemId) return undefined;
+
   const base = ASSET_SHOP_CATALOG_BASE.find((item) => item.id === itemId);
   if (!base) return undefined;
 
@@ -220,13 +227,17 @@ export function getItemAsset(itemId?: string) {
   };
 }
 
-export function getBackgroundImage(backgroundId: string): string | undefined {
-  return findFirst(backgroundModules, [[backgroundId]]);
-}
-
 export function getItemsForSlot(slot: ItemSlot) {
   return ASSET_SHOP_CATALOG_BASE.filter((item) => item.slot === slot).map((item) => ({
     ...item,
     image: getItemImage(item.id),
   }));
+}
+
+export function getBackgroundImage(backgroundId: string): string | undefined {
+  return findBest(backgroundModules, [
+    [backgroundId],
+    [backgroundId.replace(/-/g, ' ')],
+    [backgroundId.split('-').slice(0, 2).join('-')],
+  ]);
 }
