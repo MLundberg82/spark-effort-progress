@@ -6,7 +6,6 @@ import {
   History,
   Settings,
   ShoppingBag,
-  Sparkles,
   UtensilsCrossed,
   X,
 } from 'lucide-react';
@@ -25,7 +24,6 @@ type AppMenuProps = {
 
 type MenuButtonProps = {
   label: string;
-  description: string;
   onClick: () => void;
   icon: ReactNode;
   accent?: 'default' | 'premium';
@@ -52,9 +50,23 @@ function readBoolean(key: string, fallback: boolean) {
   return fallback;
 }
 
+function persistTimerSettings(restSeconds: number, setSeconds: number, autoLoop: boolean) {
+  if (typeof window === 'undefined') return;
+
+  localStorage.setItem(REST_TIMER_KEY, String(restSeconds));
+  localStorage.setItem(SET_TIMER_KEY, String(setSeconds));
+  localStorage.setItem(TIMER_AUTO_LOOP_KEY, String(autoLoop));
+
+  window.dispatchEvent(new CustomEvent('gymrat-timer-updated'));
+  window.dispatchEvent(new CustomEvent('timer-settings-updated'));
+}
+
+function clampSeconds(value: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, Math.round(value)));
+}
+
 function MenuButton({
   label,
-  description,
   onClick,
   icon,
   accent = 'default',
@@ -67,10 +79,10 @@ function MenuButton({
   return (
     <button
       onClick={onClick}
-      className={`flex min-h-[58px] w-full items-center gap-3 rounded-[20px] border px-4 py-3 text-left transition ${accentClasses}`}
+      className={`flex min-h-[48px] w-full items-center gap-3 rounded-[18px] border px-3.5 py-2.5 text-left transition ${accentClasses}`}
     >
       <div
-        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border ${
+        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-[14px] border ${
           accent === 'premium'
             ? 'border-yellow-300/20 bg-yellow-300/10'
             : 'border-white/10 bg-white/[0.05]'
@@ -79,13 +91,48 @@ function MenuButton({
         {icon}
       </div>
 
-      <div className="min-w-0 flex-1">
-        <div className="text-sm font-black uppercase tracking-[0.12em]">
-          {label}
-        </div>
-        <div className="mt-1 text-xs leading-5 text-white/60">{description}</div>
+      <div className="min-w-0 flex-1 text-sm font-black uppercase tracking-[0.12em]">
+        {label}
       </div>
     </button>
+  );
+}
+
+function TimerAdjuster({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  onChange: (next: number) => void;
+}) {
+  return (
+    <div className="rounded-[18px] border border-white/10 bg-black/20 px-3 py-3">
+      <div className="text-[10px] font-black uppercase tracking-[0.16em] text-white/45">
+        {label}
+      </div>
+
+      <div className="mt-2 flex items-center justify-between gap-2">
+        <button
+          onClick={() => onChange(value - 15)}
+          className="inline-flex h-9 w-9 items-center justify-center rounded-[12px] border border-white/10 bg-white/[0.05] text-lg font-black text-white transition hover:bg-white/[0.08]"
+        >
+          −
+        </button>
+
+        <div className="min-w-[78px] text-center text-sm font-black uppercase tracking-[0.1em] text-white">
+          {value}s
+        </div>
+
+        <button
+          onClick={() => onChange(value + 15)}
+          className="inline-flex h-9 w-9 items-center justify-center rounded-[12px] border border-white/10 bg-white/[0.05] text-lg font-black text-white transition hover:bg-white/[0.08]"
+        >
+          +
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -103,6 +150,7 @@ export default function AppMenu({
   const [restSeconds, setRestSeconds] = useState(90);
   const [setSeconds, setSetSeconds] = useState(45);
   const [autoLoop, setAutoLoop] = useState(true);
+  const [timerOpen, setTimerOpen] = useState(false);
 
   useEffect(() => {
     const sync = () => {
@@ -122,6 +170,23 @@ export default function AppMenu({
       window.removeEventListener('timer-settings-updated', sync as EventListener);
     };
   }, []);
+
+  const updateRestSeconds = (next: number) => {
+    const safe = clampSeconds(next, 15, 600);
+    setRestSeconds(safe);
+    persistTimerSettings(safe, setSeconds, autoLoop);
+  };
+
+  const updateSetSeconds = (next: number) => {
+    const safe = clampSeconds(next, 5, 300);
+    setSetSeconds(safe);
+    persistTimerSettings(restSeconds, safe, autoLoop);
+  };
+
+  const updateAutoLoop = (next: boolean) => {
+    setAutoLoop(next);
+    persistTimerSettings(restSeconds, setSeconds, next);
+  };
 
   return (
     <div className="fixed inset-0 z-40">
@@ -146,97 +211,88 @@ export default function AppMenu({
 
           <button
             onClick={onClose}
-            className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.05] transition hover:bg-white/[0.08]"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-[16px] border border-white/10 bg-white/[0.05] transition hover:bg-white/[0.08]"
             aria-label="Close menu"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
-        <div className="mt-4 rounded-[20px] border border-white/10 bg-white/[0.04] px-4 py-3">
-          <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.16em] text-white/45">
-            <Clock3 className="h-3.5 w-3.5" />
-            Timer
-          </div>
-
-          <div className="mt-2 grid grid-cols-3 gap-2 text-center">
-            <div className="rounded-2xl border border-white/10 bg-black/20 px-2 py-2">
-              <div className="text-[10px] font-black uppercase tracking-[0.14em] text-white/40">
-                Rest
-              </div>
-              <div className="mt-1 text-sm font-black text-white">{restSeconds}s</div>
-            </div>
-
-            <div className="rounded-2xl border border-white/10 bg-black/20 px-2 py-2">
-              <div className="text-[10px] font-black uppercase tracking-[0.14em] text-white/40">
-                Set
-              </div>
-              <div className="mt-1 text-sm font-black text-white">{setSeconds}s</div>
-            </div>
-
-            <div className="rounded-2xl border border-white/10 bg-black/20 px-2 py-2">
-              <div className="text-[10px] font-black uppercase tracking-[0.14em] text-white/40">
-                Loop
-              </div>
-              <div className="mt-1 text-sm font-black text-white">
-                {autoLoop ? 'On' : 'Off'}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-4 grid gap-2.5 overflow-y-auto pr-1">
+        <div className="mt-4 grid gap-2 overflow-y-auto pr-1">
           <MenuButton
             label="Daily check-in"
-            description="Streak, momentum and your next recommended move."
             onClick={onOpenDaily}
-            icon={<Flame className="h-5 w-5" />}
+            icon={<Flame className="h-4.5 w-4.5" />}
           />
 
           <MenuButton
-            label="History"
-            description="Previous workouts, progress and long-term tracking."
+            label="Workout history"
             onClick={onOpenHistory}
-            icon={<History className="h-5 w-5" />}
+            icon={<History className="h-4.5 w-4.5" />}
           />
 
           <MenuButton
             label="Nutrition"
-            description="Macros, food logging and daily intake targets."
             onClick={onOpenNutrition}
-            icon={<UtensilsCrossed className="h-5 w-5" />}
+            icon={<UtensilsCrossed className="h-4.5 w-4.5" />}
           />
 
           <MenuButton
-            label="Level gallery"
-            description="See every level form in one tighter gallery view."
-            onClick={onOpenGallery}
-            icon={<Sparkles className="h-5 w-5" />}
+            label="Timer"
+            onClick={() => setTimerOpen((current) => !current)}
+            icon={<Clock3 className="h-4.5 w-4.5" />}
           />
+
+          {timerOpen ? (
+            <div className="rounded-[20px] border border-white/10 bg-white/[0.04] px-3 py-3">
+              <div className="grid gap-2">
+                <TimerAdjuster
+                  label="Rest"
+                  value={restSeconds}
+                  onChange={updateRestSeconds}
+                />
+
+                <TimerAdjuster
+                  label="Set"
+                  value={setSeconds}
+                  onChange={updateSetSeconds}
+                />
+
+                <button
+                  onClick={() => updateAutoLoop(!autoLoop)}
+                  className={`flex min-h-[44px] items-center justify-between rounded-[16px] border px-3 py-2 text-left transition ${
+                    autoLoop
+                      ? 'border-lime-400/30 bg-lime-400/10 text-lime-200'
+                      : 'border-white/10 bg-black/20 text-white'
+                  }`}
+                >
+                  <span className="text-[11px] font-black uppercase tracking-[0.14em]">
+                    Auto loop
+                  </span>
+                  <span className="text-xs font-black uppercase tracking-[0.14em]">
+                    {autoLoop ? 'On' : 'Off'}
+                  </span>
+                </button>
+              </div>
+            </div>
+          ) : null}
 
           <MenuButton
             label="Shop"
-            description="Cosmetics, backgrounds and rat identity upgrades."
             onClick={onOpenShop}
-            icon={<ShoppingBag className="h-5 w-5" />}
+            icon={<ShoppingBag className="h-4.5 w-4.5" />}
           />
 
           <MenuButton
             label="Settings"
-            description="Language, profile, contact, bug report, level and goal."
             onClick={onOpenSettings}
-            icon={<Settings className="h-5 w-5" />}
+            icon={<Settings className="h-4.5 w-4.5" />}
           />
 
           <MenuButton
             label="Premium"
-            description={
-              isPremium
-                ? 'Manage premium access and your unlocked progression layer.'
-                : 'Unlock deeper tracking, custom tools and premium identity.'
-            }
             onClick={onOpenPremium}
-            icon={<Crown className="h-5 w-5" />}
+            icon={<Crown className="h-4.5 w-4.5" />}
             accent="premium"
           />
         </div>

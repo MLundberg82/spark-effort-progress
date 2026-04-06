@@ -3,7 +3,6 @@ import {
   ArrowLeft,
   Bug,
   ChevronRight,
-  Dumbbell,
   Globe,
   Mail,
   Ruler,
@@ -44,15 +43,15 @@ function SectionTitle({
   subtitle?: string;
 }) {
   return (
-    <div className="mb-4 flex items-start gap-3">
-      <div className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-lime-300">
+    <div className="mb-3 flex items-start gap-2.5">
+      <div className="mt-0.5 flex h-9 w-9 items-center justify-center rounded-[18px] border border-white/10 bg-white/[0.04] text-lime-300">
         {icon}
       </div>
 
       <div className="min-w-0">
-        <h2 className="text-base font-semibold text-white">{title}</h2>
+        <h2 className="text-[15px] font-semibold text-white">{title}</h2>
         {subtitle ? (
-          <p className="mt-1 text-sm leading-5 text-white/60">{subtitle}</p>
+          <p className="mt-1 text-xs leading-5 text-white/55">{subtitle}</p>
         ) : null}
       </div>
     </div>
@@ -80,7 +79,7 @@ function ToggleCard<T extends string>({
             key={option.value}
             type="button"
             onClick={() => onChange(option.value)}
-            className={`rounded-2xl border px-3 py-2.5 text-left transition ${
+            className={`rounded-[18px] border px-3 py-2 text-left transition ${
               active
                 ? 'border-lime-400/35 bg-lime-400/12 text-white shadow-[0_0_0_1px_rgba(163,230,53,0.08)]'
                 : 'border-white/10 bg-white/[0.04] text-white/75 hover:border-white/20 hover:bg-white/[0.07]'
@@ -88,7 +87,7 @@ function ToggleCard<T extends string>({
           >
             <div className="text-sm font-semibold">{option.label}</div>
             {option.sublabel ? (
-              <div className="mt-1 text-xs leading-4 text-white/50">
+              <div className="mt-0.5 text-[11px] leading-4 text-white/45">
                 {option.sublabel}
               </div>
             ) : null}
@@ -114,7 +113,7 @@ function CompactInput({
 }) {
   return (
     <label className="block">
-      <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-white/45">
+      <div className="mb-1.5 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/42">
         {icon}
         <span>{label}</span>
       </div>
@@ -123,10 +122,10 @@ function CompactInput({
         <input
           value={value}
           onChange={(event) => onChange(event.target.value)}
-          className="w-full rounded-2xl border border-white/10 bg-zinc-950 px-3.5 py-2.5 pr-12 text-sm text-white outline-none transition focus:border-lime-400/50"
+          className="h-11 w-full rounded-[16px] border border-white/10 bg-zinc-950 px-3 py-2 pr-11 text-sm text-white outline-none transition focus:border-lime-400/50"
         />
         {suffix ? (
-          <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-white/35">
+          <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-medium text-white/35">
             {suffix}
           </span>
         ) : null}
@@ -150,18 +149,18 @@ function ActionRow({
     <button
       type="button"
       onClick={onClick}
-      className="flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-left transition hover:border-white/20 hover:bg-white/[0.07]"
+      className="flex w-full items-center gap-3 rounded-[18px] border border-white/10 bg-white/[0.04] px-3.5 py-2.5 text-left transition hover:border-white/20 hover:bg-white/[0.07]"
     >
-      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-zinc-950 text-lime-300">
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[16px] border border-white/10 bg-zinc-950 text-lime-300">
         {icon}
       </div>
 
       <div className="min-w-0 flex-1">
         <div className="text-sm font-semibold text-white">{title}</div>
-        <div className="mt-1 text-xs leading-5 text-white/55">{subtitle}</div>
+        <div className="mt-0.5 text-[11px] leading-4 text-white/50">{subtitle}</div>
       </div>
 
-      <ChevronRight className="h-4 w-4 shrink-0 text-white/30" />
+      <ChevronRight className="h-4 w-4 shrink-0 text-white/28" />
     </button>
   );
 }
@@ -281,67 +280,70 @@ export default function SettingsScreen({ onBack }: SettingsScreenProps) {
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white">
-      <div className="mx-auto flex min-h-screen w-full max-w-3xl flex-col px-4 pb-28 pt-6 sm:px-6">
-        <div className="mb-6 rounded-[28px] border border-white/10 bg-gradient-to-br from-zinc-950 via-zinc-950 to-lime-950/20 p-5 shadow-[0_20px_60px_rgba(0,0,0,0.35)]">
-          <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-lime-400/20 bg-lime-400/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-lime-300">
+      <div className="mx-auto flex min-h-screen w-full max-w-3xl flex-col px-4 pb-28 pt-4 sm:px-6">
+        <div className="mb-4 rounded-[24px] border border-white/10 bg-gradient-to-br from-zinc-950 via-zinc-950 to-lime-950/20 p-4 shadow-[0_18px_50px_rgba(0,0,0,0.32)]">
+          <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-lime-400/20 bg-lime-400/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-lime-300">
             <User className="h-3.5 w-3.5" />
-            Control center
+            Settings
           </div>
 
-          <h1 className="text-2xl font-black tracking-tight text-white">Settings</h1>
-          <p className="mt-2 max-w-xl text-sm leading-6 text-white/60">
-            Language, profile, contact, bug report and training direction.
+          <h1 className="text-[28px] font-black tracking-tight text-white">Settings</h1>
+          <p className="mt-1.5 max-w-xl text-xs leading-5 text-white/58">
+            Profile, language, support and training direction.
           </p>
         </div>
 
-        <div className="space-y-4">
-          <section className="rounded-[28px] border border-white/10 bg-white/[0.04] p-4 sm:p-5">
+        <div className="space-y-3">
+          <section className="rounded-[24px] border border-white/10 bg-white/[0.04] p-3.5 sm:p-4">
             <SectionTitle
-              icon={<User className="h-5 w-5" />}
+              icon={<User className="h-4.5 w-4.5" />}
               title="Profile"
-              subtitle="Age, gender, height and weight from onboarding."
+              subtitle="Compact core profile values."
             />
 
-            <div className="grid gap-3 sm:grid-cols-3">
+            <div className="grid grid-cols-2 gap-2.5">
               <CompactInput
                 label="Height"
                 value={height}
                 onChange={setHeight}
                 suffix="cm"
-                icon={<Ruler className="h-4 w-4" />}
+                icon={<Ruler className="h-3.5 w-3.5" />}
               />
               <CompactInput
                 label="Weight"
                 value={weight}
                 onChange={setWeight}
                 suffix="kg"
-                icon={<Weight className="h-4 w-4" />}
+                icon={<Weight className="h-3.5 w-3.5" />}
               />
               <CompactInput
                 label="Age"
                 value={age}
                 onChange={setAge}
-                icon={<User className="h-4 w-4" />}
+                icon={<User className="h-3.5 w-3.5" />}
               />
-            </div>
 
-            <div className="mt-4">
-              <div className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-white/45">
-                Gender
+              <div>
+                <div className="mb-1.5 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/42">
+                  <User className="h-3.5 w-3.5" />
+                  <span>Gender</span>
+                </div>
+
+                <ToggleCard<ProfileGender>
+                  value={gender}
+                  onChange={(value) => setGender(value)}
+                  options={genderOptions}
+                  columns="grid-cols-1"
+                />
               </div>
-              <ToggleCard<ProfileGender>
-                value={gender}
-                onChange={(value) => setGender(value)}
-                options={genderOptions}
-              />
             </div>
           </section>
 
-          <section className="rounded-[28px] border border-white/10 bg-white/[0.04] p-4 sm:p-5">
+          <section className="rounded-[24px] border border-white/10 bg-white/[0.04] p-3.5 sm:p-4">
             <SectionTitle
-              icon={<Globe className="h-5 w-5" />}
+              icon={<Globe className="h-4.5 w-4.5" />}
               title="Language"
-              subtitle="App language and labels."
+              subtitle="App language."
             />
 
             <ToggleCard<AppLanguage>
@@ -355,68 +357,60 @@ export default function SettingsScreen({ onBack }: SettingsScreenProps) {
             />
           </section>
 
-          <section className="rounded-[28px] border border-white/10 bg-white/[0.04] p-4 sm:p-5">
+          <section className="rounded-[24px] border border-white/10 bg-white/[0.04] p-3.5 sm:p-4">
             <SectionTitle
-              icon={<Target className="h-5 w-5" />}
-              title="Training level / goal"
-              subtitle="Used for recommendations, structure and nutrition targets."
+              icon={<Target className="h-4.5 w-4.5" />}
+              title="Training"
+              subtitle="Goal and level."
             />
 
-            <div className="space-y-4">
+            <div className="grid gap-3">
               <div>
-                <div className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-white/45">
+                <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/42">
                   Goal
                 </div>
                 <ToggleCard<FitnessGoal>
                   value={goal}
                   onChange={(value) => setGoal(value)}
                   options={goalOptions}
+                  columns="grid-cols-1 sm:grid-cols-3"
                 />
               </div>
 
               <div>
-                <div className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-white/45">
+                <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/42">
                   Training level
                 </div>
                 <ToggleCard<TrainingLevel>
                   value={trainingLevelState}
                   onChange={(value) => setTrainingLevelState(value)}
                   options={trainingLevelOptions}
+                  columns="grid-cols-1 sm:grid-cols-3"
                 />
               </div>
             </div>
           </section>
 
-          <section className="rounded-[28px] border border-white/10 bg-white/[0.04] p-4 sm:p-5">
+          <section className="rounded-[24px] border border-white/10 bg-white/[0.04] p-3.5 sm:p-4">
             <SectionTitle
-              icon={<Mail className="h-5 w-5" />}
+              icon={<Mail className="h-4.5 w-4.5" />}
               title="Support"
-              subtitle="Quick contact and bug reporting."
+              subtitle="Contact and bug reporting."
             />
 
-            <div className="space-y-3">
+            <div className="grid gap-2.5">
               <ActionRow
-                icon={<Mail className="h-5 w-5" />}
+                icon={<Mail className="h-4.5 w-4.5" />}
                 title="Contact"
                 subtitle="Questions, feedback or partnerships"
                 onClick={openContact}
               />
               <ActionRow
-                icon={<Bug className="h-5 w-5" />}
+                icon={<Bug className="h-4.5 w-4.5" />}
                 title="Report bug"
                 subtitle="Send screen, steps and device details"
                 onClick={reportBug}
               />
-              <ActionRow
-                icon={<Dumbbell className="h-5 w-5" />}
-                title="Training profile"
-                subtitle="Adjust the way the app guides your progression"
-                onClick={() => {}}
-              />
-            </div>
-
-            <div className="mt-4 rounded-2xl border border-white/10 bg-zinc-950 px-4 py-3 text-sm text-white/60">
-              Contact: <span className="text-white">{CONTACT_EMAIL}</span>
             </div>
           </section>
         </div>
@@ -426,24 +420,24 @@ export default function SettingsScreen({ onBack }: SettingsScreenProps) {
             <button
               type="button"
               onClick={onBack}
-              className="flex flex-1 items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-semibold text-white transition hover:border-white/20 hover:bg-white/[0.07]"
+              className="flex flex-1 items-center justify-center gap-2 rounded-[18px] border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-semibold text-white transition hover:border-white/20 hover:bg-white/[0.07]"
             >
               <ArrowLeft className="h-4 w-4" />
-              Back to menu
+              Back
             </button>
 
             <button
               type="button"
               onClick={handleSave}
-              className="flex flex-[1.2] items-center justify-center gap-2 rounded-2xl border border-lime-400/30 bg-lime-400/15 px-4 py-3 text-sm font-semibold text-lime-200 transition hover:border-lime-300/40 hover:bg-lime-400/20"
+              className="flex flex-[1.15] items-center justify-center gap-2 rounded-[18px] border border-lime-400/30 bg-lime-400/15 px-4 py-3 text-sm font-semibold text-lime-200 transition hover:border-lime-300/40 hover:bg-lime-400/20"
             >
               <Save className="h-4 w-4" />
-              Save settings
+              Save
             </button>
           </div>
 
           {message ? (
-            <div className="mx-auto mt-3 w-full max-w-3xl rounded-2xl border border-lime-400/20 bg-lime-400/10 px-4 py-3 text-center text-sm font-medium text-lime-200">
+            <div className="mx-auto mt-3 w-full max-w-3xl rounded-[18px] border border-lime-400/20 bg-lime-400/10 px-4 py-3 text-center text-sm font-medium text-lime-200">
               {message}
             </div>
           ) : null}

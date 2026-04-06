@@ -27,10 +27,7 @@ import {
   type ExerciseEntry,
   type MuscleGroup,
 } from '@/lib/historyStore';
-import {
-  refreshSmartNotifications,
-  setupDailyReminder,
-} from '@/lib/notifications';
+import { refreshSmartNotifications, setupDailyReminder } from '@/lib/notifications';
 import {
   getProfile,
   getRatVariant,
@@ -137,9 +134,20 @@ const trainingLevelCards: Array<{
   },
 ];
 
+const workoutSelectionCards: Array<{
+  label: string;
+  value?: SupportedFocusArea;
+}> = [
+  { label: 'Chest', value: 'chest' },
+  { label: 'Back', value: 'back' },
+  { label: 'Arms', value: 'arms' },
+  { label: 'Legs', value: 'legs' },
+  { label: 'Walk' },
+];
+
 function getInitialPage(): AppPage {
   if (!hasCompletedOnboarding()) {
-    return 'settings';
+    return 'home';
   }
 
   const state = getAppState();
@@ -463,6 +471,55 @@ function OnboardingScreen({
   );
 }
 
+function WorkoutTypeSelector({
+  onClose,
+  onSelect,
+}: {
+  onClose: () => void;
+  onSelect: (focus?: SupportedFocusArea) => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/72 backdrop-blur-sm">
+      <div className="w-full max-w-2xl rounded-t-[28px] border border-white/10 bg-zinc-950 px-4 pb-5 pt-4 text-white shadow-[0_-20px_60px_rgba(0,0,0,0.45)]">
+        <div className="mx-auto max-w-xl">
+          <div className="mx-auto h-1.5 w-12 rounded-full bg-white/14" />
+
+          <div className="mt-4 text-center">
+            <div className="text-[11px] font-black uppercase tracking-[0.18em] text-white/45">
+              Select workout
+            </div>
+            <h2 className="mt-1 text-2xl font-black tracking-tight text-white">
+              What are you training today?
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-white/60">
+              Choose your focus first so the workout flow starts in the right place.
+            </p>
+          </div>
+
+          <div className="mt-5 grid grid-cols-2 gap-3">
+            {workoutSelectionCards.map((item) => (
+              <button
+                key={item.label}
+                onClick={() => onSelect(item.value)}
+                className="inline-flex min-h-[58px] items-center justify-center rounded-[20px] border border-white/10 bg-white/[0.05] px-4 py-4 text-sm font-black uppercase tracking-[0.14em] text-white transition hover:bg-white/[0.08]"
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+
+          <button
+            onClick={onClose}
+            className="mt-4 inline-flex min-h-[50px] w-full items-center justify-center rounded-[18px] border border-white/10 bg-white/[0.04] px-4 py-3 text-xs font-black uppercase tracking-[0.14em] text-white/70 transition hover:bg-white/[0.07]"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Index() {
   const initialOverlay = getInitialOverlay();
 
@@ -476,6 +533,7 @@ export default function Index() {
   const [pendingWorkoutFocus, setPendingWorkoutFocus] = useState<
     SupportedFocusArea | undefined
   >(undefined);
+  const [selectingWorkout, setSelectingWorkout] = useState(false);
 
   const totalXP = getTotalXP();
   const level = getLevelFromXP(totalXP);
@@ -520,16 +578,19 @@ export default function Index() {
   const closeAllOverlays = () => {
     setMenuOpen(false);
     setPaywallOpen(false);
+    setSelectingWorkout(false);
   };
 
   const navigateTo = (nextPage: AppPage, target: ReturnTarget = 'home') => {
     setReturnTarget(target);
     setPage(nextPage);
     setMenuOpen(false);
+    setSelectingWorkout(false);
   };
 
   const goBack = () => {
     setPaywallOpen(false);
+    setSelectingWorkout(false);
 
     if (returnTarget === 'menu') {
       setPage('home');
@@ -545,6 +606,7 @@ export default function Index() {
     openManualPaywall({
       onOpened: () => {
         setMenuOpen(false);
+        setSelectingWorkout(false);
         setPaywallOpen(true);
       },
     });
@@ -720,13 +782,13 @@ export default function Index() {
 
   return (
     <>
-      <div className="min-h-screen bg-black px-4 pb-6 pt-4 text-white">
-        <div className="mx-auto flex min-h-[calc(100vh-2.5rem)] max-w-2xl flex-col">
-          <div className="relative overflow-hidden rounded-[30px] border border-white/10 bg-gradient-to-b from-white/[0.06] to-white/[0.02] px-3 pt-3 shadow-[0_24px_80px_rgba(0,0,0,0.45)]">
-            <div className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-white/[0.04] to-transparent" />
+      <div className="h-screen overflow-hidden bg-black px-4 pb-4 pt-4 text-white">
+        <div className="mx-auto flex h-full max-w-2xl flex-col">
+          <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-[30px] border border-white/10 bg-gradient-to-b from-white/[0.05] to-white/[0.015] px-3 pt-3 shadow-[0_24px_80px_rgba(0,0,0,0.45)]">
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-white/[0.03] to-transparent" />
 
             <div className="relative z-10 flex items-start justify-between gap-3">
-              <div className="rounded-[20px] border border-white/10 bg-black/35 px-3.5 py-2.5 backdrop-blur-sm">
+              <div className="px-1 pt-1">
                 <div className="text-[10px] font-black uppercase tracking-[0.18em] text-lime-300/80">
                   Current level
                 </div>
@@ -738,7 +800,7 @@ export default function Index() {
 
               <div className="flex items-center gap-2">
                 {premiumActive ? (
-                  <div className="inline-flex h-11 items-center gap-2 rounded-[18px] border border-yellow-300/20 bg-yellow-300/10 px-3 text-[11px] font-black uppercase tracking-[0.14em] text-yellow-100 backdrop-blur-sm">
+                  <div className="inline-flex h-10 items-center gap-2 rounded-[16px] border border-yellow-300/20 bg-yellow-300/10 px-3 text-[11px] font-black uppercase tracking-[0.14em] text-yellow-100 backdrop-blur-sm">
                     <Crown className="h-3.5 w-3.5" />
                     Premium
                   </div>
@@ -746,7 +808,7 @@ export default function Index() {
 
                 <button
                   onClick={() => setMenuOpen(true)}
-                  className="inline-flex h-11 w-11 items-center justify-center rounded-[18px] border border-white/10 bg-black/35 backdrop-blur-sm transition hover:bg-white/[0.09]"
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-[16px] border border-white/10 bg-black/28 backdrop-blur-sm transition hover:bg-white/[0.09]"
                   aria-label="Open menu"
                 >
                   <Menu className="h-5 w-5" />
@@ -754,17 +816,17 @@ export default function Index() {
               </div>
             </div>
 
-            <div className="relative z-0 -mt-2 px-2 pb-2">
+            <div className="relative z-0 -mt-1 flex min-h-0 flex-1 items-end px-1 pb-2">
               <GymRatStage
                 level={level}
                 variant={variant}
                 showMeta={false}
-                className="w-full"
+                className="h-full w-full"
               />
             </div>
           </div>
 
-          <div className="mt-3 rounded-[22px] border border-white/10 bg-white/[0.04] px-4 py-3">
+          <div className="mt-3 shrink-0 rounded-[22px] border border-white/10 bg-white/[0.04] px-4 py-3">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <div className="text-[11px] font-black uppercase tracking-[0.18em] text-white/45">
@@ -789,9 +851,12 @@ export default function Index() {
             </div>
           </div>
 
-          <div className="mt-auto grid gap-3 pt-4">
+          <div className="mt-3 shrink-0 grid gap-3">
             <button
-              onClick={() => handleStartWorkout()}
+              onClick={() => {
+                closeAllOverlays();
+                setSelectingWorkout(true);
+              }}
               className="inline-flex min-h-[56px] items-center justify-center rounded-[24px] bg-lime-300 px-5 py-4 text-sm font-black uppercase tracking-[0.16em] text-black shadow-[0_18px_50px_rgba(163,230,53,0.2)] transition hover:brightness-105"
             >
               Start workout
@@ -843,6 +908,13 @@ export default function Index() {
           onOpenShop={() => navigateTo('shop', 'menu')}
           onOpenSettings={() => navigateTo('settings', 'menu')}
           onOpenPremium={openPremium}
+        />
+      ) : null}
+
+      {selectingWorkout ? (
+        <WorkoutTypeSelector
+          onClose={() => setSelectingWorkout(false)}
+          onSelect={(focus) => handleStartWorkout(focus)}
         />
       ) : null}
 
