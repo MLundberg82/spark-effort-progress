@@ -60,12 +60,16 @@ type WorkoutFlowProps = {
   onComplete: (result: WorkoutCompleteResult) => void;
 };
 
-function toSupportedFocusArea(group: MuscleGroup): WorkoutCompleteResult['focusArea'] {
+function toSupportedFocusArea(
+  group: MuscleGroup,
+): WorkoutCompleteResult['focusArea'] {
   if (group === 'back' || group === 'arms' || group === 'legs') return group;
   return 'chest';
 }
 
-function getPrimaryFocus(exercises: ExerciseDraft[]): WorkoutCompleteResult['focusArea'] {
+function getPrimaryFocus(
+  exercises: ExerciseDraft[],
+): WorkoutCompleteResult['focusArea'] {
   const score: Record<WorkoutCompleteResult['focusArea'], number> = {
     chest: 0,
     back: 0,
@@ -170,7 +174,7 @@ function normalizeExercises(raw: unknown): ExerciseDraft[] {
         return null;
       }
 
-      const muscleGroup =
+      const muscleGroup: MuscleGroup =
         candidate.muscleGroup === 'back' ||
         candidate.muscleGroup === 'arms' ||
         candidate.muscleGroup === 'legs' ||
@@ -183,8 +187,12 @@ function normalizeExercises(raw: unknown): ExerciseDraft[] {
         name: candidate.name,
         muscleGroup,
         sets: candidate.sets.map((set) => ({
-          reps: Number.isFinite(Number(set.reps)) ? Math.max(0, Math.round(Number(set.reps))) : 0,
-          weight: Number.isFinite(Number(set.weight)) ? Math.max(0, Number(set.weight)) : 0,
+          reps: Number.isFinite(Number(set.reps))
+            ? Math.max(0, Math.round(Number(set.reps)))
+            : 0,
+          weight: Number.isFinite(Number(set.weight))
+            ? Math.max(0, Number(set.weight))
+            : 0,
         })),
       } satisfies ExerciseDraft;
     })
@@ -199,14 +207,17 @@ function toExerciseEntries(exercises: ExerciseDraft[]): ExerciseEntry[] {
   }));
 }
 
-export default function WorkoutFlow({ onBack, onComplete }: WorkoutFlowProps) {
+export default function WorkoutFlow({
+  onBack,
+  onComplete,
+}: WorkoutFlowProps) {
   const premium = checkPremium().isActive;
   const recommendedPlan = useMemo(
     () => getRecommendedPlan(getTrainingLevel()),
     [],
   );
-
   const draft = useMemo(() => getWorkoutDraft(), []);
+
   const [startedAt] = useState(draft?.startedAt ?? new Date().toISOString());
   const [workoutName, setWorkoutName] = useState(
     draft?.workoutName ?? recommendedPlan.name,
@@ -215,7 +226,7 @@ export default function WorkoutFlow({ onBack, onComplete }: WorkoutFlowProps) {
   const [planName] = useState(draft?.planName ?? recommendedPlan.name);
   const [dayLabel] = useState(draft?.dayLabel ?? recommendedPlan.days[0]?.label ?? 'Day 1');
   const [expandedExercise, setExpandedExercise] = useState<number | null>(0);
-  const [exercises, setExercises] = useState<ExerciseDraft[]>(
+  const [exercises, setExercises] = useState(
     draft?.exercises && draft.exercises.length > 0
       ? normalizeExercises(draft.exercises)
       : buildExercisesFromPlan(recommendedPlan),
@@ -240,6 +251,10 @@ export default function WorkoutFlow({ onBack, onComplete }: WorkoutFlowProps) {
         exercise.sets.reduce((sum, set) => sum + set.reps * set.weight, 0)
       );
     }, 0);
+  }, [exercises]);
+
+  const totalSets = useMemo(() => {
+    return exercises.reduce((sum, exercise) => sum + exercise.sets.length, 0);
   }, [exercises]);
 
   const updateSet = (
@@ -296,7 +311,9 @@ export default function WorkoutFlow({ onBack, onComplete }: WorkoutFlowProps) {
 
         return {
           ...exercise,
-          sets: exercise.sets.filter((_, currentSetIndex) => currentSetIndex !== setIndex),
+          sets: exercise.sets.filter(
+            (_, currentSetIndex) => currentSetIndex !== setIndex,
+          ),
         };
       }),
     );
@@ -310,8 +327,7 @@ export default function WorkoutFlow({ onBack, onComplete }: WorkoutFlowProps) {
 
     const details = exercises.map((exercise) => {
       const topSet = exercise.sets.reduce(
-        (best, current) =>
-          current.weight > best.weight ? current : best,
+        (best, current) => (current.weight > best.weight ? current : best),
         exercise.sets[0] ?? { reps: 0, weight: 0 },
       );
 
@@ -342,75 +358,114 @@ export default function WorkoutFlow({ onBack, onComplete }: WorkoutFlowProps) {
   };
 
   return (
-    <div className="min-h-screen bg-black px-5 py-5 text-white">
-      <div className="mx-auto max-w-md">
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <button
-            type="button"
-            onClick={onBack}
-            className="inline-flex h-12 items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.05] px-4 text-sm font-black uppercase tracking-[0.14em] text-white transition hover:bg-white/[0.08]"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back
-          </button>
+    <div className="min-h-screen bg-black px-5 pb-8 pt-6 text-white">
+      <div className="mx-auto max-w-2xl">
+        <button
+          onClick={onBack}
+          className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-black text-white/80 transition hover:bg-white/[0.08]"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back
+        </button>
 
-          <div className="inline-flex items-center gap-2 rounded-full border border-lime-300/20 bg-lime-300/10 px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-lime-200">
-            <Dumbbell className="h-3.5 w-3.5" />
-            Workout
-          </div>
-        </div>
-
-        <div className="rounded-[32px] border border-white/10 bg-zinc-950/90 p-5 shadow-[0_24px_90px_rgba(0,0,0,0.48)]">
-          <div className="flex items-start justify-between gap-3">
+        <div className="mt-5 rounded-[30px] border border-white/10 bg-white/[0.04] p-5">
+          <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <div className="text-[11px] font-black uppercase tracking-[0.18em] text-zinc-400">
+              <div className="text-[11px] font-black uppercase tracking-[0.22em] text-lime-300/80">
+                Workout
+              </div>
+              <h1 className="mt-2 text-3xl font-black tracking-tight">
                 Active session
-              </div>
-              <h1 className="mt-1 text-3xl font-black tracking-tight">{workoutName}</h1>
-              <p className="mt-2 text-sm leading-6 text-zinc-300">
+              </h1>
+              <div className="mt-2 text-sm text-white/60">
                 {planName} · {dayLabel}
-              </p>
+              </div>
             </div>
 
-            <div className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-zinc-300">
-              {premium ? 'Premium' : 'Base'}
-            </div>
-          </div>
-
-          <div className="mt-5 space-y-4">
-            <div>
-              <label className="text-sm font-semibold text-zinc-200">Workout name</label>
-              <input
-                value={workoutName}
-                onChange={(event) => setWorkoutName(event.target.value)}
-                className="mt-2 w-full rounded-2xl border border-white/10 bg-zinc-900 px-4 py-3 text-white outline-none transition focus:border-lime-300"
-                placeholder="Push day"
-              />
-            </div>
-
-            <div>
-              <label className="text-sm font-semibold text-zinc-200">Notes</label>
-              <textarea
-                value={notes}
-                onChange={(event) => setNotes(event.target.value)}
-                className="mt-2 min-h-[96px] w-full rounded-2xl border border-white/10 bg-zinc-900 px-4 py-3 text-white outline-none transition focus:border-lime-300"
-                placeholder="Energy, pump, what felt strong..."
-              />
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-white/70">
+              {premium ? (
+                <>
+                  <Crown className="h-3.5 w-3.5" />
+                  Premium
+                </>
+              ) : (
+                <>
+                  <Dumbbell className="h-3.5 w-3.5" />
+                  Base
+                </>
+              )}
             </div>
           </div>
 
-          <div className="mt-5 rounded-[24px] border border-white/10 bg-white/[0.04] p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-[11px] font-black uppercase tracking-[0.18em] text-zinc-400">
-                  Autosave
+          <div className="mt-5 grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
+            <div className="rounded-[24px] border border-white/10 bg-black/20 p-4">
+              <label className="block">
+                <div className="text-xs font-black uppercase tracking-[0.14em] text-zinc-400">
+                  Workout name
                 </div>
-                <div className="mt-1 text-lg font-black">Draft active</div>
+                <input
+                  value={workoutName}
+                  onChange={(event) => setWorkoutName(event.target.value)}
+                  className="mt-2 w-full rounded-2xl border border-white/10 bg-zinc-900 px-4 py-3 text-white outline-none transition focus:border-lime-300"
+                  placeholder="Push day"
+                />
+              </label>
+
+              <label className="mt-4 block">
+                <div className="text-xs font-black uppercase tracking-[0.14em] text-zinc-400">
+                  Notes
+                </div>
+                <textarea
+                  value={notes}
+                  onChange={(event) => setNotes(event.target.value)}
+                  className="mt-2 min-h-[96px] w-full rounded-2xl border border-white/10 bg-zinc-900 px-4 py-3 text-white outline-none transition focus:border-lime-300"
+                  placeholder="Energy, pump, what felt strong..."
+                />
+              </label>
+            </div>
+
+            <div className="rounded-[24px] border border-white/10 bg-white/[0.04] p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-[11px] font-black uppercase tracking-[0.18em] text-zinc-400">
+                    Autosave
+                  </div>
+                  <div className="mt-1 text-lg font-black">Draft active</div>
+                </div>
+
+                <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-zinc-300">
+                  <Save className="h-3.5 w-3.5" />
+                  Safe
+                </div>
               </div>
 
-              <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-zinc-300">
-                <Save className="h-3.5 w-3.5" />
-                Safe
+              <div className="mt-4 grid grid-cols-2 gap-3">
+                <div className="rounded-[20px] border border-white/10 bg-black/20 px-4 py-3">
+                  <div className="text-[10px] font-black uppercase tracking-[0.18em] text-zinc-400">
+                    Exercises
+                  </div>
+                  <div className="mt-1 text-2xl font-black text-white">
+                    {exercises.length}
+                  </div>
+                </div>
+
+                <div className="rounded-[20px] border border-white/10 bg-black/20 px-4 py-3">
+                  <div className="text-[10px] font-black uppercase tracking-[0.18em] text-zinc-400">
+                    Sets
+                  </div>
+                  <div className="mt-1 text-2xl font-black text-white">
+                    {totalSets}
+                  </div>
+                </div>
+
+                <div className="col-span-2 rounded-[20px] border border-white/10 bg-black/20 px-4 py-3">
+                  <div className="text-[10px] font-black uppercase tracking-[0.18em] text-zinc-400">
+                    Volume
+                  </div>
+                  <div className="mt-1 text-2xl font-black text-white">
+                    {Math.round(totalVolume)}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -421,7 +476,6 @@ export default function WorkoutFlow({ onBack, onComplete }: WorkoutFlowProps) {
                 premium && exercise.muscleGroup !== 'core'
                   ? getSuggestedWeight(exercise.name)
                   : null;
-
               const expanded = expandedExercise === exerciseIndex;
 
               return (
@@ -442,6 +496,7 @@ export default function WorkoutFlow({ onBack, onComplete }: WorkoutFlowProps) {
                       <div className="text-[11px] font-black uppercase tracking-[0.18em] text-zinc-400">
                         {exercise.muscleGroup}
                       </div>
+
                       <div className="mt-1 text-xl font-black tracking-tight text-white">
                         {exercise.name}
                       </div>
@@ -544,22 +599,6 @@ export default function WorkoutFlow({ onBack, onComplete }: WorkoutFlowProps) {
                 </div>
               );
             })}
-          </div>
-
-          <div className="mt-5 grid grid-cols-2 gap-3">
-            <div className="rounded-[22px] border border-white/10 bg-white/[0.04] px-4 py-3">
-              <div className="text-[10px] font-black uppercase tracking-[0.18em] text-zinc-400">
-                Exercises
-              </div>
-              <div className="mt-1 text-2xl font-black text-white">{exercises.length}</div>
-            </div>
-
-            <div className="rounded-[22px] border border-white/10 bg-white/[0.04] px-4 py-3">
-              <div className="text-[10px] font-black uppercase tracking-[0.18em] text-zinc-400">
-                Volume
-              </div>
-              <div className="mt-1 text-2xl font-black text-white">{Math.round(totalVolume)}</div>
-            </div>
           </div>
 
           <button

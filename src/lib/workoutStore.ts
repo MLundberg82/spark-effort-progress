@@ -30,8 +30,9 @@ function isBrowser() {
 function sanitizeSet(value: unknown): DraftSet | null {
   if (!value || typeof value !== 'object') return null;
 
-  const reps = Number((value as DraftSet).reps);
-  const weight = Number((value as DraftSet).weight);
+  const raw = value as Partial<DraftSet>;
+  const reps = Number(raw.reps);
+  const weight = Number(raw.weight);
 
   return {
     reps: Number.isFinite(reps) ? Math.max(0, Math.round(reps)) : 0,
@@ -43,7 +44,11 @@ function sanitizeExercise(value: unknown): DraftExercise | null {
   if (!value || typeof value !== 'object') return null;
 
   const raw = value as Partial<DraftExercise>;
-  const name = typeof raw.name === 'string' && raw.name.trim().length > 0 ? raw.name : null;
+  const name =
+    typeof raw.name === 'string' && raw.name.trim().length > 0
+      ? raw.name.trim()
+      : null;
+
   const sets = Array.isArray(raw.sets)
     ? raw.sets.map(sanitizeSet).filter((set): set is DraftSet => Boolean(set))
     : [];
@@ -52,7 +57,10 @@ function sanitizeExercise(value: unknown): DraftExercise | null {
 
   return {
     name,
-    muscleGroup: typeof raw.muscleGroup === 'string' ? raw.muscleGroup : undefined,
+    muscleGroup:
+      typeof raw.muscleGroup === 'string' && raw.muscleGroup.trim().length > 0
+        ? raw.muscleGroup
+        : undefined,
     sets,
   };
 }
@@ -61,26 +69,30 @@ function sanitizeDraft(value: unknown): WorkoutDraft | null {
   if (!value || typeof value !== 'object') return null;
 
   const raw = value as Partial<WorkoutDraft>;
-  if (typeof raw.startedAt !== 'string' || raw.startedAt.length === 0) {
+
+  if (typeof raw.startedAt !== 'string' || raw.startedAt.trim().length === 0) {
     return null;
   }
+
+  const exercises = Array.isArray(raw.exercises)
+    ? raw.exercises
+        .map(sanitizeExercise)
+        .filter((exercise): exercise is DraftExercise => Boolean(exercise))
+    : undefined;
 
   return {
     startedAt: raw.startedAt,
     updatedAt:
-      typeof raw.updatedAt === 'string' && raw.updatedAt.length > 0
+      typeof raw.updatedAt === 'string' && raw.updatedAt.trim().length > 0
         ? raw.updatedAt
         : raw.startedAt,
-    workoutName: typeof raw.workoutName === 'string' ? raw.workoutName : undefined,
+    workoutName:
+      typeof raw.workoutName === 'string' ? raw.workoutName : undefined,
     notes: typeof raw.notes === 'string' ? raw.notes : undefined,
     planName: typeof raw.planName === 'string' ? raw.planName : undefined,
     dayLabel: typeof raw.dayLabel === 'string' ? raw.dayLabel : undefined,
     isCustom: typeof raw.isCustom === 'boolean' ? raw.isCustom : undefined,
-    exercises: Array.isArray(raw.exercises)
-      ? raw.exercises
-          .map(sanitizeExercise)
-          .filter((exercise): exercise is DraftExercise => Boolean(exercise))
-      : undefined,
+    exercises,
   };
 }
 

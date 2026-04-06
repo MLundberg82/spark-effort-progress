@@ -5,14 +5,25 @@ import AppMenu from '@/components/AppMenu';
 import DailyCheckInScreen from '@/components/DailyCheckInScreen';
 import GymRatGallery from '@/components/GymRatGallery';
 import GymRatStage from '@/components/GymRatStage';
+import PremiumPaywall from '@/components/PremiumPaywall';
 import RatShop from '@/components/RatShop';
+import SettingsScreen from '@/components/SettingsScreen';
 import WorkoutComplete from '@/components/WorkoutComplete';
 import WorkoutFlow from '@/components/WorkoutFlow';
 
-import PremiumPaywall from '@/components/PremiumPaywall';
 import { getAppState, setAppState } from '@/lib/appStore';
-import { addXP, getLevelFromXP, getProgressPercent, getTotalXP } from '@/lib/gamificationStore';
-import { addWorkoutHistory, detectPRs, type ExerciseEntry, type MuscleGroup } from '@/lib/historyStore';
+import {
+  addXP,
+  getLevelFromXP,
+  getProgressPercent,
+  getTotalXP,
+} from '@/lib/gamificationStore';
+import {
+  addWorkoutHistory,
+  detectPRs,
+  type ExerciseEntry,
+  type MuscleGroup,
+} from '@/lib/historyStore';
 import {
   refreshSmartNotifications,
   setupDailyReminder,
@@ -26,8 +37,8 @@ import {
   type ProfileGender,
 } from '@/lib/profileStore';
 import {
-  maybeOpenNutritionPaywall,
   maybeOpenHistoryPaywall,
+  maybeOpenNutritionPaywall,
   maybeOpenPRPaywall,
   openManualPaywall,
 } from '@/lib/paywallTriggers';
@@ -45,6 +56,8 @@ type AppPage =
   | 'nutrition'
   | 'settings';
 
+type SupportedFocusArea = Extract<MuscleGroup, 'chest' | 'back' | 'arms' | 'legs'>;
+
 type WorkoutExerciseDetail = {
   exercise: string;
   sets: number;
@@ -58,7 +71,7 @@ type WorkoutCompleteResult = {
   durationMinutes: number;
   exercisesCompleted: number;
   volume: number;
-  focusArea: Extract<MuscleGroup, 'chest' | 'back' | 'arms' | 'legs'>;
+  focusArea: SupportedFocusArea;
   details: WorkoutExerciseDetail[];
 };
 
@@ -86,37 +99,18 @@ type OnboardingProfile = {
   goal: FitnessGoal;
 };
 
-const DAILY_CHECKIN_DISMISS_KEY = 'gymrat-daily-checkin-dismissed-date';
-
-function isBrowser() {
-  return typeof window !== 'undefined';
-}
-
-function getTodayKey() {
-  return new Date().toISOString().slice(0, 10);
-}
-
-function shouldShowDailyCheckIn(): boolean {
-  if (!isBrowser()) return false;
-  return localStorage.getItem(DAILY_CHECKIN_DISMISS_KEY) !== getTodayKey();
-}
-
-function dismissDailyCheckInToday() {
-  if (!isBrowser()) return;
-  localStorage.setItem(DAILY_CHECKIN_DISMISS_KEY, getTodayKey());
-}
-
 function buildXPReward(result: WorkoutCompleteResult) {
   const baseXP = 40;
   const exerciseXP = result.exercisesCompleted * 8;
   const volumeXP = Math.min(120, Math.round(result.volume / 250));
   const durationXP = Math.min(40, result.durationMinutes);
+
   return baseXP + exerciseXP + volumeXP + durationXP;
 }
 
 function mapDetailsToHistoryExercises(
   details: WorkoutExerciseDetail[],
-  focusArea: WorkoutCompleteResult['focusArea'],
+  focusArea: SupportedFocusArea,
 ): ExerciseEntry[] {
   return details.map((detail) => ({
     name: detail.exercise,
@@ -135,23 +129,21 @@ function PlaceholderScreen({
   premiumHint = false,
 }: PlaceholderScreenProps) {
   return (
-    <div className="min-h-screen bg-black px-5 py-6 text-white">
+    <div className="min-h-screen bg-black px-5 pb-8 pt-6 text-white">
       <button
-        type="button"
         onClick={onBack}
-        className="mb-6 inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-2 text-sm font-semibold"
+        className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-black text-white/80 transition hover:bg-white/[0.08]"
       >
         ← Back
       </button>
 
-      <div className="rounded-[32px] border border-white/10 bg-zinc-950/90 p-6 shadow-[0_20px_80px_rgba(0,0,0,0.45)]">
-        <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-lime-300/20 bg-lime-300/10 px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-lime-200">
-          <Sparkles className="h-3.5 w-3.5" />
+      <div className="mx-auto mt-6 max-w-xl rounded-[28px] border border-white/10 bg-white/[0.04] p-6">
+        <div className="text-xs font-black uppercase tracking-[0.22em] text-lime-300/80">
           Production-safe placeholder
         </div>
 
-        <h1 className="text-2xl font-black tracking-tight">{title}</h1>
-        <p className="mt-3 max-w-md text-sm leading-6 text-zinc-300">{body}</p>
+        <h1 className="mt-3 text-3xl font-black tracking-tight">{title}</h1>
+        <p className="mt-3 text-sm leading-6 text-white/70">{body}</p>
 
         {premiumHint ? (
           <div className="mt-5 rounded-2xl border border-yellow-300/20 bg-yellow-300/10 px-4 py-3 text-sm text-yellow-100">
@@ -179,54 +171,59 @@ function OnboardingScreen({
   });
 
   return (
-    <div className="min-h-screen bg-black px-5 py-6 text-white">
-      <div className="mx-auto max-w-md rounded-[32px] border border-white/10 bg-zinc-950/90 p-6 shadow-[0_24px_90px_rgba(0,0,0,0.48)]">
-        <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-lime-300/20 bg-lime-300/10 px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-lime-200">
-          <Flame className="h-3.5 w-3.5" />
+    <div className="min-h-screen bg-black px-5 pb-8 pt-8 text-white">
+      <div className="mx-auto max-w-xl rounded-[32px] border border-white/10 bg-gradient-to-b from-white/[0.06] to-white/[0.03] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.45)]">
+        <div className="text-xs font-black uppercase tracking-[0.22em] text-lime-300/80">
           GymRat setup
         </div>
 
-        <h1 className="text-3xl font-black tracking-tight">Build your rat</h1>
-        <p className="mt-3 text-sm leading-6 text-zinc-300">
+        <h1 className="mt-3 text-4xl font-black tracking-tight">Build your rat</h1>
+        <p className="mt-3 text-sm leading-6 text-white/70">
           First-time setup only. Keep it simple, save it clean, and get straight into the app.
         </p>
 
-        <div className="mt-6 space-y-4">
-          <div>
-            <label className="text-sm font-semibold text-zinc-200">Height (cm)</label>
+        <div className="mt-6 grid gap-4 sm:grid-cols-2">
+          <label className="block">
+            <span className="text-sm font-bold text-white/80">Height (cm)</span>
             <input
               value={form.height}
-              onChange={(event) => setForm((current) => ({ ...current, height: event.target.value }))}
+              onChange={(event) =>
+                setForm((current) => ({ ...current, height: event.target.value }))
+              }
               inputMode="numeric"
               className="mt-2 w-full rounded-2xl border border-white/10 bg-zinc-900 px-4 py-3 text-white outline-none transition focus:border-lime-300"
               placeholder="180"
             />
-          </div>
+          </label>
 
-          <div>
-            <label className="text-sm font-semibold text-zinc-200">Weight (kg)</label>
+          <label className="block">
+            <span className="text-sm font-bold text-white/80">Weight (kg)</span>
             <input
               value={form.weight}
-              onChange={(event) => setForm((current) => ({ ...current, weight: event.target.value }))}
+              onChange={(event) =>
+                setForm((current) => ({ ...current, weight: event.target.value }))
+              }
               inputMode="numeric"
               className="mt-2 w-full rounded-2xl border border-white/10 bg-zinc-900 px-4 py-3 text-white outline-none transition focus:border-lime-300"
               placeholder="80"
             />
-          </div>
+          </label>
 
-          <div>
-            <label className="text-sm font-semibold text-zinc-200">Age</label>
+          <label className="block">
+            <span className="text-sm font-bold text-white/80">Age</span>
             <input
               value={form.age}
-              onChange={(event) => setForm((current) => ({ ...current, age: event.target.value }))}
+              onChange={(event) =>
+                setForm((current) => ({ ...current, age: event.target.value }))
+              }
               inputMode="numeric"
               className="mt-2 w-full rounded-2xl border border-white/10 bg-zinc-900 px-4 py-3 text-white outline-none transition focus:border-lime-300"
               placeholder="28"
             />
-          </div>
+          </label>
 
-          <div>
-            <label className="text-sm font-semibold text-zinc-200">Gender</label>
+          <label className="block">
+            <span className="text-sm font-bold text-white/80">Gender</span>
             <select
               value={form.gender}
               onChange={(event) =>
@@ -241,29 +238,28 @@ function OnboardingScreen({
               <option value="female">Female</option>
               <option value="non-binary">Non-binary</option>
             </select>
-          </div>
-
-          <div>
-            <label className="text-sm font-semibold text-zinc-200">Goal</label>
-            <select
-              value={form.goal}
-              onChange={(event) =>
-                setForm((current) => ({
-                  ...current,
-                  goal: event.target.value as FitnessGoal,
-                }))
-              }
-              className="mt-2 w-full rounded-2xl border border-white/10 bg-zinc-900 px-4 py-3 text-white outline-none transition focus:border-lime-300"
-            >
-              <option value="gain">Build muscle</option>
-              <option value="maintain">Maintain</option>
-              <option value="lose">Lose fat</option>
-            </select>
-          </div>
+          </label>
         </div>
 
+        <label className="mt-4 block">
+          <span className="text-sm font-bold text-white/80">Goal</span>
+          <select
+            value={form.goal}
+            onChange={(event) =>
+              setForm((current) => ({
+                ...current,
+                goal: event.target.value as FitnessGoal,
+              }))
+            }
+            className="mt-2 w-full rounded-2xl border border-white/10 bg-zinc-900 px-4 py-3 text-white outline-none transition focus:border-lime-300"
+          >
+            <option value="gain">Build muscle</option>
+            <option value="maintain">Maintain</option>
+            <option value="lose">Lose fat</option>
+          </select>
+        </label>
+
         <button
-          type="button"
           onClick={() => onComplete(form)}
           className="mt-6 inline-flex min-h-[56px] w-full items-center justify-center rounded-[24px] bg-lime-300 px-5 py-3 text-sm font-black uppercase tracking-[0.16em] text-black shadow-[0_18px_50px_rgba(163,230,53,0.2)] transition hover:brightness-105"
         >
@@ -276,21 +272,22 @@ function OnboardingScreen({
 
 export default function Index() {
   const initialAppState = useMemo(() => getAppState(), []);
+
   const [page, setPage] = useState<AppPage>(
     hasCompletedOnboarding() ? initialAppState.page : 'settings',
   );
   const [menuOpen, setMenuOpen] = useState(initialAppState.overlay === 'menu');
   const [paywallOpen, setPaywallOpen] = useState(initialAppState.overlay === 'paywall');
-  const [showDaily, setShowDaily] = useState(
-    initialAppState.showDailyCheckIn && hasCompletedOnboarding(),
-  );
   const [lastSummary, setLastSummary] = useState<WorkoutCompleteSummary | null>(null);
   const [profileVersion, setProfileVersion] = useState(0);
   const [premiumVersion, setPremiumVersion] = useState(0);
 
   const totalXP = useMemo(() => getTotalXP(), [lastSummary, profileVersion]);
   const level = useMemo(() => getLevelFromXP(totalXP), [totalXP]);
-  const progressPercent = useMemo(() => getProgressPercent(totalXP), [totalXP]);
+  const progressPercent = useMemo(
+    () => Math.round(getProgressPercent(totalXP)),
+    [totalXP],
+  );
   const premiumActive = useMemo(() => checkPremium().isActive, [premiumVersion]);
   const variant = useMemo(() => getRatVariant(), [profileVersion]);
 
@@ -300,40 +297,37 @@ export default function Index() {
 
     if (!hasCompletedOnboarding()) {
       setPage('settings');
-      setShowDaily(false);
       return;
     }
 
-    if (shouldShowDailyCheckIn()) {
-      setShowDaily(true);
-      setAppState({ page: 'daily', showDailyCheckIn: true, overlay: 'none' });
-      setPage('daily');
-    } else {
-      setShowDaily(false);
-      setAppState({ page: 'home', showDailyCheckIn: false, overlay: 'none' });
-      setPage('home');
-    }
-  }, []);
+    setPage(initialAppState.page === 'daily' ? 'home' : initialAppState.page);
+  }, [initialAppState.page]);
 
   useEffect(() => {
     setAppState({
       page,
       overlay: menuOpen ? 'menu' : paywallOpen ? 'paywall' : 'none',
-      showDailyCheckIn: showDaily,
+      showDailyCheckIn: false,
     });
-  }, [page, menuOpen, paywallOpen, showDaily]);
+  }, [page, menuOpen, paywallOpen]);
 
   useEffect(() => {
     const syncPremium = () => setPremiumVersion((value) => value + 1);
+    const syncProfile = () => setProfileVersion((value) => value + 1);
 
     window.addEventListener('storage', syncPremium);
     window.addEventListener('focus', syncPremium);
     window.addEventListener('premium-updated', syncPremium as EventListener);
+    window.addEventListener('gymrat-profile-updated', syncProfile as EventListener);
 
     return () => {
       window.removeEventListener('storage', syncPremium);
       window.removeEventListener('focus', syncPremium);
       window.removeEventListener('premium-updated', syncPremium as EventListener);
+      window.removeEventListener(
+        'gymrat-profile-updated',
+        syncProfile as EventListener,
+      );
     };
   }, []);
 
@@ -344,7 +338,6 @@ export default function Index() {
 
   const openHome = () => {
     closeAllOverlays();
-    setShowDaily(false);
     setPage('home');
   };
 
@@ -368,25 +361,11 @@ export default function Index() {
     });
 
     setProfileVersion((value) => value + 1);
-
-    if (shouldShowDailyCheckIn()) {
-      setShowDaily(true);
-      setPage('daily');
-    } else {
-      setShowDaily(false);
-      setPage('home');
-    }
-  };
-
-  const handleDismissDaily = () => {
-    dismissDailyCheckInToday();
-    setShowDaily(false);
     setPage('home');
   };
 
   const handleStartWorkout = () => {
     closeAllOverlays();
-    setShowDaily(false);
     setPage('workout');
   };
 
@@ -420,7 +399,7 @@ export default function Index() {
 
     await refreshSmartNotifications();
 
-    if (prs.length > 0 && !premiumActive) {
+    if (prs.length > 0 && !checkPremium().isActive) {
       maybeOpenPRPaywall({
         onOpened: () => setPaywallOpen(true),
       });
@@ -433,10 +412,10 @@ export default function Index() {
 
   if (page === 'workout') {
     return (
-      <WorkoutFlow
-        onBack={openHome}
-        onComplete={handleCompleteWorkout}
-      />
+      <>
+        <WorkoutFlow onBack={openHome} onComplete={handleCompleteWorkout} />
+        <PremiumPaywall isOpen={paywallOpen} onClose={() => setPaywallOpen(false)} />
+      </>
     );
   }
 
@@ -444,74 +423,110 @@ export default function Index() {
     return (
       <>
         <WorkoutComplete
-          summary={lastSummary}
+          summary={{
+            durationMinutes: lastSummary.durationMinutes,
+            exercisesCompleted: lastSummary.exercisesCompleted,
+            volume: lastSummary.volume,
+            prs: lastSummary.prs,
+          }}
           onContinue={openHome}
-          onOpenPaywall={openPremium}
         />
-        <PremiumPaywall open={paywallOpen} onClose={() => setPaywallOpen(false)} />
+        <PremiumPaywall isOpen={paywallOpen} onClose={() => setPaywallOpen(false)} />
       </>
     );
   }
 
   if (page === 'gallery') {
-    return <GymRatGallery onBack={openHome} />;
+    return (
+      <>
+        <GymRatGallery onBack={openHome} />
+        <PremiumPaywall isOpen={paywallOpen} onClose={() => setPaywallOpen(false)} />
+      </>
+    );
   }
 
   if (page === 'shop') {
-    return <RatShop onBack={openHome} onOpenPremium={openPremium} />;
+    return (
+      <>
+        <RatShop onBack={openHome} onOpenPremium={openPremium} />
+        <PremiumPaywall isOpen={paywallOpen} onClose={() => setPaywallOpen(false)} />
+      </>
+    );
   }
 
   if (page === 'history') {
     return (
-      <PlaceholderScreen
-        title="Workout history"
-        body="History stays reachable without broken navigation, but it is now properly routed through the premium trigger layer when locked."
-        onBack={openHome}
-        premiumHint
-      />
+      <>
+        <PlaceholderScreen
+          title="History"
+          body="Workout history is connected through the new premium trigger layer and ready for the next production-safe pass."
+          onBack={openHome}
+          premiumHint
+        />
+        <PremiumPaywall isOpen={paywallOpen} onClose={() => setPaywallOpen(false)} />
+      </>
     );
   }
 
   if (page === 'nutrition') {
     return (
-      <PlaceholderScreen
-        title="Nutrition"
-        body="Nutrition stays reachable without broken navigation, but it is now properly routed through the premium trigger layer when locked."
-        onBack={openHome}
-        premiumHint
-      />
+      <>
+        <PlaceholderScreen
+          title="Nutrition"
+          body="Nutrition remains available through the premium trigger flow and is ready for the next compact production-safe screen."
+          onBack={openHome}
+          premiumHint
+        />
+        <PremiumPaywall isOpen={paywallOpen} onClose={() => setPaywallOpen(false)} />
+      </>
     );
   }
 
   if (page === 'settings') {
     return (
-      <OnboardingScreen
-        onComplete={handleOnboardingComplete}
-      />
+      <>
+        <SettingsScreen onBack={openHome} />
+        <PremiumPaywall isOpen={paywallOpen} onClose={() => setPaywallOpen(false)} />
+      </>
     );
   }
 
-  if (page === 'daily' && showDaily) {
+  if (page === 'daily') {
     return (
-      <DailyCheckInScreen
-        onClose={handleDismissDaily}
-        onStartWorkout={() => handleStartWorkout()}
-      />
+      <>
+        <DailyCheckInScreen
+          onClose={openHome}
+          onStartWorkout={() => handleStartWorkout()}
+        />
+        <PremiumPaywall isOpen={paywallOpen} onClose={() => setPaywallOpen(false)} />
+      </>
     );
   }
 
   return (
     <>
-      <div className="min-h-screen bg-black px-5 pb-8 pt-5 text-white">
-        <div className="mx-auto flex min-h-[calc(100vh-2.5rem)] max-w-md flex-col">
-          <div className="mb-4 flex items-center justify-between">
-            <div className="inline-flex items-center gap-2 rounded-full border border-lime-300/20 bg-lime-300/10 px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-lime-200">
-              <Flame className="h-3.5 w-3.5" />
-              Level up in real life
+      <div className="min-h-screen bg-black px-5 pb-8 pt-6 text-white">
+        <div className="mx-auto max-w-2xl">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <div className="text-xs font-black uppercase tracking-[0.2em] text-lime-300/80">
+                Current form
+              </div>
+              <div className="mt-2 flex items-center gap-2 text-white">
+                <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-sm font-black">
+                  <Flame className="h-4 w-4" />
+                  LVL {level}
+                </span>
+                {premiumActive ? (
+                  <span className="inline-flex items-center gap-2 rounded-full border border-yellow-300/20 bg-yellow-300/10 px-3 py-1 text-xs font-black uppercase tracking-[0.12em] text-yellow-100">
+                    <Crown className="h-3.5 w-3.5" />
+                    Premium
+                  </span>
+                ) : null}
+              </div>
             </div>
 
             <button
-              type="button"
               onClick={() => setMenuOpen(true)}
               className="inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.06] transition hover:bg-white/[0.09]"
               aria-label="Open menu"
@@ -520,90 +535,65 @@ export default function Index() {
             </button>
           </div>
 
-          <div className="relative overflow-hidden rounded-[34px] border border-white/10 bg-zinc-950/90 px-5 pb-6 pt-5 shadow-[0_24px_90px_rgba(0,0,0,0.48)]">
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(163,230,53,0.12),transparent_35%),radial-gradient(circle_at_bottom,rgba(255,255,255,0.05),transparent_30%)]" />
+          <div className="mt-5">
+            <GymRatStage
+              level={level}
+              variant={variant}
+              showMeta={false}
+              className="w-full"
+            />
+          </div>
 
-            <div className="relative z-10">
-              <div className="mb-2 flex items-center justify-between">
-                <div>
-                  <div className="text-[11px] font-black uppercase tracking-[0.18em] text-zinc-400">
-                    Current form
-                  </div>
-                  <div className="mt-1 text-2xl font-black tracking-tight">LVL {level}</div>
-                </div>
-
-                <div className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-xs font-semibold text-zinc-300">
-                  {premiumActive ? 'Premium active' : 'Base mode'}
-                </div>
+          <div className="mt-5 grid grid-cols-2 gap-3">
+            <div className="rounded-[24px] border border-white/10 bg-white/[0.04] p-4">
+              <div className="text-[11px] font-black uppercase tracking-[0.18em] text-white/45">
+                XP progress
               </div>
-
-              <GymRatStage
-                level={level}
-                variant={variant}
-                compact={false}
-                showMeta={false}
-                className="mt-2"
-              />
-
-              <div className="mt-5">
-                <div className="mb-2 flex items-center justify-between text-xs font-semibold uppercase tracking-[0.14em] text-zinc-400">
-                  <span>XP progress</span>
-                  <span>{progressPercent}%</span>
-                </div>
-
-                <div className="h-3 overflow-hidden rounded-full bg-white/10">
-                  <div
-                    className="h-full rounded-full bg-lime-300 transition-all duration-500"
-                    style={{ width: `${progressPercent}%` }}
-                  />
-                </div>
+              <div className="mt-2 text-3xl font-black tracking-tight">
+                {progressPercent}%
               </div>
-
-              <div className="mt-5 grid grid-cols-2 gap-3">
-                <div className="rounded-[24px] border border-white/10 bg-white/[0.04] px-4 py-3">
-                  <div className="flex items-center gap-2 text-zinc-300">
-                    <Sparkles className="h-4 w-4" />
-                    <span className="text-xs font-bold uppercase tracking-[0.14em]">Total XP</span>
-                  </div>
-                  <div className="mt-2 text-2xl font-black">{totalXP}</div>
-                </div>
-
-                <div className="rounded-[24px] border border-white/10 bg-white/[0.04] px-4 py-3">
-                  <div className="flex items-center gap-2 text-zinc-300">
-                    <Crown className="h-4 w-4" />
-                    <span className="text-xs font-bold uppercase tracking-[0.14em]">Status</span>
-                  </div>
-                  <div className="mt-2 text-base font-black">
-                    {premiumActive ? 'Premium unlocked' : 'Ready to upgrade'}
-                  </div>
-                </div>
+              <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-white/10">
+                <div
+                  className="h-full rounded-full bg-lime-300 transition-[width] duration-500"
+                  style={{ width: `${Math.max(0, Math.min(100, progressPercent))}%` }}
+                />
               </div>
+            </div>
 
+            <div className="rounded-[24px] border border-white/10 bg-white/[0.04] p-4">
+              <div className="text-[11px] font-black uppercase tracking-[0.18em] text-white/45">
+                Total XP
+              </div>
+              <div className="mt-2 text-3xl font-black tracking-tight">{totalXP}</div>
+              <div className="mt-3 inline-flex items-center gap-2 text-xs font-bold text-white/55">
+                <Sparkles className="h-3.5 w-3.5" />
+                {premiumActive ? 'Premium unlocked' : 'Ready to upgrade'}
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-5 grid gap-3">
+            <button
+              onClick={handleStartWorkout}
+              className="inline-flex min-h-[58px] items-center justify-center rounded-[26px] bg-lime-300 px-5 py-4 text-sm font-black uppercase tracking-[0.16em] text-black shadow-[0_18px_50px_rgba(163,230,53,0.2)] transition hover:brightness-105"
+            >
+              Start workout
+            </button>
+
+            <div className="grid grid-cols-2 gap-3">
               <button
-                type="button"
-                onClick={handleStartWorkout}
-                className="mt-5 inline-flex min-h-[58px] w-full items-center justify-center rounded-[24px] bg-lime-300 px-5 py-3 text-sm font-black uppercase tracking-[0.16em] text-black shadow-[0_18px_50px_rgba(163,230,53,0.2)] transition hover:brightness-105"
+                onClick={() => setPage('gallery')}
+                className="inline-flex min-h-[52px] items-center justify-center rounded-[22px] border border-white/10 bg-white/[0.05] px-4 py-3 text-sm font-black uppercase tracking-[0.12em] text-white transition hover:bg-white/[0.08]"
               >
-                Start workout
+                Level gallery
               </button>
 
-              <div className="mt-3 grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => setPage('gallery')}
-                  className="inline-flex min-h-[52px] items-center justify-center rounded-[22px] border border-white/10 bg-white/[0.05] px-4 py-3 text-sm font-black uppercase tracking-[0.12em] text-white transition hover:bg-white/[0.08]"
-                >
-                  Level gallery
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setPage('shop')}
-                  className="inline-flex min-h-[52px] items-center justify-center rounded-[22px] border border-white/10 bg-white/[0.05] px-4 py-3 text-sm font-black uppercase tracking-[0.12em] text-white transition hover:bg-white/[0.08]"
-                >
-                  Shop
-                </button>
-              </div>
+              <button
+                onClick={() => setPage('shop')}
+                className="inline-flex min-h-[52px] items-center justify-center rounded-[22px] border border-white/10 bg-white/[0.05] px-4 py-3 text-sm font-black uppercase tracking-[0.12em] text-white transition hover:bg-white/[0.08]"
+              >
+                Shop
+              </button>
             </div>
           </div>
         </div>
@@ -615,7 +605,6 @@ export default function Index() {
           onClose={() => setMenuOpen(false)}
           onOpenDaily={() => {
             setMenuOpen(false);
-            setShowDaily(true);
             setPage('daily');
           }}
           onOpenHistory={() => {
@@ -666,7 +655,7 @@ export default function Index() {
         />
       ) : null}
 
-      <PremiumPaywall open={paywallOpen} onClose={() => setPaywallOpen(false)} />
+      <PremiumPaywall isOpen={paywallOpen} onClose={() => setPaywallOpen(false)} />
     </>
   );
 }

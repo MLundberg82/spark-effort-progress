@@ -1,3 +1,6 @@
+// src/lib/paywallTriggers.ts
+import { checkPremium } from '@/lib/premiumStore';
+
 export type PaywallTrigger =
   | 'manual'
   | 'workout_complete'
@@ -13,6 +16,11 @@ export type PaywallState = {
   isOpen: boolean;
   lastTrigger: PaywallTrigger | null;
   seenThisSession: PaywallTrigger[];
+};
+
+type GuardOptions = {
+  onOpened?: () => void;
+  onAllowed?: () => void;
 };
 
 const STORAGE_KEY = 'gymrat-paywall-state';
@@ -67,6 +75,7 @@ function readState(): PaywallState {
 
 function writeState(next: PaywallState) {
   if (!isBrowser()) return;
+
   sessionStorage.setItem(STORAGE_KEY, JSON.stringify(next));
   window.dispatchEvent(new CustomEvent(EVENT_NAME, { detail: next }));
 }
@@ -186,4 +195,60 @@ export function getPaywallSubtext(trigger: PaywallTrigger) {
     default:
       return 'Keep the free flow simple, then unlock the heavier version when you want more.';
   }
+}
+
+function handleGuard(trigger: PaywallTrigger, options?: GuardOptions) {
+  const premiumActive = checkPremium().isActive;
+
+  if (premiumActive) {
+    options?.onAllowed?.();
+    return true;
+  }
+
+  if (shouldOpenPaywall(trigger)) {
+    openPaywall(trigger);
+    options?.onOpened?.();
+    return false;
+  }
+
+  options?.onAllowed?.();
+  return true;
+}
+
+export function openManualPaywall(options?: GuardOptions) {
+  openPaywall('manual');
+  options?.onOpened?.();
+  return false;
+}
+
+export function maybeOpenWorkoutCompletePaywall(options?: GuardOptions) {
+  return handleGuard('workout_complete', options);
+}
+
+export function maybeOpenLevelUpPaywall(options?: GuardOptions) {
+  return handleGuard('level_up', options);
+}
+
+export function maybeOpenPRPaywall(options?: GuardOptions) {
+  return handleGuard('pr', options);
+}
+
+export function maybeOpenHistoryPaywall(options?: GuardOptions) {
+  return handleGuard('history', options);
+}
+
+export function maybeOpenNutritionPaywall(options?: GuardOptions) {
+  return handleGuard('nutrition', options);
+}
+
+export function maybeOpenCustomWorkoutPaywall(options?: GuardOptions) {
+  return handleGuard('custom_workout', options);
+}
+
+export function maybeOpenShopPremiumPaywall(options?: GuardOptions) {
+  return handleGuard('shop_premium', options);
+}
+
+export function maybeOpenFeatureLockPaywall(options?: GuardOptions) {
+  return handleGuard('feature_lock', options);
 }
