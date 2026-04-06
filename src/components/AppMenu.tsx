@@ -79,7 +79,7 @@ function MenuButton({
   return (
     <button
       onClick={onClick}
-      className={`flex min-h-[48px] w-full items-center gap-3 rounded-[18px] border px-3.5 py-2.5 text-left transition ${accentClasses}`}
+      className={`flex min-h-[46px] w-full items-center gap-3 rounded-[18px] border px-3.5 py-2.5 text-left transition ${accentClasses}`}
     >
       <div
         className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-[14px] border ${
@@ -151,6 +151,7 @@ export default function AppMenu({
   const [setSeconds, setSetSeconds] = useState(45);
   const [autoLoop, setAutoLoop] = useState(true);
   const [timerOpen, setTimerOpen] = useState(false);
+  const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
     const sync = () => {
@@ -170,6 +171,18 @@ export default function AppMenu({
       window.removeEventListener('timer-settings-updated', sync as EventListener);
     };
   }, []);
+
+  useEffect(() => {
+    const id = window.setTimeout(() => setIsVisible(true), 10);
+    return () => window.clearTimeout(id);
+  }, []);
+
+  const handleClose = () => {
+    setIsVisible(false);
+    window.setTimeout(() => {
+      onClose();
+    }, 280);
+  };
 
   const updateRestSeconds = (next: number) => {
     const safe = clampSeconds(next, 15, 600);
@@ -192,11 +205,17 @@ export default function AppMenu({
     <div className="fixed inset-0 z-40">
       <button
         aria-label="Close menu overlay"
-        onClick={onClose}
-        className="absolute inset-0 bg-black/55"
+        onClick={handleClose}
+        className={`absolute inset-0 bg-black/55 transition-opacity duration-300 ease-out ${
+          isVisible ? 'opacity-100' : 'opacity-0'
+        }`}
       />
 
-      <aside className="absolute right-0 top-0 flex h-full w-[80%] max-w-[420px] flex-col border-l border-white/10 bg-[#0a0a0a] px-4 pb-5 pt-4 text-white shadow-[-24px_0_60px_rgba(0,0,0,0.45)]">
+      <aside
+        className={`absolute right-0 top-0 flex h-full w-[80%] max-w-[420px] flex-col border-l border-white/10 bg-[#0a0a0a] px-4 pb-5 pt-4 text-white shadow-[-24px_0_60px_rgba(0,0,0,0.45)] transition-transform duration-300 ease-out ${
+          isVisible ? 'translate-x-0' : 'translate-x-full'
+        }`}
+      >
         <div className="flex items-start justify-between gap-3">
           <div>
             <div className="text-[11px] font-black uppercase tracking-[0.22em] text-lime-300/80">
@@ -210,7 +229,7 @@ export default function AppMenu({
           </div>
 
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="inline-flex h-10 w-10 items-center justify-center rounded-[16px] border border-white/10 bg-white/[0.05] transition hover:bg-white/[0.08]"
             aria-label="Close menu"
           >

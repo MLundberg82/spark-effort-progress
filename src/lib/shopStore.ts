@@ -271,7 +271,6 @@ const CATALOG_BASE: Array<
     price: 9,
     priceLabel: "9 kr",
     emoji: "⚡",
-    isPremium: true,
   },
   {
     id: "bg-elite-1",

@@ -2,7 +2,12 @@ import { Sparkles } from "lucide-react";
 
 import EquippedRatPreview from "@/components/EquippedRatPreview";
 import type { RatVariant } from "@/lib/assetTypes";
-import { getCurrentLevelXP, getNextLevelXP, getProgressPercent, getTotalXP } from "@/lib/gamificationStore";
+import {
+  getCurrentLevelXP,
+  getNextLevelXP,
+  getProgressPercent,
+  getTotalXP,
+} from "@/lib/gamificationStore";
 import { getEquippedState } from "@/lib/shopStore";
 
 type GymRatStageProps = {
@@ -25,16 +30,16 @@ export default function GymRatStage({
   const progress = Math.max(0, Math.min(100, Math.round(getProgressPercent(totalXP))));
 
   return (
-    <div className={`relative ${className}`}>
-      <div className="relative overflow-hidden rounded-[28px]">
+    <div className={`relative flex min-h-0 flex-col ${className}`}>
+      <div className="relative min-h-0 flex-1 overflow-hidden rounded-[28px]">
         <EquippedRatPreview
           level={level}
           variant={variant}
           equippedOverride={equipped}
-          className="w-full"
+          className="h-full w-full"
         />
 
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/35 to-transparent" />
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/20 via-black/6 to-transparent" />
       </div>
 
       {showMeta ? (

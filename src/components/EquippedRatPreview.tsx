@@ -14,7 +14,7 @@ type EquippedRatPreviewProps = {
   level: number;
   variant?: RatVariant;
   className?: string;
-  equippedOverride?: EquippedItems; // ✅ FIX
+  equippedOverride?: EquippedItems;
 };
 
 function resolveVariant(explicit?: RatVariant): RatVariant {
@@ -81,9 +81,7 @@ export default function EquippedRatPreview({
     };
   }, []);
 
-  // ✅ Use override if provided (shop preview), annars global state
   const equipped = equippedOverride ?? equippedState;
-
   const resolvedVariant = resolveVariant(variant);
 
   const backgroundSrc = useMemo(() => {
@@ -118,7 +116,7 @@ export default function EquippedRatPreview({
   return (
     <div
       className={[
-        'relative isolate aspect-[4/4] w-full overflow-hidden rounded-[28px] border border-white/8 bg-black',
+        'relative isolate h-full min-h-0 w-full overflow-hidden rounded-[28px] border border-white/8 bg-black',
         className,
       ].join(' ')}
     >
@@ -127,22 +125,22 @@ export default function EquippedRatPreview({
           <Layer
             src={backgroundSrc}
             alt="GymRat background"
-            className="absolute inset-0 h-full w-full object-cover"
+            className="absolute inset-0 h-full w-full object-cover object-center"
           />
         ) : (
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(163,230,53,0.12),transparent_38%),linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.01))]" />
         )}
 
-        <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black/12" />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black/14" />
       </div>
 
-      <div className="absolute inset-[5.5%] rounded-[24px]">
+      <div className="absolute inset-0 z-[1] flex items-center justify-center">
         {auraSrc ? (
           <Layer
             src={auraSrc}
             alt="Equipped aura"
             objectContain
-            className="absolute inset-[10%] z-[1] h-[80%] w-[80%]"
+            className="absolute left-1/2 top-1/2 h-[76%] w-[76%] -translate-x-1/2 -translate-y-[42%] opacity-90"
           />
         ) : null}
 
@@ -151,9 +149,13 @@ export default function EquippedRatPreview({
             src={baseRatSrc}
             alt="GymRat"
             objectContain
-            className="absolute bottom-[6%] left-1/2 z-[2] h-[84%] w-[62%] -translate-x-1/2"
+            className="absolute left-1/2 top-1/2 z-[2] h-[92%] w-[76%] -translate-x-1/2 -translate-y-[34%]"
           />
-        ) : null}
+        ) : (
+          <div className="absolute inset-0 z-[2] flex items-center justify-center rounded-[20px] border border-dashed border-white/12 bg-black/20 px-4 text-center text-sm font-semibold text-white/45">
+            Missing rat image
+          </div>
+        )}
 
         {overlayLayers.map((layer) =>
           layer.src ? (
@@ -162,7 +164,7 @@ export default function EquippedRatPreview({
               src={layer.src}
               alt={`${layer.slot} equipped item`}
               objectContain
-              className="absolute bottom-[6%] left-1/2 z-[3] h-[84%] w-[62%] -translate-x-1/2"
+              className="absolute left-1/2 top-1/2 z-[3] h-[92%] w-[76%] -translate-x-1/2 -translate-y-[34%]"
             />
           ) : null,
         )}
