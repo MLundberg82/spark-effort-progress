@@ -1,207 +1,141 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Images, Menu, Play, ShoppingBag, Trophy, Zap } from 'lucide-react';
-import EquippedRatPreview from '@/components/EquippedRatPreview';
-import { getLanguage, type AppLanguage } from '@/lib/languageStore';
+import { useMemo, useState } from "react";
+import {
+  calculateWorkoutVolume,
+  getExerciseNameOptions,
+  getWorkoutHistory,
+  getWorkoutNameOptions,
+} from "@/lib/historyStore";
 
-type AppStats = {
-  level?: number;
-  currentLevel?: number;
-  currentXP?: number;
-  currentLevelXP?: number;
-  nextLevelXP?: number;
-  totalXP?: number;
-  streak?: number;
+type WorkoutEntry = ReturnType<typeof getWorkoutHistory>[number];
+
+type Props = {
+  onBack: () => void;
 };
 
-type HomeScreenProps = {
-  stats: AppStats;
-  onOpenMenu: () => void;
-  onStartWorkout: () => void;
-  onOpenGallery: () => void;
-  onOpenShop: () => void;
-};
+export default function HistoryScreen({ onBack }: Props) {
+  const [history] = useState<WorkoutEntry[]>(() => getWorkoutHistory());
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const [workoutFilter, setWorkoutFilter] = useState<string>("all");
+  const [exerciseFilter, setExerciseFilter] = useState<string>("all");
+  const [workoutOptions] = useState<string[]>(() => getWorkoutNameOptions());
+  const [exerciseOptions] = useState<string[]>(() => getExerciseNameOptions());
 
-function ActionButton({
-  icon: Icon,
-  label,
-  onClick,
-  primary = false,
-}: {
-  icon: typeof Play;
-  label: string;
-  onClick: () => void;
-  primary?: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`inline-flex min-h-[48px] items-center justify-center gap-2 rounded-[20px] px-4 py-3 text-xs font-black uppercase tracking-[0.12em] transition ${
-        primary
-          ? 'bg-lime-300 text-black shadow-[0_18px_50px_rgba(163,230,53,0.18)] hover:brightness-105'
-          : 'border border-white/10 bg-white/[0.05] text-white hover:bg-white/[0.08]'
-      }`}
-    >
-      <Icon className="h-4 w-4" />
-      {label}
-    </button>
-  );
-}
+  const filteredHistory = useMemo(() => {
+    return history.filter((workout) => {
+      if (workoutFilter !== "all" && workout.workoutName !== workoutFilter) {
+        return false;
+      }
 
-function StatPill({
-  label,
-  value,
-  icon: Icon,
-}: {
-  label: string;
-  value: string | number;
-  icon: typeof Trophy;
-}) {
-  return (
-    <div className="rounded-[18px] border border-white/10 bg-white/[0.04] px-3 py-3">
-      <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.14em] text-white/45">
-        <Icon className="h-3.5 w-3.5" />
-        {label}
-      </div>
-      <div className="mt-1 text-lg font-black tracking-tight text-white">{value}</div>
-    </div>
-  );
-}
+      if (exerciseFilter !== "all") {
+        const hasExercise = workout.exercises.some(
+          (exercise) => exercise.name === exerciseFilter,
+        );
 
-function CompactXPCard({
-  currentXP,
-  nextLevelXP,
-}: {
-  currentXP: number;
-  nextLevelXP: number;
-}) {
-  const progress = useMemo(() => {
-    if (nextLevelXP <= 0) return 0;
-    return Math.max(0, Math.min(100, Math.round((currentXP / nextLevelXP) * 100)));
-  }, [currentXP, nextLevelXP]);
+        if (!hasExercise) {
+          return false;
+        }
+      }
 
-  const xpLeft = Math.max(0, nextLevelXP - currentXP);
+      return true;
+    });
+  }, [exerciseFilter, history, workoutFilter]);
 
   return (
-    <div className="rounded-[20px] border border-white/10 bg-white/[0.04] p-3.5">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <div className="text-[10px] font-black uppercase tracking-[0.14em] text-white/45">
-            XP
-          </div>
-          <div className="mt-1 text-xl font-black tracking-tight">{progress}%</div>
-        </div>
-
-        <div className="text-right">
-          <div className="text-[10px] font-black uppercase tracking-[0.14em] text-white/45">
-            Next in
-          </div>
-          <div className="mt-1 text-sm font-black">{xpLeft} XP</div>
-        </div>
+    <div className="min-h-screen bg-background p-4 text-foreground">
+      <div className="mb-4 flex items-center justify-between">
+        <button onClick={onBack}>←</button>
+        <h1 className="text-lg font-bold">History</h1>
+        <div />
       </div>
 
-      <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-white/10">
-        <div
-          className="h-full rounded-full bg-lime-300 transition-[width] duration-500"
-          style={{ width: `${progress}%` }}
-        />
+      <div className="mb-4 space-y-2">
+        <select
+          value={workoutFilter}
+          onChange={(event) => setWorkoutFilter(event.target.value)}
+          className="w-full rounded bg-muted p-2"
+        >
+          <option value="all">All Workouts</option>
+          {workoutOptions.map((workoutName) => (
+            <option key={workoutName} value={workoutName}>
+              {workoutName}
+            </option>
+          ))}
+        </select>
+
+        <select
+          value={exerciseFilter}
+          onChange={(event) => setExerciseFilter(event.target.value)}
+          className="w-full rounded bg-muted p-2"
+        >
+          <option value="all">All Exercises</option>
+          {exerciseOptions.map((exerciseName) => (
+            <option key={exerciseName} value={exerciseName}>
+              {exerciseName}
+            </option>
+          ))}
+        </select>
       </div>
 
-      <div className="mt-2 text-[11px] font-bold text-white/45">
-        {currentXP} / {nextLevelXP} XP
-      </div>
-    </div>
-  );
-}
+      <div className="space-y-3">
+        {filteredHistory.map((workout) => {
+          const volume = calculateWorkoutVolume(workout);
+          const isOpen = expanded === workout.id;
 
-export default function HomeScreen({
-  stats,
-  onOpenMenu,
-  onStartWorkout,
-  onOpenGallery,
-  onOpenShop,
-}: HomeScreenProps) {
-  const [language, setLanguage] = useState<AppLanguage>(getLanguage());
+          return (
+            <div key={workout.id} className="rounded-2xl bg-card p-4 shadow">
+              <div
+                onClick={() => setExpanded(isOpen ? null : workout.id)}
+                className="cursor-pointer"
+              >
+                <div className="flex items-center justify-between">
+                  <h2 className="font-semibold">{workout.workoutName}</h2>
+                  <span className="text-xs opacity-60">
+                    {new Date(workout.completedAt).toLocaleDateString()}
+                  </span>
+                </div>
 
-  useEffect(() => {
-    const syncLanguage = () => setLanguage(getLanguage());
-
-    window.addEventListener('language-updated', syncLanguage);
-    window.addEventListener('storage', syncLanguage);
-
-    return () => {
-      window.removeEventListener('language-updated', syncLanguage);
-      window.removeEventListener('storage', syncLanguage);
-    };
-  }, []);
-
-  const level = stats.currentLevel ?? stats.level ?? 1;
-  const currentXP = stats.currentLevelXP ?? stats.currentXP ?? 0;
-  const nextLevelXP = Math.max(1, stats.nextLevelXP ?? 100);
-  const totalXP = stats.totalXP ?? currentXP;
-  const streak = stats.streak ?? 0;
-
-  return (
-    <div className="min-h-screen bg-black px-5 pb-8 pt-6 text-white">
-      <div className="mx-auto max-w-2xl">
-        <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-4 sm:p-5">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <div className="text-[10px] font-black uppercase tracking-[0.22em] text-lime-300/80">
-                GymRat
+                <div className="mt-2 flex gap-4 text-xs opacity-70">
+                  <span>💪 {volume} kg</span>
+                  <span>⏱ {workout.durationMinutes} min</span>
+                  <span>🏋️ {workout.exercises.length}</span>
+                </div>
               </div>
-              <h1 className="mt-1 text-2xl font-black tracking-tight">Home</h1>
-              <div className="mt-1 text-[11px] text-white/45">
-                Language · {language.toUpperCase()}
-              </div>
+
+              {isOpen ? (
+                <div className="mt-4 space-y-3">
+                  {workout.exercises.map((exercise, exerciseIndex) => (
+                    <div
+                      key={`${exercise.name}-${exerciseIndex}`}
+                      className="rounded-xl bg-muted p-3"
+                    >
+                      <p className="mb-2 font-medium">{exercise.name}</p>
+
+                      <div className="space-y-1 text-sm">
+                        {exercise.sets.map((setItem, setIndex) => (
+                          <div
+                            key={`${exercise.name}-${setIndex}`}
+                            className="flex justify-between"
+                          >
+                            <span>Set {setIndex + 1}</span>
+                            <span>
+                              {setItem.reps} reps × {setItem.weight} kg
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
             </div>
+          );
+        })}
 
-            <button
-              type="button"
-              onClick={onOpenMenu}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.05] transition hover:bg-white/[0.08]"
-              aria-label="Open menu"
-            >
-              <Menu className="h-4.5 w-4.5" />
-            </button>
-          </div>
-
-          <div className="mt-4 overflow-hidden rounded-[22px] border border-white/10 bg-black/25 p-2">
-            <EquippedRatPreview />
-          </div>
-
-          <div className="mt-4 grid gap-2.5 sm:grid-cols-3">
-            <StatPill label="Level" value={level} icon={Trophy} />
-            <StatPill label="Total XP" value={totalXP} icon={Zap} />
-            <StatPill label="Streak" value={streak} icon={Trophy} />
-          </div>
-
-          <div className="mt-3">
-            <CompactXPCard currentXP={currentXP} nextLevelXP={nextLevelXP} />
-          </div>
-
-          <div className="mt-4 grid gap-2.5">
-            <ActionButton
-              icon={Play}
-              label="Start workout"
-              onClick={onStartWorkout}
-              primary
-            />
-
-            <div className="grid grid-cols-2 gap-2.5">
-              <ActionButton
-                icon={Images}
-                label="Level gallery"
-                onClick={onOpenGallery}
-              />
-              <ActionButton
-                icon={ShoppingBag}
-                label="Shop"
-                onClick={onOpenShop}
-              />
-            </div>
-          </div>
-        </div>
+        {filteredHistory.length === 0 ? (
+          <p className="mt-10 text-center text-sm opacity-60">
+            No workouts yet — start your first one 💪
+          </p>
+        ) : null}
       </div>
     </div>
   );

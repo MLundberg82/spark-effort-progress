@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Crown, Flame, Menu, Sparkles } from 'lucide-react';
 
 import AppMenu from '@/components/AppMenu';
@@ -98,6 +98,22 @@ type OnboardingProfile = {
   gender: ProfileGender;
   goal: FitnessGoal;
 };
+
+function getInitialPage(): AppPage {
+  if (!hasCompletedOnboarding()) return 'settings';
+
+  const state = getAppState();
+  return state.page === 'daily' ? 'home' : state.page;
+}
+
+function getInitialOverlay() {
+  const state = getAppState();
+
+  return {
+    menuOpen: state.overlay === 'menu',
+    paywallOpen: state.overlay === 'paywall',
+  };
+}
 
 function buildXPReward(result: WorkoutCompleteResult) {
   const baseXP = 40;
@@ -271,41 +287,29 @@ function OnboardingScreen({
 }
 
 export default function Index() {
-  const initialAppState = useMemo(() => getAppState(), []);
+  const initialOverlay = getInitialOverlay();
 
-  const [page, setPage] = useState<AppPage>(
-    hasCompletedOnboarding() ? initialAppState.page : 'settings',
-  );
+  const [page, setPage] = useState<AppPage>(getInitialPage);
   const [previousPage, setPreviousPage] = useState<AppPage>('home');
-  const [menuOpen, setMenuOpen] = useState(initialAppState.overlay === 'menu');
-  const [paywallOpen, setPaywallOpen] = useState(initialAppState.overlay === 'paywall');
+  const [menuOpen, setMenuOpen] = useState(initialOverlay.menuOpen);
+  const [paywallOpen, setPaywallOpen] = useState(initialOverlay.paywallOpen);
   const [lastSummary, setLastSummary] = useState<WorkoutCompleteSummary | null>(null);
-  const [profileVersion, setProfileVersion] = useState(0);
-  const [premiumVersion, setPremiumVersion] = useState(0);
+  const [, setProfileVersion] = useState(0);
+  const [, setPremiumVersion] = useState(0);
   const [pendingWorkoutFocus, setPendingWorkoutFocus] = useState<
     SupportedFocusArea | undefined
   >(undefined);
 
-  const totalXP = useMemo(() => getTotalXP(), [lastSummary, profileVersion]);
-  const level = useMemo(() => getLevelFromXP(totalXP), [totalXP]);
-  const progressPercent = useMemo(
-    () => Math.round(getProgressPercent(totalXP)),
-    [totalXP],
-  );
-  const premiumActive = useMemo(() => checkPremium().isActive, [premiumVersion]);
-  const variant = useMemo(() => getRatVariant(), [profileVersion]);
+  const totalXP = getTotalXP();
+  const level = getLevelFromXP(totalXP);
+  const progressPercent = Math.round(getProgressPercent(totalXP));
+  const premiumActive = checkPremium().isActive;
+  const variant = getRatVariant();
 
   useEffect(() => {
     void setupDailyReminder();
     void refreshSmartNotifications();
-
-    if (!hasCompletedOnboarding()) {
-      setPage('settings');
-      return;
-    }
-
-    setPage(initialAppState.page === 'daily' ? 'home' : initialAppState.page);
-  }, [initialAppState.page]);
+  }, []);
 
   useEffect(() => {
     setAppState({
@@ -376,7 +380,6 @@ export default function Index() {
       onboardingComplete: true,
     });
 
-    setProfileVersion((value) => value + 1);
     navigateTo('home');
   };
 
