@@ -1,189 +1,182 @@
-import {
-  exercises,
-  type ExerciseDefinition,
-  type MuscleGroup,
-  type TrainingLevel,
-} from '@/lib/exerciseData';
-
-export type WorkoutDay = {
-  label: string;
-  muscleGroups: MuscleGroup[];
+export type DraftSet = {
+  reps: number;
+  weight: number;
 };
 
-export type WorkoutPlan = {
+export type DraftExercise = {
   name: string;
-  description: string;
-  days: WorkoutDay[];
+  muscleGroup?: string;
+  sets: DraftSet[];
 };
 
-const LEVEL_KEY = 'gymrat-training-level';
-const PLAN_INDEX_KEY = 'gymrat-selected-plan-index';
+export type WorkoutDraft = {
+  startedAt: string;
+  updatedAt?: string;
+  workoutName?: string;
+  notes?: string;
+  planName?: string;
+  dayLabel?: string;
+  isCustom?: boolean;
+  exercises?: DraftExercise[];
+};
+
+const KEY = 'gymrat-workout-draft';
+const EVENT_NAME = 'workout-draft-updated';
 
 function isBrowser() {
   return typeof window !== 'undefined' && typeof localStorage !== 'undefined';
 }
 
-function clampIndex(value: unknown) {
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed) || parsed < 0) return 0;
-  return Math.floor(parsed);
+function sanitizeSet(value: unknown): DraftSet | null {
+  if (!value || typeof value !== 'object') return null;
+
+  const reps = Number((value as DraftSet).reps);
+  const weight = Number((value as DraftSet).weight);
+
+  return {
+    reps: Number.isFinite(reps) ? Math.max(0, Math.round(reps)) : 0,
+    weight: Number.isFinite(weight) ? Math.max(0, weight) : 0,
+  };
 }
 
-function isTrainingLevel(value: unknown): value is TrainingLevel {
-  return value === 'beginner' || value === 'intermediate' || value === 'advanced';
+function sanitizeExercise(value: unknown): DraftExercise | null {
+  if (!value || typeof value !== 'object') return null;
+
+  const raw = value as Partial<DraftExercise>;
+  const name = typeof raw.name === 'string' && raw.name.trim().length > 0 ? raw.name : null;
+  const sets = Array.isArray(raw.sets)
+    ? raw.sets.map(sanitizeSet).filter((set): set is DraftSet => Boolean(set))
+    : [];
+
+  if (!name || sets.length === 0) return null;
+
+  return {
+    name,
+    muscleGroup: typeof raw.muscleGroup === 'string' ? raw.muscleGroup : undefined,
+    sets,
+  };
 }
 
-export function getTrainingLevel(): TrainingLevel {
-  if (!isBrowser()) return 'beginner';
+function sanitizeDraft(value: unknown): WorkoutDraft | null {
+  if (!value || typeof value !== 'object') return null;
 
-  const raw = localStorage.getItem(LEVEL_KEY);
-  return isTrainingLevel(raw) ? raw : 'beginner';
-}
-
-export function setTrainingLevel(level: TrainingLevel) {
-  if (!isBrowser()) return;
-  localStorage.setItem(LEVEL_KEY, level);
-}
-
-export function getSelectedPlanIndex(): number {
-  if (!isBrowser()) return 0;
-  return clampIndex(localStorage.getItem(PLAN_INDEX_KEY));
-}
-
-export function setSelectedPlanIndex(index: number) {
-  if (!isBrowser()) return;
-  localStorage.setItem(PLAN_INDEX_KEY, String(clampIndex(index)));
-}
-
-export function getPlansForLevel(level: TrainingLevel): WorkoutPlan[] {
-  if (level === 'beginner') {
-    return [
-      {
-        name: 'Full Body Foundation',
-        description: 'Perfect for building consistency and learning the basics.',
-        days: [
-          { label: 'Day A', muscleGroups: ['chest', 'back', 'legs', 'core'] },
-          { label: 'Day B', muscleGroups: ['shoulders', 'arms', 'legs', 'core'] },
-          { label: 'Day C', muscleGroups: ['chest', 'back', 'shoulders', 'core'] },
-        ],
-      },
-      {
-        name: '2-Day A/B Split',
-        description: 'Simple and effective if you want fewer weekly sessions.',
-        days: [
-          { label: 'Day A', muscleGroups: ['chest', 'back', 'legs'] },
-          { label: 'Day B', muscleGroups: ['shoulders', 'arms', 'core'] },
-        ],
-      },
-      {
-        name: 'Walk + Lift',
-        description: 'A lower-pressure setup with walking included to keep momentum alive.',
-        days: [
-          { label: 'Walk Day', muscleGroups: ['legs', 'core'] },
-          { label: 'Upper Day', muscleGroups: ['chest', 'back', 'arms', 'shoulders'] },
-          { label: 'Lower Day', muscleGroups: ['legs', 'core'] },
-        ],
-      },
-    ];
+  const raw = value as Partial<WorkoutDraft>;
+  if (typeof raw.startedAt !== 'string' || raw.startedAt.length === 0) {
+    return null;
   }
 
-  if (level === 'intermediate') {
-    return [
-      {
-        name: 'Upper / Lower',
-        description: 'Balanced volume with room to push progression.',
-        days: [
-          { label: 'Upper A', muscleGroups: ['chest', 'back', 'shoulders'] },
-          { label: 'Lower A', muscleGroups: ['legs', 'core'] },
-          { label: 'Upper B', muscleGroups: ['chest', 'back', 'arms'] },
-          { label: 'Lower B', muscleGroups: ['legs', 'core'] },
-        ],
-      },
-      {
-        name: 'PHUL',
-        description: 'Blend of strength focus and hypertrophy work.',
-        days: [
-          { label: 'Power Upper', muscleGroups: ['chest', 'back', 'shoulders'] },
-          { label: 'Power Lower', muscleGroups: ['legs', 'core'] },
-          { label: 'Hyper Upper', muscleGroups: ['chest', 'back', 'arms'] },
-          { label: 'Hyper Lower', muscleGroups: ['legs', 'core'] },
-        ],
-      },
-      {
-        name: 'Walk + Lift Hybrid',
-        description: 'Keeps intensity but gives a recovery-friendly fallback day.',
-        days: [
-          { label: 'Push', muscleGroups: ['chest', 'shoulders', 'arms'] },
-          { label: 'Pull', muscleGroups: ['back', 'arms'] },
-          { label: 'Walk / Core', muscleGroups: ['legs', 'core'] },
-          { label: 'Legs', muscleGroups: ['legs', 'core'] },
-        ],
-      },
-    ];
+  return {
+    startedAt: raw.startedAt,
+    updatedAt:
+      typeof raw.updatedAt === 'string' && raw.updatedAt.length > 0
+        ? raw.updatedAt
+        : raw.startedAt,
+    workoutName: typeof raw.workoutName === 'string' ? raw.workoutName : undefined,
+    notes: typeof raw.notes === 'string' ? raw.notes : undefined,
+    planName: typeof raw.planName === 'string' ? raw.planName : undefined,
+    dayLabel: typeof raw.dayLabel === 'string' ? raw.dayLabel : undefined,
+    isCustom: typeof raw.isCustom === 'boolean' ? raw.isCustom : undefined,
+    exercises: Array.isArray(raw.exercises)
+      ? raw.exercises
+          .map(sanitizeExercise)
+          .filter((exercise): exercise is DraftExercise => Boolean(exercise))
+      : undefined,
+  };
+}
+
+function writeDraft(draft: WorkoutDraft | null) {
+  if (!isBrowser()) return;
+
+  if (draft === null) {
+    localStorage.removeItem(KEY);
+  } else {
+    localStorage.setItem(KEY, JSON.stringify(draft));
   }
 
-  return [
-    {
-      name: 'Push / Pull / Legs',
-      description: 'High frequency progression with dedicated focus days.',
-      days: [
-        { label: 'Push', muscleGroups: ['chest', 'shoulders', 'arms'] },
-        { label: 'Pull', muscleGroups: ['back', 'arms'] },
-        { label: 'Legs', muscleGroups: ['legs', 'core'] },
-        { label: 'Push 2', muscleGroups: ['chest', 'shoulders', 'arms'] },
-        { label: 'Pull 2', muscleGroups: ['back', 'arms'] },
-        { label: 'Legs 2', muscleGroups: ['legs', 'core'] },
-      ],
-    },
-    {
-      name: 'Arnold Split',
-      description: 'Old school volume with high output and high reward.',
-      days: [
-        { label: 'Chest & Back', muscleGroups: ['chest', 'back'] },
-        { label: 'Shoulders & Arms', muscleGroups: ['shoulders', 'arms'] },
-        { label: 'Legs & Core', muscleGroups: ['legs', 'core'] },
-        { label: 'Chest & Back 2', muscleGroups: ['chest', 'back'] },
-        { label: 'Shoulders & Arms 2', muscleGroups: ['shoulders', 'arms'] },
-        { label: 'Legs & Core 2', muscleGroups: ['legs', 'core'] },
-      ],
-    },
-    {
-      name: 'Hybrid Performance',
-      description: 'Heavy training with walking fallback built into the week.',
-      days: [
-        { label: 'Upper Power', muscleGroups: ['chest', 'back', 'shoulders'] },
-        { label: 'Walk Reset', muscleGroups: ['legs', 'core'] },
-        { label: 'Pull Strength', muscleGroups: ['back', 'arms'] },
-        { label: 'Legs', muscleGroups: ['legs', 'core'] },
-        { label: 'Push Volume', muscleGroups: ['chest', 'shoulders', 'arms'] },
-      ],
-    },
-  ];
+  window.dispatchEvent(new CustomEvent(EVENT_NAME, { detail: draft }));
 }
 
-export function getRecommendedPlan(level: TrainingLevel): WorkoutPlan {
-  const plans = getPlansForLevel(level);
-  const selectedIndex = getSelectedPlanIndex();
+function readDraft(): WorkoutDraft | null {
+  if (!isBrowser()) return null;
 
-  return plans[Math.min(selectedIndex, plans.length - 1)] ?? plans[0];
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (!raw) return null;
+
+    return sanitizeDraft(JSON.parse(raw));
+  } catch {
+    return null;
+  }
 }
 
-export function getExercisesForLevel(level: TrainingLevel): ExerciseDefinition[] {
-  const order: TrainingLevel[] = ['beginner', 'intermediate', 'advanced'];
-  const currentIndex = order.indexOf(level);
+function formatRelativeTime(dateString: string) {
+  const timestamp = new Date(dateString).getTime();
+  if (!Number.isFinite(timestamp)) return 'Saved recently';
 
-  return exercises.filter(
-    (exercise) => order.indexOf(exercise.level) <= currentIndex,
-  );
+  const diffMs = Date.now() - timestamp;
+  const diffMinutes = Math.max(0, Math.floor(diffMs / 60000));
+
+  if (diffMinutes < 1) return 'Saved just now';
+  if (diffMinutes === 1) return 'Saved 1 minute ago';
+  if (diffMinutes < 60) return `Saved ${diffMinutes} minutes ago`;
+
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours === 1) return 'Saved 1 hour ago';
+  if (diffHours < 24) return `Saved ${diffHours} hours ago`;
+
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays === 1) return 'Saved 1 day ago';
+  return `Saved ${diffDays} days ago`;
 }
 
-export function getExercisesForWorkoutDay(
-  level: TrainingLevel,
-  muscleGroups: MuscleGroup[],
-): ExerciseDefinition[] {
-  const available = getExercisesForLevel(level);
+export function getWorkoutDraft() {
+  return readDraft();
+}
 
-  return available.filter((exercise) =>
-    muscleGroups.includes(exercise.muscleGroup),
-  );
+export function hasWorkoutDraft() {
+  return Boolean(readDraft());
+}
+
+export function saveWorkoutDraft(draft: WorkoutDraft) {
+  const nextDraft: WorkoutDraft = {
+    ...draft,
+    updatedAt: new Date().toISOString(),
+  };
+
+  writeDraft(nextDraft);
+  return nextDraft;
+}
+
+export function touchWorkoutDraft() {
+  const current = readDraft();
+  if (!current) return null;
+
+  return saveWorkoutDraft(current);
+}
+
+export function clearWorkoutDraft() {
+  writeDraft(null);
+}
+
+export function getWorkoutDraftUpdatedAtLabel() {
+  const draft = readDraft();
+  if (!draft?.updatedAt) return 'Saved recently';
+
+  return formatRelativeTime(draft.updatedAt);
+}
+
+export function subscribeWorkoutDraft(callback: () => void) {
+  if (!isBrowser()) {
+    return () => undefined;
+  }
+
+  const handler = () => callback();
+
+  window.addEventListener(EVENT_NAME, handler);
+  window.addEventListener('storage', handler);
+
+  return () => {
+    window.removeEventListener(EVENT_NAME, handler);
+    window.removeEventListener('storage', handler);
+  };
 }
