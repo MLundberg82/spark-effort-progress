@@ -1,69 +1,67 @@
-import EquippedRatPreview from '@/components/EquippedRatPreview';
-import { getLevelVisual } from '@/lib/levelVisuals';
-import type { RatVariant } from '@/lib/assetTypes';
+import { Sparkles } from "lucide-react";
+
+import EquippedRatPreview from "@/components/EquippedRatPreview";
+import type { RatVariant } from "@/lib/assetTypes";
+import { getCurrentLevelXP, getNextLevelXP, getProgressPercent, getTotalXP } from "@/lib/gamificationStore";
+import { getEquippedState } from "@/lib/shopStore";
 
 type GymRatStageProps = {
   level: number;
-  variant?: RatVariant;
-  className?: string;
+  variant: RatVariant;
   showMeta?: boolean;
-  compact?: boolean;
+  className?: string;
 };
 
 export default function GymRatStage({
   level,
   variant,
-  className = '',
   showMeta = true,
-  compact = false,
+  className = "",
 }: GymRatStageProps) {
-  const visual = getLevelVisual(level);
+  const equipped = getEquippedState();
+  const totalXP = getTotalXP();
+  const currentXP = getCurrentLevelXP(totalXP);
+  const nextXP = getNextLevelXP(totalXP);
+  const progress = Math.max(0, Math.min(100, Math.round(getProgressPercent(totalXP))));
 
   return (
-    <div className={`w-full ${className}`}>
-      {showMeta ? (
-        <div className="mb-4 flex items-start justify-between gap-3">
-          <div>
-            <div className="text-[11px] font-black uppercase tracking-[0.18em] text-zinc-400">
-              {visual.tierLabel}
-            </div>
-            <h3 className="mt-1 text-2xl font-black tracking-tight text-white">
-              {visual.title}
-            </h3>
-            <p className="mt-2 max-w-sm text-sm leading-6 text-zinc-300">
-              {visual.subtitle}
-            </p>
-          </div>
+    <div className={`relative ${className}`}>
+      <div className="relative overflow-hidden rounded-[28px]">
+        <EquippedRatPreview
+          level={level}
+          variant={variant}
+          equippedOverride={equipped}
+          className="w-full"
+        />
 
-          <div className="shrink-0 rounded-[22px] border border-white/10 bg-white/[0.05] px-4 py-3 text-center">
-            <div className="text-[10px] font-black uppercase tracking-[0.18em] text-zinc-400">
-              LVL
-            </div>
-            <div className="mt-1 text-2xl font-black text-white">{level}</div>
-          </div>
-        </div>
-      ) : null}
-
-      <EquippedRatPreview
-        level={level}
-        variant={variant}
-        className={compact ? 'mx-auto max-w-[320px]' : 'mx-auto'}
-      />
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/35 to-transparent" />
+      </div>
 
       {showMeta ? (
-        <div className="mt-4 grid grid-cols-2 gap-3">
-          <div className="rounded-[22px] border border-white/10 bg-white/[0.04] px-4 py-3">
-            <div className="text-[10px] font-black uppercase tracking-[0.18em] text-zinc-400">
-              Milestone
+        <div className="mt-3 rounded-[22px] border border-white/10 bg-white/[0.04] px-4 py-3">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-[11px] font-black uppercase tracking-[0.18em] text-white/45">
+                Current level
+              </div>
+              <div className="mt-1 text-sm font-bold text-white">LVL {level}</div>
             </div>
-            <div className="mt-1 text-lg font-black text-white">{visual.milestone}</div>
+
+            <div className="inline-flex items-center gap-2 text-xs font-bold text-white/55">
+              <Sparkles className="h-3.5 w-3.5" />
+              {progress}%
+            </div>
           </div>
 
-          <div className="rounded-[22px] border border-white/10 bg-white/[0.04] px-4 py-3">
-            <div className="text-[10px] font-black uppercase tracking-[0.18em] text-zinc-400">
-              Tier
-            </div>
-            <div className="mt-1 text-lg font-black text-white">{visual.tierLabel}</div>
+          <div className="mt-2 text-xs text-white/55">
+            {currentXP} / {nextXP} XP
+          </div>
+
+          <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+            <div
+              className="h-full rounded-full bg-lime-300 transition-[width] duration-500"
+              style={{ width: `${progress}%` }}
+            />
           </div>
         </div>
       ) : null}

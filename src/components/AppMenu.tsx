@@ -1,5 +1,6 @@
-import type { ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import {
+  Clock3,
   Crown,
   Flame,
   History,
@@ -30,6 +31,27 @@ type MenuButtonProps = {
   accent?: 'default' | 'premium';
 };
 
+const REST_TIMER_KEY = 'gymrat-rest-timer-seconds';
+const SET_TIMER_KEY = 'gymrat-set-timer-seconds';
+const TIMER_AUTO_LOOP_KEY = 'gymrat-timer-auto-loop';
+
+function readNumber(key: string, fallback: number) {
+  if (typeof window === 'undefined') return fallback;
+
+  const raw = localStorage.getItem(key);
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) && parsed > 0 ? Math.round(parsed) : fallback;
+}
+
+function readBoolean(key: string, fallback: boolean) {
+  if (typeof window === 'undefined') return fallback;
+
+  const raw = localStorage.getItem(key);
+  if (raw === 'true') return true;
+  if (raw === 'false') return false;
+  return fallback;
+}
+
 function MenuButton({
   label,
   description,
@@ -45,10 +67,10 @@ function MenuButton({
   return (
     <button
       onClick={onClick}
-      className={`flex min-h-[64px] w-full items-center gap-3 rounded-[22px] border px-4 py-3 text-left transition ${accentClasses}`}
+      className={`flex min-h-[58px] w-full items-center gap-3 rounded-[20px] border px-4 py-3 text-left transition ${accentClasses}`}
     >
       <div
-        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border ${
+        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border ${
           accent === 'premium'
             ? 'border-yellow-300/20 bg-yellow-300/10'
             : 'border-white/10 bg-white/[0.05]'
@@ -78,6 +100,29 @@ export default function AppMenu({
   onOpenSettings,
   onOpenPremium,
 }: AppMenuProps) {
+  const [restSeconds, setRestSeconds] = useState(90);
+  const [setSeconds, setSetSeconds] = useState(45);
+  const [autoLoop, setAutoLoop] = useState(true);
+
+  useEffect(() => {
+    const sync = () => {
+      setRestSeconds(readNumber(REST_TIMER_KEY, 90));
+      setSetSeconds(readNumber(SET_TIMER_KEY, 45));
+      setAutoLoop(readBoolean(TIMER_AUTO_LOOP_KEY, true));
+    };
+
+    sync();
+    window.addEventListener('storage', sync);
+    window.addEventListener('gymrat-timer-updated', sync as EventListener);
+    window.addEventListener('timer-settings-updated', sync as EventListener);
+
+    return () => {
+      window.removeEventListener('storage', sync);
+      window.removeEventListener('gymrat-timer-updated', sync as EventListener);
+      window.removeEventListener('timer-settings-updated', sync as EventListener);
+    };
+  }, []);
+
   return (
     <div className="fixed inset-0 z-40">
       <button
@@ -95,7 +140,7 @@ export default function AppMenu({
             <div className="mt-2 text-2xl font-black tracking-tight">GymRat</div>
             <div className="mt-2 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-white/75">
               <Flame className="h-3.5 w-3.5" />
-              {isPremium ? 'Premium active' : 'Free mode'}
+              {isPremium ? 'Premium active' : 'Base mode'}
             </div>
           </div>
 
@@ -108,45 +153,77 @@ export default function AppMenu({
           </button>
         </div>
 
-        <div className="mt-5 grid gap-3 overflow-y-auto pr-1">
+        <div className="mt-4 rounded-[20px] border border-white/10 bg-white/[0.04] px-4 py-3">
+          <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.16em] text-white/45">
+            <Clock3 className="h-3.5 w-3.5" />
+            Timer
+          </div>
+
+          <div className="mt-2 grid grid-cols-3 gap-2 text-center">
+            <div className="rounded-2xl border border-white/10 bg-black/20 px-2 py-2">
+              <div className="text-[10px] font-black uppercase tracking-[0.14em] text-white/40">
+                Rest
+              </div>
+              <div className="mt-1 text-sm font-black text-white">{restSeconds}s</div>
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-black/20 px-2 py-2">
+              <div className="text-[10px] font-black uppercase tracking-[0.14em] text-white/40">
+                Set
+              </div>
+              <div className="mt-1 text-sm font-black text-white">{setSeconds}s</div>
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-black/20 px-2 py-2">
+              <div className="text-[10px] font-black uppercase tracking-[0.14em] text-white/40">
+                Loop
+              </div>
+              <div className="mt-1 text-sm font-black text-white">
+                {autoLoop ? 'On' : 'Off'}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-4 grid gap-2.5 overflow-y-auto pr-1">
           <MenuButton
             label="Daily check-in"
-            description="Open your streak, daily momentum and recommended next step."
+            description="Streak, momentum and your next recommended move."
             onClick={onOpenDaily}
             icon={<Flame className="h-5 w-5" />}
           />
 
           <MenuButton
             label="History"
-            description="See previous workouts, progress and long-term tracking."
+            description="Previous workouts, progress and long-term tracking."
             onClick={onOpenHistory}
             icon={<History className="h-5 w-5" />}
           />
 
           <MenuButton
             label="Nutrition"
-            description="Macros, food logging and daily consistency."
+            description="Macros, food logging and daily intake targets."
             onClick={onOpenNutrition}
             icon={<UtensilsCrossed className="h-5 w-5" />}
           />
 
           <MenuButton
             label="Level gallery"
-            description="View every GymRat form and locked milestone evolution."
+            description="See every level form in one tighter gallery view."
             onClick={onOpenGallery}
             icon={<Sparkles className="h-5 w-5" />}
           />
 
           <MenuButton
             label="Shop"
-            description="Unlock cosmetics, backgrounds and identity upgrades."
+            description="Cosmetics, backgrounds and rat identity upgrades."
             onClick={onOpenShop}
             icon={<ShoppingBag className="h-5 w-5" />}
           />
 
           <MenuButton
             label="Settings"
-            description="Profile, language, training setup, timer and support."
+            description="Language, profile, contact, bug report, level and goal."
             onClick={onOpenSettings}
             icon={<Settings className="h-5 w-5" />}
           />
@@ -155,7 +232,7 @@ export default function AppMenu({
             label="Premium"
             description={
               isPremium
-                ? 'Manage your premium access and unlocked progression layer.'
+                ? 'Manage premium access and your unlocked progression layer.'
                 : 'Unlock deeper tracking, custom tools and premium identity.'
             }
             onClick={onOpenPremium}

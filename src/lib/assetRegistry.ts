@@ -1,306 +1,159 @@
-import type {
-  AssetCategory,
-  AssetDictionary,
-  CosmeticSlot,
-  RatVariant,
-} from '@/lib/assetTypes';
-import { normalizeRatVariant } from '@/lib/assetTypes';
+import type { AssetDictionary, CosmeticSlot, RatVariant } from "@/lib/assetTypes";
 
-type AssetModule = {
-  default: string;
-};
-
-const ratMaleModules = import.meta.glob('@/assets/rats/male/*.png', {
+const assetModules = import.meta.glob("../assets/**/*.{png,jpg,jpeg,webp}", {
   eager: true,
-}) as Record<string, AssetModule>;
+  query: "?url",
+  import: "default",
+}) as Record<string, string>;
 
-const ratFemaleModules = import.meta.glob('@/assets/rats/female/*.png', {
-  eager: true,
-}) as Record<string, AssetModule>;
-
-const ratNonBinaryModules = import.meta.glob('@/assets/rats/Non Binary/*.png', {
-  eager: true,
-}) as Record<string, AssetModule>;
-
-const backgroundModules = import.meta.glob('@/assets/backgrounds/*.png', {
-  eager: true,
-}) as Record<string, AssetModule>;
-
-const headModules = import.meta.glob('@/assets/items/head/*.png', {
-  eager: true,
-}) as Record<string, AssetModule>;
-
-const eyesModules = import.meta.glob('@/assets/items/eyes/*.png', {
-  eager: true,
-}) as Record<string, AssetModule>;
-
-const neckModules = import.meta.glob('@/assets/items/neck/*.png', {
-  eager: true,
-}) as Record<string, AssetModule>;
-
-const topModules = import.meta.glob('@/assets/items/top/*.png', {
-  eager: true,
-}) as Record<string, AssetModule>;
-
-const pantsModules = import.meta.glob('@/assets/items/pants/*.png', {
-  eager: true,
-}) as Record<string, AssetModule>;
-
-const feetModules = import.meta.glob('@/assets/items/feet/*.png', {
-  eager: true,
-}) as Record<string, AssetModule>;
-
-const auraModules = import.meta.glob('@/assets/items/aura/*.png', {
-  eager: true,
-}) as Record<string, AssetModule>;
-
-const bodyModules = import.meta.glob('@/assets/items/body/*.png', {
-  eager: true,
-}) as Record<string, AssetModule>;
-
-const MILESTONES = [1, 5, 10, 15, 20, 25, 30, 35, 40, 50, 60, 70, 80, 90, 100];
-
-function toRecord(modules: Record<string, AssetModule>): AssetDictionary {
-  return Object.fromEntries(
-    Object.entries(modules).map(([path, mod]) => {
-      const fileName = path.split('/').pop()?.replace('.png', '') ?? path;
-      return [fileName, mod.default];
-    }),
-  );
+function normalizeKey(value: string) {
+  return value.trim().toLowerCase();
 }
 
-const maleRatMap = toRecord(ratMaleModules);
-const femaleRatMap = toRecord(ratFemaleModules);
-const nonBinaryRatMap = toRecord(ratNonBinaryModules);
-
-const backgroundMap = toRecord(backgroundModules);
-const headMap = toRecord(headModules);
-const eyesMap = toRecord(eyesModules);
-const neckMap = toRecord(neckModules);
-const topMap = toRecord(topModules);
-const pantsMap = toRecord(pantsModules);
-const feetMap = toRecord(feetModules);
-const auraMap = toRecord(auraModules);
-const bodyMap = toRecord(bodyModules);
-
-const slotMaps: Record<CosmeticSlot, AssetDictionary> = {
-  head: headMap,
-  eyes: eyesMap,
-  neck: neckMap,
-  top: topMap,
-  pants: pantsMap,
-  feet: feetMap,
-  aura: auraMap,
-};
-
-function getRatMap(variant: RatVariant): AssetDictionary {
-  const resolved = normalizeRatVariant(variant);
-  if (resolved === 'female') return femaleRatMap;
-  if (resolved === 'non-binary') return nonBinaryRatMap;
-  return maleRatMap;
+function basenameWithoutExtension(path: string) {
+  const fileName = path.split("/").pop() ?? path;
+  return fileName.replace(/\.[^.]+$/, "");
 }
 
-function padLevel(level: number): string {
-  return String(level).padStart(3, '0');
+const assetMap: AssetDictionary = Object.fromEntries(
+  Object.entries(assetModules).map(([path, url]) => [
+    normalizeKey(basenameWithoutExtension(path)),
+    url,
+  ]),
+);
+
+function findFirstExisting(keys: Array<string | null | undefined>) {
+  for (const key of keys) {
+    if (!key) continue;
+    const match = assetMap[normalizeKey(key)];
+    if (match) return match;
+  }
+
+  return null;
 }
 
-export function getNearestMilestone(level: number): number {
+function normalizeVariant(variant?: RatVariant) {
+  if (!variant) return "male";
+  if (variant === "non-binary") return "nonbinary";
+  return variant;
+}
+
+function levelBucket(level: number) {
+  const milestones = [1, 5, 10, 15, 20, 25, 30, 35, 40, 50, 60, 70, 80, 90, 100];
+
   let current = 1;
-
-  for (const step of MILESTONES) {
-    if (level >= step) current = step;
+  for (const milestone of milestones) {
+    if (level >= milestone) {
+      current = milestone;
+    } else {
+      break;
+    }
   }
 
   return current;
 }
 
-function getVariantSuffix(variant: RatVariant): string {
-  const resolved = normalizeRatVariant(variant);
-  if (resolved === 'female') return 'female';
-  if (resolved === 'non-binary') return 'nonbinary';
-  return 'male';
+function getTierName(level: number) {
+  if (level >= 100) return "legend";
+  if (level >= 90) return "mythic";
+  if (level >= 80) return "king";
+  if (level >= 70) return "elite";
+  if (level >= 60) return "alpha";
+  if (level >= 50) return "grind";
+  if (level >= 30) return "grind";
+  if (level >= 15) return "underground";
+  return "underground";
 }
 
-function getVariantAliases(variant: RatVariant): string[] {
-  const resolved = normalizeRatVariant(variant);
-  if (resolved === 'non-binary') {
-    return ['nonbinary', 'non-binary', 'nb'];
-  }
-
-  return [resolved];
+export function getAssetById(id: string | null | undefined) {
+  if (!id) return null;
+  return findFirstExisting([id]);
 }
 
-function getRatCandidateIds(level: number, variant: RatVariant): string[] {
-  const milestone = getNearestMilestone(level);
-  const padded = padLevel(milestone);
-  const suffix = getVariantSuffix(variant);
-  const aliases = getVariantAliases(variant);
-
-  const candidates = new Set<string>();
-
-  candidates.add(`rat-lv-${padded}-${suffix}`);
-  candidates.add(`rat-lv-${padded}`);
-
-  for (const alias of aliases) {
-    candidates.add(`rat-lv-${padded}-${alias}`);
-    candidates.add(`rat-level-${milestone}-${alias}`);
-    candidates.add(`rat-${milestone}-${alias}`);
-    candidates.add(`rat-${alias}-${milestone}`);
-    candidates.add(`rat-${alias}-lv-${padded}`);
-  }
-
-  candidates.add(`rat-level-${milestone}`);
-  candidates.add(`rat-${milestone}`);
-
-  return Array.from(candidates);
-}
-
-function resolveBodyVariantId(baseId: string, variant: RatVariant): string[] {
-  const resolved = normalizeRatVariant(variant);
-
-  if (resolved === 'female') {
-    return [`${baseId}-female`, baseId];
-  }
-
-  if (resolved === 'non-binary') {
-    return [`${baseId}-nonbinary`, `${baseId}-non-binary`, baseId];
-  }
-
-  return [`${baseId}-male`, baseId];
-}
-
-function findFirstHit(map: AssetDictionary, candidates: string[]): string | null {
-  for (const candidate of candidates) {
-    if (map[candidate]) return map[candidate];
-  }
-
-  return null;
-}
-
-export function getRatImage(id: string | null | undefined): string | null {
+export function getBackgroundImage(id: string | null | undefined) {
   if (!id) return null;
 
-  const lower = id.toLowerCase();
-
-  let variant: RatVariant = 'male';
-  if (lower.includes('female')) variant = 'female';
-  if (lower.includes('nonbinary') || lower.includes('non-binary') || lower.includes('nb')) {
-    variant = 'non-binary';
-  }
-
-  const match = lower.match(/rat-lv-(\d{1,3})/);
-  const level = match ? Number(match[1]) : 1;
-
-  return getRatImageForLevel(level, variant);
+  return findFirstExisting([
+    id,
+    `background-${id}`,
+    `bg-${id}`,
+  ]);
 }
 
-export function getRatImageForLevel(level: number, variant: RatVariant): string | null {
-  const ratMap = getRatMap(variant);
-  return findFirstHit(ratMap, getRatCandidateIds(level, variant));
+export function getDefaultBackgroundForLevel(level: number) {
+  const tier = getTierName(level);
+
+  return findFirstExisting([
+    `bg-${tier}-1`,
+    `bg-${tier}-01`,
+    "bg-underground-1",
+  ]);
 }
 
-export function getRatImageCandidates(level: number, variant: RatVariant): string[] {
-  return getRatCandidateIds(level, variant);
+export function getRatImageForLevel(level: number, variant: RatVariant) {
+  const bucket = levelBucket(level);
+  const normalizedVariant = normalizeVariant(variant);
+  const padded = String(bucket).padStart(3, "0");
+
+  return findFirstExisting([
+    `rat-lv-${padded}-${normalizedVariant}`,
+    `rat-lv-${bucket}-${normalizedVariant}`,
+    `rat-level-${padded}-${normalizedVariant}`,
+    `rat-level-${bucket}-${normalizedVariant}`,
+    `rat-${bucket}-${normalizedVariant}`,
+    `rat-${normalizedVariant}-${padded}`,
+    `rat-${normalizedVariant}-${bucket}`,
+    `rat-lv-${padded}-male`,
+    `rat-lv-${bucket}-male`,
+  ]);
 }
 
-export function getBackgroundImage(id: string | null | undefined): string | null {
-  if (!id) return null;
-  return backgroundMap[id] ?? null;
-}
+function buildVariantCandidates(baseId: string, variant: RatVariant) {
+  const normalizedVariant = normalizeVariant(variant);
 
-export function getDefaultBackgroundForLevel(level: number): string | null {
-  if (level >= 90) return backgroundMap['bg-legend-1'] ?? null;
-  if (level >= 80) return backgroundMap['bg-mythic-1'] ?? backgroundMap['bg-king-1'] ?? null;
-  if (level >= 70) return backgroundMap['bg-king-1'] ?? null;
-  if (level >= 60) return backgroundMap['bg-elite-2'] ?? backgroundMap['bg-elite-1'] ?? null;
-  if (level >= 50) return backgroundMap['bg-elite-1'] ?? null;
-  if (level >= 40) return backgroundMap['bg-alpha-2'] ?? backgroundMap['bg-alpha-1'] ?? null;
-  if (level >= 30) return backgroundMap['bg-alpha-1'] ?? null;
-  if (level >= 20) return backgroundMap['bg-grind-3'] ?? backgroundMap['bg-grind-2'] ?? null;
-  if (level >= 10) return backgroundMap['bg-grind-2'] ?? backgroundMap['bg-grind-1'] ?? null;
-  if (level >= 5) return backgroundMap['bg-underground-2'] ?? backgroundMap['bg-underground-1'] ?? null;
-  return backgroundMap['bg-underground-1'] ?? null;
-}
-
-export function getItemImage(
-  id: string | null | undefined,
-  variant?: RatVariant,
-): string | null {
-  if (!id) return null;
-
-  for (const map of Object.values(slotMaps)) {
-    if (map[id]) return map[id];
-  }
-
-  if (bodyMap[id]) return bodyMap[id];
-
-  if (variant) {
-    for (const candidate of resolveBodyVariantId(id, variant)) {
-      if (bodyMap[candidate]) return bodyMap[candidate];
-    }
-  }
-
-  return null;
+  return [
+    `${baseId}-${normalizedVariant}`,
+    `${baseId}_${normalizedVariant}`,
+    `${baseId}${normalizedVariant}`,
+    baseId,
+  ];
 }
 
 export function getItemImageForSlot(
   slot: CosmeticSlot,
-  id: string | null | undefined,
+  itemId: string | null | undefined,
   variant?: RatVariant,
-): string | null {
-  if (!id) return null;
+) {
+  if (!itemId) return null;
 
-  const slotMap = slotMaps[slot];
-  if (slotMap[id]) return slotMap[id];
+  const resolvedVariant = variant ?? "male";
+  const variantCandidates = buildVariantCandidates(itemId, resolvedVariant);
 
-  if (variant) {
-    for (const candidate of resolveBodyVariantId(id, variant)) {
-      if (slotMap[candidate]) return slotMap[candidate];
-      if (bodyMap[candidate]) return bodyMap[candidate];
-    }
-  }
+  const slotCandidates = variantCandidates.flatMap((candidate) => [
+    candidate,
+    `${slot}-${candidate}`,
+  ]);
 
-  if (bodyMap[id]) return bodyMap[id];
-
-  return null;
+  return findFirstExisting(slotCandidates);
 }
 
-export function hasAsset(category: AssetCategory, id: string): boolean {
-  const map = getAssetMap(category);
-  return Boolean(map[id]);
+export function getAllAssetIds() {
+  return Object.keys(assetMap);
 }
 
-export function getAssetMap(category: AssetCategory): AssetDictionary {
-  switch (category) {
-    case 'rats':
-      return {
-        ...maleRatMap,
-        ...femaleRatMap,
-        ...nonBinaryRatMap,
-      };
-    case 'backgrounds':
-      return backgroundMap;
-    case 'head':
-      return headMap;
-    case 'eyes':
-      return eyesMap;
-    case 'neck':
-      return neckMap;
-    case 'top':
-      return topMap;
-    case 'pants':
-      return pantsMap;
-    case 'feet':
-      return feetMap;
-    case 'aura':
-      return auraMap;
-    case 'body':
-      return bodyMap;
-    default:
-      return {};
-  }
+export function getAssetsByPrefix(prefix: string) {
+  const normalizedPrefix = normalizeKey(prefix);
+
+  return Object.entries(assetMap)
+    .filter(([key]) => key.startsWith(normalizedPrefix))
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([key, url]) => ({ id: key, src: url }));
 }
 
-export function listAssetIds(category: AssetCategory): string[] {
-  return Object.keys(getAssetMap(category)).sort((a, b) => a.localeCompare(b));
+export function getBackgroundAssets() {
+  return getAssetsByPrefix("bg-");
+}
+
+export function getRatAssets() {
+  return getAssetsByPrefix("rat-");
 }
