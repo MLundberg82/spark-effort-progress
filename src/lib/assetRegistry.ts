@@ -1,30 +1,30 @@
-import type { AssetDictionary, CosmeticSlot, RatVariant } from "@/lib/assetTypes";
+import type { AssetDictionary, CosmeticSlot, RatVariant } from '@/lib/assetTypes';
 
-const assetModules = import.meta.glob("../assets/**/*.{png,jpg,jpeg,webp}", {
+const assetModules = import.meta.glob('../assets/**/*.{png,jpg,jpeg,webp}', {
   eager: true,
-  query: "?url",
-  import: "default",
+  query: '?url',
+  import: 'default',
 }) as Record<string, string>;
+
+const MILESTONES = [1, 5, 10, 15, 20, 25, 30, 35, 40, 50, 60, 70, 80, 90, 100] as const;
 
 function normalizeKey(value: string) {
   return value.trim().toLowerCase();
 }
 
 function basenameWithoutExtension(path: string) {
-  const fileName = path.split("/").pop() ?? path;
-  return fileName.replace(/\.[^.]+$/, "");
+  const fileName = path.split('/').pop() ?? path;
+  return fileName.replace(/\.[^.]+$/, '');
 }
 
 const assetMap: AssetDictionary = Object.fromEntries(
-  Object.entries(assetModules).map(([path, url]) => [
-    normalizeKey(basenameWithoutExtension(path)),
-    url,
-  ]),
+  Object.entries(assetModules).map(([path, url]) => [normalizeKey(basenameWithoutExtension(path)), url]),
 );
 
 function findFirstExisting(keys: Array<string | null | undefined>) {
   for (const key of keys) {
     if (!key) continue;
+
     const match = assetMap[normalizeKey(key)];
     if (match) return match;
   }
@@ -33,16 +33,15 @@ function findFirstExisting(keys: Array<string | null | undefined>) {
 }
 
 function normalizeVariant(variant?: RatVariant) {
-  if (!variant) return "male";
-  if (variant === "non-binary") return "nonbinary";
+  if (!variant) return 'male';
+  if (variant === 'non-binary') return 'nonbinary';
   return variant;
 }
 
-function levelBucket(level: number) {
-  const milestones = [1, 5, 10, 15, 20, 25, 30, 35, 40, 50, 60, 70, 80, 90, 100];
-
+export function getNearestMilestone(level: number) {
   let current = 1;
-  for (const milestone of milestones) {
+
+  for (const milestone of MILESTONES) {
     if (level >= milestone) {
       current = milestone;
     } else {
@@ -54,15 +53,26 @@ function levelBucket(level: number) {
 }
 
 function getTierName(level: number) {
-  if (level >= 100) return "legend";
-  if (level >= 90) return "mythic";
-  if (level >= 80) return "king";
-  if (level >= 70) return "elite";
-  if (level >= 60) return "alpha";
-  if (level >= 50) return "grind";
-  if (level >= 30) return "grind";
-  if (level >= 15) return "underground";
-  return "underground";
+  if (level >= 100) return 'legend';
+  if (level >= 90) return 'mythic';
+  if (level >= 80) return 'king';
+  if (level >= 70) return 'elite';
+  if (level >= 60) return 'alpha';
+  if (level >= 50) return 'grind';
+  if (level >= 30) return 'grind';
+  if (level >= 15) return 'underground';
+  return 'underground';
+}
+
+function buildVariantCandidates(baseId: string, variant: RatVariant) {
+  const normalizedVariant = normalizeVariant(variant);
+
+  return [
+    `${baseId}-${normalizedVariant}`,
+    `${baseId}_${normalizedVariant}`,
+    `${baseId}${normalizedVariant}`,
+    baseId,
+  ];
 }
 
 export function getAssetById(id: string | null | undefined) {
@@ -86,14 +96,14 @@ export function getDefaultBackgroundForLevel(level: number) {
   return findFirstExisting([
     `bg-${tier}-1`,
     `bg-${tier}-01`,
-    "bg-underground-1",
+    'bg-underground-1',
   ]);
 }
 
 export function getRatImageForLevel(level: number, variant: RatVariant) {
-  const bucket = levelBucket(level);
+  const bucket = getNearestMilestone(level);
   const normalizedVariant = normalizeVariant(variant);
-  const padded = String(bucket).padStart(3, "0");
+  const padded = String(bucket).padStart(3, '0');
 
   return findFirstExisting([
     `rat-lv-${padded}-${normalizedVariant}`,
@@ -108,17 +118,6 @@ export function getRatImageForLevel(level: number, variant: RatVariant) {
   ]);
 }
 
-function buildVariantCandidates(baseId: string, variant: RatVariant) {
-  const normalizedVariant = normalizeVariant(variant);
-
-  return [
-    `${baseId}-${normalizedVariant}`,
-    `${baseId}_${normalizedVariant}`,
-    `${baseId}${normalizedVariant}`,
-    baseId,
-  ];
-}
-
 export function getItemImageForSlot(
   slot: CosmeticSlot,
   itemId: string | null | undefined,
@@ -126,15 +125,35 @@ export function getItemImageForSlot(
 ) {
   if (!itemId) return null;
 
-  const resolvedVariant = variant ?? "male";
+  const resolvedVariant = variant ?? 'male';
   const variantCandidates = buildVariantCandidates(itemId, resolvedVariant);
-
   const slotCandidates = variantCandidates.flatMap((candidate) => [
     candidate,
     `${slot}-${candidate}`,
   ]);
 
   return findFirstExisting(slotCandidates);
+}
+
+export function getItemImage(
+  itemId: string | null | undefined,
+  variant: RatVariant = 'male',
+) {
+  if (!itemId) return null;
+
+  const variantCandidates = buildVariantCandidates(itemId, variant);
+
+  return findFirstExisting([
+    ...variantCandidates,
+    `head-${itemId}`,
+    `eyes-${itemId}`,
+    `neck-${itemId}`,
+    `top-${itemId}`,
+    `pants-${itemId}`,
+    `feet-${itemId}`,
+    `aura-${itemId}`,
+    `background-${itemId}`,
+  ]);
 }
 
 export function getAllAssetIds() {
@@ -151,9 +170,9 @@ export function getAssetsByPrefix(prefix: string) {
 }
 
 export function getBackgroundAssets() {
-  return getAssetsByPrefix("bg-");
+  return getAssetsByPrefix('bg-');
 }
 
 export function getRatAssets() {
-  return getAssetsByPrefix("rat-");
+  return getAssetsByPrefix('rat-');
 }

@@ -642,15 +642,19 @@ export default function Index() {
     return (
       <>
         <WorkoutComplete
-          summary={{
-            durationMinutes: lastSummary.durationMinutes,
-            exercisesCompleted: lastSummary.exercisesCompleted,
-            volume: lastSummary.volume,
-            prs: lastSummary.prs,
-          }}
+          summary={lastSummary}
           onContinue={goBack}
+          onOpenPaywall={() => {
+            setPaywallOpen(false);
+            openPremium();
+          }}
         />
-        <PremiumPaywall isOpen={paywallOpen} onClose={() => setPaywallOpen(false)} />
+        {paywallOpen ? (
+          <PremiumPaywall
+            isOpen={paywallOpen}
+            onClose={() => setPaywallOpen(false)}
+          />
+        ) : null}
       </>
     );
   }
