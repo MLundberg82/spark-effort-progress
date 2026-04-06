@@ -1,7 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
-
-import { getBackgroundImage, getDefaultBackgroundForLevel, getItemImageForSlot, getRatImageForLevel } from '@/lib/assetRegistry';
-import type { CosmeticSlot, EquippedItems, RatVariant } from '@/lib/assetTypes';
+import {
+  getBackgroundImage,
+  getDefaultBackgroundForLevel,
+  getItemImageForSlot,
+  getRatImageForLevel,
+} from '@/lib/assetRegistry';
+import type {
+  CosmeticSlot,
+  EquippedItems,
+  RatVariant,
+} from '@/lib/assetTypes';
 import { getProfile } from '@/lib/profileStore';
 import { getEquippedState } from '@/lib/shopStore';
 
@@ -19,37 +27,49 @@ type LayerStyle = {
 };
 
 const BASE_LAYER =
-  'pointer-events-none absolute inset-0 flex items-center justify-center';
+  'pointer-events-none absolute inset-0 flex items-end justify-center';
 
 const SLOT_STYLES: Record<CosmeticSlot, LayerStyle> = {
   aura: {
-    wrapper: `${BASE_LAYER} z-[1]`,
+    wrapper: 'pointer-events-none absolute inset-0 z-[1] flex items-center justify-center',
     image:
-      'h-[92%] w-[92%] object-contain opacity-90 drop-shadow-[0_0_36px_rgba(163,230,53,0.22)]',
+      'h-[108%] w-[108%] max-w-none object-contain opacity-90 drop-shadow-[0_0_42px_rgba(163,230,53,0.24)]',
   },
+
   pants: {
-    wrapper: 'pointer-events-none absolute inset-x-[23%] bottom-[12%] z-[4] flex justify-center',
-    image: 'w-[54%] max-w-none object-contain',
-  },
-  feet: {
-    wrapper: 'pointer-events-none absolute inset-x-[22%] bottom-[7.5%] z-[5] flex justify-center',
-    image: 'w-[56%] max-w-none object-contain',
-  },
-  top: {
-    wrapper: 'pointer-events-none absolute inset-x-[18%] top-[25%] z-[6] flex justify-center',
+    wrapper:
+      'pointer-events-none absolute inset-x-[18%] bottom-[12.2%] z-[4] flex justify-center',
     image: 'w-[64%] max-w-none object-contain',
   },
+
+  feet: {
+    wrapper:
+      'pointer-events-none absolute inset-x-[18.5%] bottom-[7.2%] z-[5] flex justify-center',
+    image: 'w-[65%] max-w-none object-contain',
+  },
+
+  top: {
+    wrapper:
+      'pointer-events-none absolute inset-x-[12.5%] top-[15.5%] z-[6] flex justify-center',
+    image: 'w-[76%] max-w-none object-contain',
+  },
+
   neck: {
-    wrapper: 'pointer-events-none absolute inset-x-[33%] top-[25.5%] z-[7] flex justify-center',
-    image: 'w-[34%] max-w-none object-contain',
+    wrapper:
+      'pointer-events-none absolute inset-x-[30.5%] top-[17.5%] z-[7] flex justify-center',
+    image: 'w-[31%] max-w-none object-contain',
   },
+
   head: {
-    wrapper: 'pointer-events-none absolute inset-x-[27%] top-[8.5%] z-[8] flex justify-center',
-    image: 'w-[46%] max-w-none object-contain',
+    wrapper:
+      'pointer-events-none absolute inset-x-[24%] top-[1.8%] z-[8] flex justify-center',
+    image: 'w-[49%] max-w-none object-contain',
   },
+
   eyes: {
-    wrapper: 'pointer-events-none absolute inset-x-[35%] top-[20%] z-[9] flex justify-center',
-    image: 'w-[24%] max-w-none object-contain',
+    wrapper:
+      'pointer-events-none absolute inset-x-[35.2%] top-[13.5%] z-[9] flex justify-center',
+    image: 'w-[20.5%] max-w-none object-contain',
   },
 };
 
@@ -57,6 +77,7 @@ function resolveVariant(explicit?: RatVariant): RatVariant {
   if (explicit) return explicit;
 
   const profile = getProfile();
+
   if (profile?.gender === 'female') return 'female';
   if (profile?.gender === 'non-binary') return 'non-binary';
 
@@ -77,14 +98,8 @@ function Layer({
   if (!src) return null;
 
   return (
-    <div className={wrapperClassName} aria-hidden="true">
-      <img
-        src={src}
-        alt={alt}
-        className={imageClassName}
-        draggable={false}
-        loading="eager"
-      />
+    <div className={wrapperClassName}>
+      <img src={src} alt={alt} className={imageClassName} draggable={false} />
     </div>
   );
 }
@@ -96,7 +111,7 @@ export default function EquippedRatPreview({
   equippedOverride,
   prioritySlot = null,
 }: EquippedRatPreviewProps) {
-  const [equippedState, setEquippedState] = useState<EquippedItems>(getEquippedState());
+  const [equippedState, setEquippedState] = useState(getEquippedState());
 
   useEffect(() => {
     const sync = () => setEquippedState(getEquippedState());
@@ -130,7 +145,15 @@ export default function EquippedRatPreview({
     return getRatImageForLevel(level, resolvedVariant);
   }, [level, resolvedVariant]);
 
-  const orderedSlots: CosmeticSlot[] = ['aura', 'pants', 'feet', 'top', 'neck', 'head', 'eyes'];
+  const orderedSlots: CosmeticSlot[] = [
+    'aura',
+    'pants',
+    'feet',
+    'top',
+    'neck',
+    'head',
+    'eyes',
+  ];
 
   const prioritizedSlots = useMemo(() => {
     if (!prioritySlot) return orderedSlots;
@@ -142,20 +165,18 @@ export default function EquippedRatPreview({
       prioritizedSlots.map((slot) => ({
         slot,
         itemId: equipped[slot],
-        src: equipped[slot] ? getItemImageForSlot(slot, equipped[slot], resolvedVariant) : null,
+        src: equipped[slot]
+          ? getItemImageForSlot(slot, equipped[slot], resolvedVariant)
+          : null,
       })),
     [equipped, prioritizedSlots, resolvedVariant],
   );
 
+  const auraSrc =
+    overlayLayers.find((layer) => layer.slot === 'aura')?.src ?? null;
+
   return (
-    <div
-      className={[
-        'relative isolate aspect-[4/5] w-full overflow-hidden rounded-[30px]',
-        'bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.16),rgba(255,255,255,0.02)_42%,rgba(0,0,0,0.08)_100%)]',
-        'shadow-[0_24px_80px_rgba(0,0,0,0.45)]',
-        className,
-      ].join(' ')}
-    >
+    <div className={`relative h-full w-full overflow-hidden ${className}`}>
       {backgroundSrc ? (
         <img
           src={backgroundSrc}
@@ -164,31 +185,29 @@ export default function EquippedRatPreview({
           draggable={false}
         />
       ) : (
-        <div className="absolute inset-0 bg-gradient-to-b from-white/10 via-white/[0.04] to-black/20" />
+        <div className="absolute inset-0 bg-[#050505]" />
       )}
 
-      <div className="absolute inset-0 bg-gradient-to-b from-black/0 via-black/[0.04] to-black/[0.22]" />
-      <div className="absolute inset-x-[14%] bottom-[4%] h-[16%] rounded-full bg-black/30 blur-2xl" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_16%,rgba(255,255,255,0.06),transparent_34%),linear-gradient(180deg,rgba(0,0,0,0.06)_0%,rgba(0,0,0,0.16)_36%,rgba(0,0,0,0.58)_100%)]" />
 
       <Layer
-        src={overlayLayers.find((layer) => layer.slot === 'aura')?.src ?? null}
+        src={auraSrc}
         alt="Aura"
         wrapperClassName={SLOT_STYLES.aura.wrapper}
         imageClassName={SLOT_STYLES.aura.image}
       />
 
       {baseRatSrc ? (
-        <div className="pointer-events-none absolute inset-x-[10%] bottom-[7%] top-[7%] z-[3] flex items-center justify-center">
+        <div className={`${BASE_LAYER} z-[3] pb-[15%]`}>
           <img
             src={baseRatSrc}
             alt="GymRat"
-            className="h-full w-full object-contain drop-shadow-[0_22px_42px_rgba(0,0,0,0.34)]"
+            className="h-[76%] w-auto max-w-none object-contain drop-shadow-[0_24px_60px_rgba(0,0,0,0.45)]"
             draggable={false}
-            loading="eager"
           />
         </div>
       ) : (
-        <div className="absolute inset-[14%] z-[3] flex items-center justify-center rounded-[28px] border border-dashed border-white/15 bg-black/20 text-center text-sm text-white/60">
+        <div className="absolute inset-0 z-[3] flex items-center justify-center text-sm font-semibold text-white/70">
           Missing rat image
         </div>
       )}
@@ -202,7 +221,7 @@ export default function EquippedRatPreview({
 
           return (
             <Layer
-              key={`${layer.slot}-${layer.itemId ?? 'empty'}`}
+              key={`${layer.slot}-${layer.itemId ?? 'none'}`}
               src={layer.src}
               alt={layer.slot}
               wrapperClassName={style.wrapper}
@@ -210,8 +229,6 @@ export default function EquippedRatPreview({
             />
           );
         })}
-
-      <div className="pointer-events-none absolute inset-0 rounded-[30px] ring-1 ring-inset ring-white/8" />
     </div>
   );
 }

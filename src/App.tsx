@@ -1,6 +1,5 @@
-import './App.css';
-import Index from '@/pages/Index';
+import IndexScreen from '@/pages/Index';
 
 export default function App() {
-  return <Index />;
+  return <IndexScreen />;
 }
