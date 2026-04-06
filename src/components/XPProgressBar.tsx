@@ -1,69 +1,57 @@
-type Props = {
-  level: number;
+type XPProgressBarProps = {
   currentXP: number;
   nextLevelXP: number;
+  level?: number;
+  className?: string;
 };
 
 function clamp(value: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, value));
+  return Math.min(max, Math.max(min, value));
 }
 
 export default function XPProgressBar({
-  level,
   currentXP,
   nextLevelXP,
-}: Props) {
+  level,
+  className = '',
+}: XPProgressBarProps) {
   const safeNext = Math.max(1, nextLevelXP);
-  const progressPercent = clamp((currentXP / safeNext) * 100, 0, 100);
+  const progress = clamp((currentXP / safeNext) * 100, 0, 100);
   const xpLeft = Math.max(0, safeNext - currentXP);
 
   return (
-    <div className="rounded-[24px] border border-white/10 bg-white/[0.04] p-4 text-white">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <div className="text-[11px] font-black uppercase tracking-[0.18em] text-white/45">
-            Progression
-          </div>
-          <div className="mt-1 text-xl font-black tracking-tight">Level {level}</div>
+    <div
+      className={[
+        'w-full rounded-[26px] border border-white/10 bg-black/35 px-4 py-3 shadow-[0_10px_30px_rgba(0,0,0,0.28)] backdrop-blur-xl',
+        className,
+      ].join(' ')}
+    >
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-white/55">
+            XP Progress
+          </p>
+          <p className="truncate text-sm font-semibold text-white">
+            {currentXP} / {safeNext} XP
+          </p>
         </div>
 
-        <div className="text-right">
-          <div className="text-[11px] font-black uppercase tracking-[0.18em] text-white/45">
-            Progress
-          </div>
-          <div className="mt-1 text-xl font-black tracking-tight">
-            {progressPercent.toFixed(0)}%
-          </div>
+        <div className="shrink-0 text-right">
+          {typeof level === 'number' ? (
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-lime-300/75">
+              Level {level}
+            </p>
+          ) : null}
+          <p className="text-xs text-white/55">{xpLeft} XP left</p>
         </div>
       </div>
 
-      <div className="mt-4 h-3 w-full overflow-hidden rounded-full bg-white/10">
+      <div className="relative h-3 w-full overflow-hidden rounded-full bg-white/10">
         <div
-          className="h-full rounded-full bg-lime-300 transition-[width] duration-500"
-          style={{ width: `${progressPercent}%` }}
+          className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-lime-300 via-emerald-400 to-yellow-300 transition-[width] duration-500 ease-out"
+          style={{ width: `${progress}%` }}
         />
-      </div>
-
-      <div className="mt-4 grid grid-cols-2 gap-3">
-        <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
-          <div className="text-[10px] font-black uppercase tracking-[0.14em] text-white/40">
-            Current XP
-          </div>
-          <div className="mt-1 text-lg font-black">
-            {currentXP} / {safeNext}
-          </div>
-        </div>
-
-        <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
-          <div className="text-[10px] font-black uppercase tracking-[0.14em] text-white/40">
-            Next level in
-          </div>
-          <div className="mt-1 text-lg font-black">{xpLeft} XP</div>
-        </div>
-      </div>
-
-      <div className="mt-3 text-xs font-bold text-white/45">
-        Status · Keep stacking reps
+        <div className="pointer-events-none absolute inset-0 rounded-full ring-1 ring-inset ring-white/8" />
       </div>
     </div>
   );

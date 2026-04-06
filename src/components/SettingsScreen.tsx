@@ -1,8 +1,6 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ArrowLeft,
-  Bug,
-  ChevronRight,
   Globe,
   Mail,
   Ruler,
@@ -11,66 +9,54 @@ import {
   User,
   Weight,
 } from 'lucide-react';
-import {
-  getProfile,
-  saveProfile,
-  type FitnessGoal,
-  type ProfileGender,
-} from '@/lib/profileStore';
+
+import { getLanguage, languageOptions, setLanguage } from '@/lib/languageStore';
+import { getProfile, saveProfile } from '@/lib/profileStore';
 import { getTrainingLevel, setTrainingLevel } from '@/lib/trainingStore';
-import type { TrainingLevel } from '@/lib/exerciseData';
-import {
-  getLanguage,
-  getLanguageLabel,
-  languageOptions,
-  setLanguage,
-  type AppLanguage,
-} from '@/lib/languageStore';
 
 type SettingsScreenProps = {
   onBack: () => void;
 };
 
+type GenderOption = 'male' | 'female' | 'non-binary';
+type GoalOption = 'lose' | 'maintain' | 'gain';
+type TrainingLevelOption = 'beginner' | 'intermediate' | 'advanced';
+
 const CONTACT_EMAIL = 'hello@getgymrat.com';
 
-function SectionTitle({
-  icon,
+function SectionCard({
   title,
-  subtitle,
+  icon,
+  children,
 }: {
-  icon: ReactNode;
   title: string;
-  subtitle?: string;
+  icon: React.ReactNode;
+  children: React.ReactNode;
 }) {
   return (
-    <div className="mb-3 flex items-start gap-2.5">
-      <div className="mt-0.5 flex h-9 w-9 items-center justify-center rounded-[18px] border border-white/10 bg-white/[0.04] text-lime-300">
-        {icon}
+    <section className="rounded-[24px] border border-white/10 bg-white/[0.05] p-4 shadow-[0_12px_34px_rgba(0,0,0,0.18)]">
+      <div className="mb-3 flex items-center gap-2">
+        <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-white/[0.06] text-white/80">
+          {icon}
+        </span>
+        <h2 className="text-sm font-black tracking-tight text-white">{title}</h2>
       </div>
-
-      <div className="min-w-0">
-        <h2 className="text-[15px] font-semibold text-white">{title}</h2>
-        {subtitle ? (
-          <p className="mt-1 text-xs leading-5 text-white/55">{subtitle}</p>
-        ) : null}
-      </div>
-    </div>
+      {children}
+    </section>
   );
 }
 
-function ToggleCard<T extends string>({
+function ToggleGrid<T extends string>({
   value,
   onChange,
   options,
-  columns = 'grid-cols-1 sm:grid-cols-3',
 }: {
   value: T;
   onChange: (value: T) => void;
-  options: { value: T; label: string; sublabel?: string }[];
-  columns?: string;
+  options: Array<{ value: T; label: string }>;
 }) {
   return (
-    <div className={`grid gap-2 ${columns}`}>
+    <div className="grid grid-cols-2 gap-2">
       {options.map((option) => {
         const active = option.value === value;
 
@@ -79,18 +65,14 @@ function ToggleCard<T extends string>({
             key={option.value}
             type="button"
             onClick={() => onChange(option.value)}
-            className={`rounded-[18px] border px-3 py-2 text-left transition ${
+            className={[
+              'rounded-[18px] border px-3 py-2.5 text-sm font-bold transition',
               active
-                ? 'border-lime-400/35 bg-lime-400/12 text-white shadow-[0_0_0_1px_rgba(163,230,53,0.08)]'
-                : 'border-white/10 bg-white/[0.04] text-white/75 hover:border-white/20 hover:bg-white/[0.07]'
-            }`}
+                ? 'border-lime-300/30 bg-lime-300/12 text-white'
+                : 'border-white/10 bg-white/[0.04] text-white/70 hover:text-white',
+            ].join(' ')}
           >
-            <div className="text-sm font-semibold">{option.label}</div>
-            {option.sublabel ? (
-              <div className="mt-0.5 text-[11px] leading-4 text-white/45">
-                {option.sublabel}
-              </div>
-            ) : null}
+            {option.label}
           </button>
         );
       })}
@@ -100,348 +82,219 @@ function ToggleCard<T extends string>({
 
 function CompactInput({
   label,
+  icon,
   value,
   onChange,
   suffix,
-  icon,
 }: {
   label: string;
-  value: string | number;
+  icon: React.ReactNode;
+  value: string;
   onChange: (value: string) => void;
   suffix?: string;
-  icon: ReactNode;
 }) {
   return (
-    <label className="block">
-      <div className="mb-1.5 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/42">
+    <label className="rounded-[18px] border border-white/10 bg-white/[0.04] px-3 py-2.5">
+      <div className="mb-1 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.18em] text-white/50">
         {icon}
         <span>{label}</span>
       </div>
 
-      <div className="relative">
+      <div className="flex items-center gap-2">
         <input
           value={value}
           onChange={(event) => onChange(event.target.value)}
-          className="h-11 w-full rounded-[16px] border border-white/10 bg-zinc-950 px-3 py-2 pr-11 text-sm text-white outline-none transition focus:border-lime-400/50"
+          inputMode="decimal"
+          className="min-w-0 flex-1 bg-transparent text-sm font-semibold text-white outline-none placeholder:text-white/25"
+          placeholder={suffix ? `0 ${suffix}` : '0'}
         />
-        {suffix ? (
-          <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-medium text-white/35">
-            {suffix}
-          </span>
-        ) : null}
+        {suffix ? <span className="text-xs text-white/45">{suffix}</span> : null}
       </div>
     </label>
   );
 }
 
-function ActionRow({
-  icon,
-  title,
-  subtitle,
-  onClick,
-}: {
-  icon: ReactNode;
-  title: string;
-  subtitle: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="flex w-full items-center gap-3 rounded-[18px] border border-white/10 bg-white/[0.04] px-3.5 py-2.5 text-left transition hover:border-white/20 hover:bg-white/[0.07]"
-    >
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[16px] border border-white/10 bg-zinc-950 text-lime-300">
-        {icon}
-      </div>
-
-      <div className="min-w-0 flex-1">
-        <div className="text-sm font-semibold text-white">{title}</div>
-        <div className="mt-0.5 text-[11px] leading-4 text-white/50">{subtitle}</div>
-      </div>
-
-      <ChevronRight className="h-4 w-4 shrink-0 text-white/28" />
-    </button>
-  );
-}
-
-const genderOptions: { value: ProfileGender; label: string; sublabel: string }[] = [
-  { value: 'male', label: 'Male', sublabel: 'Masculine rat visuals' },
-  { value: 'female', label: 'Female', sublabel: 'Feminine rat visuals' },
-  {
-    value: 'non-binary',
-    label: 'Non-binary',
-    sublabel: 'Inclusive rat visuals',
-  },
-];
-
-const goalOptions: { value: FitnessGoal; label: string; sublabel: string }[] = [
-  { value: 'lose', label: 'Lose', sublabel: 'Cutting / fat loss' },
-  { value: 'maintain', label: 'Maintain', sublabel: 'Consistency / balance' },
-  { value: 'gain', label: 'Gain', sublabel: 'Muscle / size / strength' },
-];
-
-const trainingLevelOptions: {
-  value: TrainingLevel;
-  label: string;
-  sublabel: string;
-}[] = [
-  { value: 'beginner', label: 'Beginner', sublabel: 'Simple structure and guidance' },
-  {
-    value: 'intermediate',
-    label: 'Intermediate',
-    sublabel: 'Balanced volume and progression',
-  },
-  { value: 'advanced', label: 'Advanced', sublabel: 'Higher training demand' },
-];
-
 export default function SettingsScreen({ onBack }: SettingsScreenProps) {
-  const profile = getProfile();
-
-  const [gender, setGender] = useState<ProfileGender>(profile.gender ?? 'male');
-  const [height, setHeight] = useState(profile.height ? String(profile.height) : '');
-  const [weight, setWeight] = useState(profile.weight ? String(profile.weight) : '');
-  const [age, setAge] = useState(profile.age ? String(profile.age) : '');
-  const [goal, setGoal] = useState<FitnessGoal>(profile.goal ?? 'gain');
-  const [trainingLevelState, setTrainingLevelState] = useState<TrainingLevel>(
-    getTrainingLevel(),
+  const initialProfile = useMemo(() => getProfile(), []);
+  const [height, setHeight] = useState(String(initialProfile?.height ?? ''));
+  const [weight, setWeight] = useState(String(initialProfile?.weight ?? ''));
+  const [age, setAge] = useState(String(initialProfile?.age ?? ''));
+  const [gender, setGender] = useState<GenderOption>(
+    (initialProfile?.gender as GenderOption) ?? 'male',
   );
-  const [language, setLanguageState] = useState<AppLanguage>(getLanguage());
-  const [message, setMessage] = useState('');
+  const [goal, setGoal] = useState<GoalOption>(
+    (initialProfile?.goal as GoalOption) ?? 'maintain',
+  );
+  const [trainingLevel, setTrainingLevelState] = useState<TrainingLevelOption>(
+    (getTrainingLevel() as TrainingLevelOption) ?? 'beginner',
+  );
+  const [language, setLanguageState] = useState<string>(getLanguage());
+  const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    const refreshFromStores = () => {
-      const current = getProfile();
-      setGender(current.gender ?? 'male');
-      setHeight(current.height ? String(current.height) : '');
-      setWeight(current.weight ? String(current.weight) : '');
-      setAge(current.age ? String(current.age) : '');
-      setGoal(current.goal ?? 'gain');
-      setTrainingLevelState(getTrainingLevel());
-      setLanguageState(getLanguage());
-    };
+    if (!saved) return;
 
-    window.addEventListener('gymrat-profile-updated', refreshFromStores);
-    window.addEventListener('language-updated', refreshFromStores);
-    window.addEventListener('storage', refreshFromStores);
-
-    return () => {
-      window.removeEventListener('gymrat-profile-updated', refreshFromStores);
-      window.removeEventListener('language-updated', refreshFromStores);
-      window.removeEventListener('storage', refreshFromStores);
-    };
-  }, []);
-
-  const parsedHeight = useMemo(() => {
-    const value = Number(height);
-    return Number.isFinite(value)
-      ? Math.max(100, Math.min(260, Math.round(value)))
-      : null;
-  }, [height]);
-
-  const parsedWeight = useMemo(() => {
-    const value = Number(weight);
-    return Number.isFinite(value)
-      ? Math.max(30, Math.min(300, Math.round(value)))
-      : null;
-  }, [weight]);
-
-  const parsedAge = useMemo(() => {
-    const value = Number(age);
-    return Number.isFinite(value)
-      ? Math.max(13, Math.min(100, Math.round(value)))
-      : null;
-  }, [age]);
+    const timeout = window.setTimeout(() => setSaved(false), 1800);
+    return () => window.clearTimeout(timeout);
+  }, [saved]);
 
   const handleSave = () => {
     saveProfile({
-      age: parsedAge,
+      ...(initialProfile ?? {}),
+      height: Number(height) || 0,
+      weight: Number(weight) || 0,
+      age: Number(age) || 0,
       gender,
-      height: parsedHeight,
-      weight: parsedWeight,
       goal,
-      onboardingComplete: true,
-    });
+      trainingLevel,
+    } as never);
 
-    setTrainingLevel(trainingLevelState);
-    setLanguage(language);
-    setMessage(`Saved · ${getLanguageLabel(language)} · ${trainingLevelState}`);
+    setTrainingLevel(trainingLevel as never);
+    setLanguage(language as never);
+    setSaved(true);
 
-    window.setTimeout(() => setMessage(''), 2200);
-  };
-
-  const openContact = () => {
-    window.location.href = `mailto:${CONTACT_EMAIL}?subject=GymRat%20Contact`;
-  };
-
-  const reportBug = () => {
-    window.location.href = `mailto:${CONTACT_EMAIL}?subject=GymRat%20Bug%20Report&body=Describe%20what%20happened:%0A%0ADevice:%0AScreen:%0ASteps%20to%20reproduce:%0A`;
+    window.dispatchEvent(new CustomEvent('profile-updated'));
+    window.dispatchEvent(new CustomEvent('gymrat-profile-updated'));
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white">
-      <div className="mx-auto flex min-h-screen w-full max-w-3xl flex-col px-4 pb-28 pt-4 sm:px-6">
-        <div className="mb-4 rounded-[24px] border border-white/10 bg-gradient-to-br from-zinc-950 via-zinc-950 to-lime-950/20 p-4 shadow-[0_18px_50px_rgba(0,0,0,0.32)]">
-          <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-lime-400/20 bg-lime-400/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-lime-300">
-            <User className="h-3.5 w-3.5" />
-            Settings
+    <div className="min-h-[100dvh] bg-[#06080b] text-white">
+      <div className="mx-auto flex min-h-[100dvh] w-full max-w-md flex-col px-4 pb-5 pt-4">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <button
+            type="button"
+            onClick={onBack}
+            className="flex h-11 w-11 items-center justify-center rounded-[18px] border border-white/10 bg-white/[0.06] text-white transition hover:bg-white/[0.09]"
+            aria-label="Back"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+
+          <div className="text-center">
+            <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-lime-300/70">
+              Settings
+            </p>
+            <h1 className="text-lg font-black tracking-tight">Profile & app</h1>
           </div>
 
-          <h1 className="text-[28px] font-black tracking-tight text-white">Settings</h1>
-          <p className="mt-1.5 max-w-xl text-xs leading-5 text-white/58">
-            Profile, language, support and training direction.
-          </p>
+          <button
+            type="button"
+            onClick={handleSave}
+            className="flex items-center gap-2 rounded-full bg-gradient-to-r from-lime-300 via-emerald-400 to-yellow-300 px-3 py-2 text-[11px] font-black uppercase tracking-[0.18em] text-black transition hover:brightness-105"
+          >
+            <Save className="h-3.5 w-3.5" />
+            Save
+          </button>
         </div>
 
-        <div className="space-y-3">
-          <section className="rounded-[24px] border border-white/10 bg-white/[0.04] p-3.5 sm:p-4">
-            <SectionTitle
-              icon={<User className="h-4.5 w-4.5" />}
-              title="Profile"
-              subtitle="Compact core profile values."
-            />
-
-            <div className="grid grid-cols-2 gap-2.5">
+        <div className="space-y-3 overflow-y-auto pb-1">
+          <SectionCard title="Body" icon={<User className="h-4.5 w-4.5" />}>
+            <div className="grid grid-cols-2 gap-2">
               <CompactInput
                 label="Height"
+                icon={<Ruler className="h-3.5 w-3.5" />}
                 value={height}
                 onChange={setHeight}
                 suffix="cm"
-                icon={<Ruler className="h-3.5 w-3.5" />}
               />
               <CompactInput
                 label="Weight"
+                icon={<Weight className="h-3.5 w-3.5" />}
                 value={weight}
                 onChange={setWeight}
                 suffix="kg"
-                icon={<Weight className="h-3.5 w-3.5" />}
               />
               <CompactInput
                 label="Age"
+                icon={<User className="h-3.5 w-3.5" />}
                 value={age}
                 onChange={setAge}
-                icon={<User className="h-3.5 w-3.5" />}
               />
-
-              <div>
-                <div className="mb-1.5 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/42">
-                  <User className="h-3.5 w-3.5" />
-                  <span>Gender</span>
+              <div className="rounded-[18px] border border-white/10 bg-white/[0.04] px-3 py-2.5">
+                <div className="mb-1 text-[10px] font-bold uppercase tracking-[0.18em] text-white/50">
+                  Gender
                 </div>
-
-                <ToggleCard<ProfileGender>
-                  value={gender}
-                  onChange={(value) => setGender(value)}
-                  options={genderOptions}
-                  columns="grid-cols-1"
-                />
+                <div className="grid grid-cols-1 gap-2">
+                  <select
+                    value={gender}
+                    onChange={(event) => setGender(event.target.value as GenderOption)}
+                    className="rounded-[14px] border border-white/10 bg-black/20 px-3 py-2 text-sm font-semibold text-white outline-none"
+                  >
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
+                    <option value="non-binary">Non-binary</option>
+                  </select>
+                </div>
               </div>
             </div>
-          </section>
+          </SectionCard>
 
-          <section className="rounded-[24px] border border-white/10 bg-white/[0.04] p-3.5 sm:p-4">
-            <SectionTitle
-              icon={<Globe className="h-4.5 w-4.5" />}
-              title="Language"
-              subtitle="App language."
-            />
-
-            <ToggleCard<AppLanguage>
-              value={language}
-              onChange={(value) => setLanguageState(value)}
-              options={languageOptions.map((option) => ({
-                value: option.value,
-                label: option.label,
-              }))}
-              columns="grid-cols-2 sm:grid-cols-3"
-            />
-          </section>
-
-          <section className="rounded-[24px] border border-white/10 bg-white/[0.04] p-3.5 sm:p-4">
-            <SectionTitle
-              icon={<Target className="h-4.5 w-4.5" />}
-              title="Training"
-              subtitle="Goal and level."
-            />
-
-            <div className="grid gap-3">
-              <div>
-                <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/42">
-                  Goal
-                </div>
-                <ToggleCard<FitnessGoal>
-                  value={goal}
-                  onChange={(value) => setGoal(value)}
-                  options={goalOptions}
-                  columns="grid-cols-1 sm:grid-cols-3"
-                />
-              </div>
-
-              <div>
-                <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/42">
-                  Training level
-                </div>
-                <ToggleCard<TrainingLevel>
-                  value={trainingLevelState}
-                  onChange={(value) => setTrainingLevelState(value)}
-                  options={trainingLevelOptions}
-                  columns="grid-cols-1 sm:grid-cols-3"
-                />
-              </div>
-            </div>
-          </section>
-
-          <section className="rounded-[24px] border border-white/10 bg-white/[0.04] p-3.5 sm:p-4">
-            <SectionTitle
-              icon={<Mail className="h-4.5 w-4.5" />}
-              title="Support"
-              subtitle="Contact and bug reporting."
-            />
-
-            <div className="grid gap-2.5">
-              <ActionRow
-                icon={<Mail className="h-4.5 w-4.5" />}
-                title="Contact"
-                subtitle="Questions, feedback or partnerships"
-                onClick={openContact}
+          <SectionCard title="Training" icon={<Target className="h-4.5 w-4.5" />}>
+            <div className="space-y-2">
+              <ToggleGrid<GoalOption>
+                value={goal}
+                onChange={setGoal}
+                options={[
+                  { value: 'lose', label: 'Lose' },
+                  { value: 'maintain', label: 'Maintain' },
+                  { value: 'gain', label: 'Gain' },
+                ]}
               />
-              <ActionRow
-                icon={<Bug className="h-4.5 w-4.5" />}
-                title="Report bug"
-                subtitle="Send screen, steps and device details"
-                onClick={reportBug}
+
+              <ToggleGrid<TrainingLevelOption>
+                value={trainingLevel}
+                onChange={setTrainingLevelState}
+                options={[
+                  { value: 'beginner', label: 'Beginner' },
+                  { value: 'intermediate', label: 'Intermediate' },
+                  { value: 'advanced', label: 'Advanced' },
+                ]}
               />
             </div>
-          </section>
+          </SectionCard>
+
+          <SectionCard title="Language" icon={<Globe className="h-4.5 w-4.5" />}>
+            <div className="grid grid-cols-2 gap-2">
+              {languageOptions.map((option) => {
+                const active = option.value === language;
+
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => setLanguageState(option.value)}
+                    className={[
+                      'rounded-[18px] border px-3 py-2.5 text-sm font-bold transition',
+                      active
+                        ? 'border-lime-300/30 bg-lime-300/12 text-white'
+                        : 'border-white/10 bg-white/[0.04] text-white/70 hover:text-white',
+                    ].join(' ')}
+                  >
+                    {option.label}
+                  </button>
+                );
+              })}
+            </div>
+          </SectionCard>
+
+          <SectionCard title="Support" icon={<Mail className="h-4.5 w-4.5" />}>
+            <button
+              type="button"
+              onClick={() => {
+                window.location.href = `mailto:${CONTACT_EMAIL}?subject=GymRat%20Support`;
+              }}
+              className="w-full rounded-[18px] border border-white/10 bg-white/[0.04] px-4 py-3 text-left text-sm font-bold text-white transition hover:bg-white/[0.08]"
+            >
+              Contact support
+            </button>
+          </SectionCard>
         </div>
 
-        <div className="pointer-events-none fixed inset-x-0 bottom-0 z-20 bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a]/92 to-transparent px-4 pb-5 pt-8 sm:px-6">
-          <div className="pointer-events-auto mx-auto flex w-full max-w-3xl items-center gap-3">
-            <button
-              type="button"
-              onClick={onBack}
-              className="flex flex-1 items-center justify-center gap-2 rounded-[18px] border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-semibold text-white transition hover:border-white/20 hover:bg-white/[0.07]"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Back
-            </button>
-
-            <button
-              type="button"
-              onClick={handleSave}
-              className="flex flex-[1.15] items-center justify-center gap-2 rounded-[18px] border border-lime-400/30 bg-lime-400/15 px-4 py-3 text-sm font-semibold text-lime-200 transition hover:border-lime-300/40 hover:bg-lime-400/20"
-            >
-              <Save className="h-4 w-4" />
-              Save
-            </button>
+        {saved ? (
+          <div className="pointer-events-none fixed bottom-5 left-1/2 z-50 -translate-x-1/2 rounded-full border border-lime-300/25 bg-lime-300/12 px-4 py-2 text-sm font-bold text-lime-100 shadow-[0_10px_28px_rgba(132,204,22,0.15)]">
+            Saved
           </div>
-
-          {message ? (
-            <div className="mx-auto mt-3 w-full max-w-3xl rounded-[18px] border border-lime-400/20 bg-lime-400/10 px-4 py-3 text-center text-sm font-medium text-lime-200">
-              {message}
-            </div>
-          ) : null}
-        </div>
+        ) : null}
       </div>
     </div>
   );

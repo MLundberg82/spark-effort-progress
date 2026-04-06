@@ -1,924 +1,256 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Crown, Flame, Menu, Sparkles } from 'lucide-react';
 
 import AppMenu from '@/components/AppMenu';
 import DailyCheckInScreen from '@/components/DailyCheckInScreen';
 import GymRatGallery from '@/components/GymRatGallery';
-import GymRatStage from '@/components/GymRatStage';
-import NutritionScreen from '@/components/NutritionScreen';
+import HomeScreen from '@/components/HomeScreen';
 import PremiumPaywall from '@/components/PremiumPaywall';
-import RatShop from '@/components/RatShop';
 import SettingsScreen from '@/components/SettingsScreen';
-import WorkoutComplete from '@/components/WorkoutComplete';
+import ShopScreen from '@/components/ShopScreen';
+import TrainingLevelSelector from '@/components/TrainingLevelSelector';
 import WorkoutFlow from '@/components/WorkoutFlow';
+import { getLevelFromXP, getStreak, getTotalXP, isPremium } from '@/lib/gamificationStore';
 
-import { getAppState, setAppState } from '@/lib/appStore';
-import {
-  addXP,
-  getCurrentLevelXP,
-  getLevelFromXP,
-  getNextLevelXP,
-  getProgressPercent,
-  getTotalXP,
-} from '@/lib/gamificationStore';
-import {
-  addWorkoutHistory,
-  detectPRs,
-  type ExerciseEntry,
-  type MuscleGroup,
-} from '@/lib/historyStore';
-import { refreshSmartNotifications, setupDailyReminder } from '@/lib/notifications';
-import {
-  getProfile,
-  getRatVariant,
-  hasCompletedOnboarding,
-  saveProfile,
-  type FitnessGoal,
-  type ProfileGender,
-} from '@/lib/profileStore';
-import {
-  maybeOpenHistoryPaywall,
-  maybeOpenNutritionPaywall,
-  maybeOpenPRPaywall,
-  openManualPaywall,
-} from '@/lib/paywallTriggers';
-import { checkPremium } from '@/lib/premiumStore';
-import { logStreakActivity } from '@/lib/streakStore';
-import {
-  getPlansForLevel,
-  getSelectedPlanIndex,
-  getTrainingLevel,
-  setSelectedPlanIndex,
-  setTrainingLevel,
-} from '@/lib/trainingStore';
-
-type AppPage =
+type ScreenView =
   | 'home'
-  | 'daily'
-  | 'workout'
-  | 'complete'
+  | 'training-level'
+  | 'daily-check-in'
+  | 'food'
+  | 'history'
   | 'gallery'
   | 'shop'
-  | 'history'
-  | 'nutrition'
+  | 'workout'
   | 'settings';
 
-type ReturnTarget = 'home' | 'menu';
-
-type SupportedFocusArea = Extract<MuscleGroup, 'chest' | 'back' | 'arms' | 'legs'>;
-
-type WorkoutExerciseDetail = {
-  exercise: string;
-  sets: number;
-  reps: number;
-  weight: number;
-  volume: number;
+type IndexScreenProps = {
+  openPaywall?: (trigger: string) => void;
 };
 
-type WorkoutCompleteResult = {
-  workoutName: string;
-  durationMinutes: number;
-  exercisesCompleted: number;
-  volume: number;
-  focusArea: SupportedFocusArea;
-  details: WorkoutExerciseDetail[];
-};
+const ONBOARDING_COMPLETED_KEY = 'gymrat-onboarding-completed';
 
-type WorkoutCompleteSummary = WorkoutCompleteResult & {
-  earnedXP: number;
-  prs: Array<{
-    exercise: string;
-    newWeight: number;
-    previousBest: number;
-  }>;
-};
-
-type PlaceholderScreenProps = {
-  title: string;
-  body: string;
-  onBack: () => void;
-  premiumHint?: boolean;
-};
-
-type OnboardingTrainingLevel = 'beginner' | 'intermediate' | 'advanced';
-
-type OnboardingProfile = {
-  height: string;
-  weight: string;
-  age: string;
-  gender: ProfileGender;
-  goal: FitnessGoal;
-  trainingLevel: OnboardingTrainingLevel;
-  planIndex: number;
-};
-
-const trainingLevelCards: Array<{
-  value: OnboardingTrainingLevel;
-  title: string;
-  subtitle: string;
-}> = [
-  {
-    value: 'beginner',
-    title: 'Beginner',
-    subtitle: 'Simple structure, lower friction and easy consistency.',
-  },
-  {
-    value: 'intermediate',
-    title: 'Intermediate',
-    subtitle: 'More focused volume and a stronger split structure.',
-  },
-  {
-    value: 'advanced',
-    title: 'Advanced',
-    subtitle: 'Higher workload, deeper split and faster progression pace.',
-  },
-];
-
-const workoutSelectionCards: Array<{
-  label: string;
-  value?: SupportedFocusArea;
-}> = [
-  { label: 'Chest', value: 'chest' },
-  { label: 'Back', value: 'back' },
-  { label: 'Arms', value: 'arms' },
-  { label: 'Legs', value: 'legs' },
-  { label: 'Walk' },
-];
-
-function getInitialPage(): AppPage {
-  if (!hasCompletedOnboarding()) {
-    return 'home';
-  }
-
-  const state = getAppState();
-  return state.page === 'daily' ? 'home' : state.page;
+function hasCompletedOnboarding(): boolean {
+  return localStorage.getItem(ONBOARDING_COMPLETED_KEY) === 'true';
 }
 
-function getInitialOverlay() {
-  const state = getAppState();
-
-  return {
-    menuOpen: state.overlay === 'menu',
-    paywallOpen: state.overlay === 'paywall',
-  };
-}
-
-function buildXPReward(result: WorkoutCompleteResult) {
-  const baseXP = 40;
-  const exerciseXP = result.exercisesCompleted * 8;
-  const volumeXP = Math.min(120, Math.round(result.volume / 250));
-  const durationXP = Math.min(40, result.durationMinutes);
-
-  return baseXP + exerciseXP + volumeXP + durationXP;
-}
-
-function mapDetailsToHistoryExercises(
-  details: WorkoutExerciseDetail[],
-  focusArea: SupportedFocusArea,
-): ExerciseEntry[] {
-  return details.map((detail) => ({
-    name: detail.exercise,
-    muscleGroup: focusArea,
-    sets: Array.from({ length: Math.max(1, detail.sets) }, () => ({
-      reps: detail.reps,
-      weight: detail.weight,
-    })),
-  }));
+function markOnboardingCompleted(): void {
+  localStorage.setItem(ONBOARDING_COMPLETED_KEY, 'true');
 }
 
 function PlaceholderScreen({
   title,
-  body,
+  subtitle,
   onBack,
-  premiumHint = false,
-}: PlaceholderScreenProps) {
+}: {
+  title: string;
+  subtitle: string;
+  onBack: () => void;
+}) {
   return (
-    <div className="min-h-screen bg-black px-5 pb-8 pt-6 text-white">
-      <div className="mx-auto flex min-h-[calc(100vh-3.5rem)] max-w-xl flex-col rounded-[28px] border border-white/10 bg-white/[0.04] p-5">
-        <div className="text-xs font-black uppercase tracking-[0.22em] text-lime-300/80">
+    <div className="min-h-[100dvh] bg-[#06080b] px-4 py-4 text-white">
+      <div className="mx-auto flex min-h-[100dvh] max-w-md flex-col items-center justify-center text-center">
+        <button
+          type="button"
+          onClick={onBack}
+          className="mb-5 rounded-full border border-white/10 bg-white/[0.05] px-4 py-2 text-sm font-bold text-white"
+        >
+          Back
+        </button>
+        <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-lime-300/70">
           GymRat
-        </div>
-
-        <h1 className="mt-3 text-3xl font-black tracking-tight">{title}</h1>
-        <p className="mt-3 text-sm leading-6 text-white/70">{body}</p>
-
-        {premiumHint ? (
-          <div className="mt-4 rounded-2xl border border-yellow-300/20 bg-yellow-300/10 px-4 py-3 text-sm text-yellow-100">
-            This section is premium-gated and wired into the paywall trigger layer.
-          </div>
-        ) : null}
-
-        <div className="mt-auto flex justify-end pt-6">
-          <button
-            onClick={onBack}
-            className="inline-flex min-h-[48px] items-center justify-center rounded-[18px] border border-white/10 bg-white/[0.05] px-5 text-sm font-black uppercase tracking-[0.14em] text-white transition hover:bg-white/[0.08]"
-          >
-            Back to menu
-          </button>
-        </div>
+        </p>
+        <h1 className="mt-2 text-2xl font-black">{title}</h1>
+        <p className="mt-3 max-w-xs text-sm text-white/60">{subtitle}</p>
       </div>
     </div>
   );
 }
 
-function OnboardingScreen({
-  onComplete,
-}: {
-  onComplete: (values: OnboardingProfile) => void;
-}) {
-  const profile = getProfile();
-  const [step, setStep] = useState(0);
-  const initialTrainingLevel = getTrainingLevel() as OnboardingTrainingLevel;
-
-  const [form, setForm] = useState<OnboardingProfile>({
-    height: profile.height ? String(profile.height) : '',
-    weight: profile.weight ? String(profile.weight) : '',
-    age: profile.age ? String(profile.age) : '',
-    gender: profile.gender ?? 'male',
-    goal: profile.goal ?? 'gain',
-    trainingLevel: initialTrainingLevel,
-    planIndex: getSelectedPlanIndex(),
-  });
-
-  const plans = useMemo(
-    () => getPlansForLevel(form.trainingLevel).slice(0, 3),
-    [form.trainingLevel],
+export default function IndexScreen({ openPaywall }: IndexScreenProps) {
+  const [view, setView] = useState<ScreenView>(
+    hasCompletedOnboarding() ? 'home' : 'training-level',
   );
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [premiumOpen, setPremiumOpen] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const appState = useMemo(() => {
+    const totalXP = getTotalXP();
+    const levelData = getLevelFromXP(totalXP);
+
+    return {
+      totalXP,
+      level: levelData.level,
+      currentLevelXP: levelData.currentXP,
+      nextLevelXP: levelData.xpToNext,
+      totalWorkouts: Number(levelData.level ?? 0) > 0 ? Math.max(0, Math.round(totalXP / 120)) : 0,
+      streak: getStreak(),
+      premiumActive: isPremium(),
+    };
+  }, [refreshKey]);
 
   useEffect(() => {
-    setForm((current) => ({
-      ...current,
-      planIndex: Math.min(current.planIndex, Math.max(0, plans.length - 1)),
-    }));
-  }, [plans.length]);
+    const rerender = () => setRefreshKey((prev) => prev + 1);
 
-  const canContinueProfile =
-    form.age.trim().length > 0 &&
-    form.height.trim().length > 0 &&
-    form.weight.trim().length > 0;
-
-  return (
-    <div className="min-h-screen bg-black px-4 pb-6 pt-5 text-white">
-      <div className="mx-auto flex min-h-[calc(100vh-2.75rem)] max-w-xl flex-col rounded-[28px] border border-white/10 bg-gradient-to-b from-white/[0.06] to-white/[0.03] p-4 shadow-[0_24px_80px_rgba(0,0,0,0.45)]">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <div className="text-[11px] font-black uppercase tracking-[0.22em] text-lime-300/80">
-              Onboarding
-            </div>
-            <h1 className="mt-1 text-[28px] font-black tracking-tight">Build your rat</h1>
-          </div>
-
-          <div className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-[11px] font-black uppercase tracking-[0.16em] text-white/75">
-            {step + 1} / 3
-          </div>
-        </div>
-
-        <div className="mt-4 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
-          <div
-            className="h-full rounded-full bg-lime-300 transition-all duration-300"
-            style={{ width: `${((step + 1) / 3) * 100}%` }}
-          />
-        </div>
-
-        <div className="mt-4 rounded-[24px] border border-white/10 bg-black/30 p-4">
-          {step === 0 ? (
-            <>
-              <div className="text-[11px] font-black uppercase tracking-[0.18em] text-white/45">
-                Profile
-              </div>
-              <p className="mt-2 text-sm leading-5 text-white/68">
-                Age, height, gender and weight first. Compact and fast.
-              </p>
-
-              <div className="mt-4 grid grid-cols-2 gap-3">
-                <label className="block">
-                  <span className="text-xs font-black uppercase tracking-[0.14em] text-white/60">
-                    Age
-                  </span>
-                  <input
-                    value={form.age}
-                    onChange={(event) =>
-                      setForm((current) => ({ ...current, age: event.target.value }))
-                    }
-                    inputMode="numeric"
-                    className="mt-2 h-11 w-full rounded-2xl border border-white/10 bg-zinc-900 px-3 text-white outline-none transition focus:border-lime-300"
-                    placeholder="28"
-                  />
-                </label>
-
-                <label className="block">
-                  <span className="text-xs font-black uppercase tracking-[0.14em] text-white/60">
-                    Height
-                  </span>
-                  <input
-                    value={form.height}
-                    onChange={(event) =>
-                      setForm((current) => ({ ...current, height: event.target.value }))
-                    }
-                    inputMode="numeric"
-                    className="mt-2 h-11 w-full rounded-2xl border border-white/10 bg-zinc-900 px-3 text-white outline-none transition focus:border-lime-300"
-                    placeholder="180"
-                  />
-                </label>
-
-                <label className="block">
-                  <span className="text-xs font-black uppercase tracking-[0.14em] text-white/60">
-                    Weight
-                  </span>
-                  <input
-                    value={form.weight}
-                    onChange={(event) =>
-                      setForm((current) => ({ ...current, weight: event.target.value }))
-                    }
-                    inputMode="numeric"
-                    className="mt-2 h-11 w-full rounded-2xl border border-white/10 bg-zinc-900 px-3 text-white outline-none transition focus:border-lime-300"
-                    placeholder="80"
-                  />
-                </label>
-
-                <label className="block">
-                  <span className="text-xs font-black uppercase tracking-[0.14em] text-white/60">
-                    Gender
-                  </span>
-                  <select
-                    value={form.gender}
-                    onChange={(event) =>
-                      setForm((current) => ({
-                        ...current,
-                        gender: event.target.value as ProfileGender,
-                      }))
-                    }
-                    className="mt-2 h-11 w-full rounded-2xl border border-white/10 bg-zinc-900 px-3 text-white outline-none transition focus:border-lime-300"
-                  >
-                    <option value="male">Male</option>
-                    <option value="female">Female</option>
-                    <option value="non-binary">Non-binary</option>
-                  </select>
-                </label>
-              </div>
-            </>
-          ) : null}
-
-          {step === 1 ? (
-            <>
-              <div className="text-[11px] font-black uppercase tracking-[0.18em] text-white/45">
-                Training level
-              </div>
-              <p className="mt-2 text-sm leading-5 text-white/68">
-                Pick the level that matches where you are right now.
-              </p>
-
-              <div className="mt-4 grid gap-3">
-                {trainingLevelCards.map((option) => {
-                  const active = form.trainingLevel === option.value;
-
-                  return (
-                    <button
-                      key={option.value}
-                      onClick={() =>
-                        setForm((current) => ({
-                          ...current,
-                          trainingLevel: option.value,
-                          planIndex: 0,
-                        }))
-                      }
-                      className={`rounded-[22px] border px-4 py-3 text-left transition ${
-                        active
-                          ? 'border-lime-400/35 bg-lime-400/12 text-white shadow-[0_0_0_1px_rgba(163,230,53,0.08)]'
-                          : 'border-white/10 bg-white/[0.04] text-white/75 hover:border-white/20 hover:bg-white/[0.07]'
-                      }`}
-                    >
-                      <div className="text-sm font-black uppercase tracking-[0.14em]">
-                        {option.title}
-                      </div>
-                      <div className="mt-1 text-xs leading-5 text-white/60">
-                        {option.subtitle}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </>
-          ) : null}
-
-          {step === 2 ? (
-            <>
-              <div className="text-[11px] font-black uppercase tracking-[0.18em] text-white/45">
-                Training plan
-              </div>
-              <p className="mt-2 text-sm leading-5 text-white/68">
-                Choose the structure you want to follow from the start.
-              </p>
-
-              <div className="mt-4 grid gap-3">
-                {plans.map((plan, index) => {
-                  const active = form.planIndex === index;
-
-                  return (
-                    <button
-                      key={`${plan.name}-${index}`}
-                      onClick={() =>
-                        setForm((current) => ({ ...current, planIndex: index }))
-                      }
-                      className={`rounded-[22px] border px-4 py-3 text-left transition ${
-                        active
-                          ? 'border-lime-400/35 bg-lime-400/12 text-white shadow-[0_0_0_1px_rgba(163,230,53,0.08)]'
-                          : 'border-white/10 bg-white/[0.04] text-white/75 hover:border-white/20 hover:bg-white/[0.07]'
-                      }`}
-                    >
-                      <div className="text-sm font-black uppercase tracking-[0.14em]">
-                        {plan.name}
-                      </div>
-                      <div className="mt-1 text-xs leading-5 text-white/60">
-                        {plan.description}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </>
-          ) : null}
-        </div>
-
-        <div className="mt-auto flex items-center gap-3 pt-5">
-          <button
-            onClick={() => setStep((current) => Math.max(0, current - 1))}
-            disabled={step === 0}
-            className="inline-flex h-12 flex-1 items-center justify-center rounded-[18px] border border-white/10 bg-white/[0.05] text-sm font-black uppercase tracking-[0.14em] text-white transition hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            Back
-          </button>
-
-          {step < 2 ? (
-            <button
-              onClick={() => setStep((current) => Math.min(2, current + 1))}
-              disabled={step === 0 && !canContinueProfile}
-              className="inline-flex h-12 flex-[1.3] items-center justify-center rounded-[18px] bg-lime-300 px-5 text-sm font-black uppercase tracking-[0.14em] text-black transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Continue
-            </button>
-          ) : (
-            <button
-              onClick={() => onComplete(form)}
-              className="inline-flex h-12 flex-[1.3] items-center justify-center rounded-[18px] bg-lime-300 px-5 text-sm font-black uppercase tracking-[0.14em] text-black transition hover:brightness-105"
-            >
-              Enter app
-            </button>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function WorkoutTypeSelector({
-  onClose,
-  onSelect,
-}: {
-  onClose: () => void;
-  onSelect: (focus?: SupportedFocusArea) => void;
-}) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/72 backdrop-blur-sm">
-      <div className="w-full max-w-2xl rounded-t-[28px] border border-white/10 bg-zinc-950 px-4 pb-5 pt-4 text-white shadow-[0_-20px_60px_rgba(0,0,0,0.45)]">
-        <div className="mx-auto max-w-xl">
-          <div className="mx-auto h-1.5 w-12 rounded-full bg-white/14" />
-
-          <div className="mt-4 text-center">
-            <div className="text-[11px] font-black uppercase tracking-[0.18em] text-white/45">
-              Select workout
-            </div>
-            <h2 className="mt-1 text-2xl font-black tracking-tight text-white">
-              What are you training today?
-            </h2>
-            <p className="mt-2 text-sm leading-6 text-white/60">
-              Choose your focus first so the workout flow starts in the right place.
-            </p>
-          </div>
-
-          <div className="mt-5 grid grid-cols-2 gap-3">
-            {workoutSelectionCards.map((item) => (
-              <button
-                key={item.label}
-                onClick={() => onSelect(item.value)}
-                className="inline-flex min-h-[58px] items-center justify-center rounded-[20px] border border-white/10 bg-white/[0.05] px-4 py-4 text-sm font-black uppercase tracking-[0.14em] text-white transition hover:bg-white/[0.08]"
-              >
-                {item.label}
-              </button>
-            ))}
-          </div>
-
-          <button
-            onClick={onClose}
-            className="mt-4 inline-flex min-h-[50px] w-full items-center justify-center rounded-[18px] border border-white/10 bg-white/[0.04] px-4 py-3 text-xs font-black uppercase tracking-[0.14em] text-white/70 transition hover:bg-white/[0.07]"
-          >
-            Cancel
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-export default function Index() {
-  const initialOverlay = getInitialOverlay();
-
-  const [page, setPage] = useState<AppPage>(getInitialPage);
-  const [menuOpen, setMenuOpen] = useState(initialOverlay.menuOpen);
-  const [paywallOpen, setPaywallOpen] = useState(initialOverlay.paywallOpen);
-  const [returnTarget, setReturnTarget] = useState<ReturnTarget>('home');
-  const [lastSummary, setLastSummary] = useState<WorkoutCompleteSummary | null>(null);
-  const [, setProfileVersion] = useState(0);
-  const [, setPremiumVersion] = useState(0);
-  const [pendingWorkoutFocus, setPendingWorkoutFocus] = useState<
-    SupportedFocusArea | undefined
-  >(undefined);
-  const [selectingWorkout, setSelectingWorkout] = useState(false);
-
-  const totalXP = getTotalXP();
-  const level = getLevelFromXP(totalXP);
-  const progressPercent = Math.round(getProgressPercent(totalXP));
-  const currentLevelXP = getCurrentLevelXP(totalXP);
-  const nextLevelXP = getNextLevelXP(totalXP);
-  const premiumActive = checkPremium().isActive;
-  const variant = getRatVariant();
-
-  useEffect(() => {
-    void setupDailyReminder();
-    void refreshSmartNotifications();
-  }, []);
-
-  useEffect(() => {
-    setAppState({
-      page,
-      overlay: menuOpen ? 'menu' : paywallOpen ? 'paywall' : 'none',
-      showDailyCheckIn: false,
-    });
-  }, [page, menuOpen, paywallOpen]);
-
-  useEffect(() => {
-    const syncPremium = () => setPremiumVersion((value) => value + 1);
-    const syncProfile = () => setProfileVersion((value) => value + 1);
-
-    window.addEventListener('storage', syncPremium);
-    window.addEventListener('focus', syncPremium);
-    window.addEventListener('premium-updated', syncPremium as EventListener);
-    window.addEventListener('gymrat-profile-updated', syncProfile as EventListener);
-    window.addEventListener('profile-updated', syncProfile as EventListener);
+    window.addEventListener('premium-updated', rerender);
+    window.addEventListener('shop-updated', rerender);
+    window.addEventListener('profile-updated', rerender);
+    window.addEventListener('gymrat-profile-updated', rerender);
+    window.addEventListener('storage', rerender);
 
     return () => {
-      window.removeEventListener('storage', syncPremium);
-      window.removeEventListener('focus', syncPremium);
-      window.removeEventListener('premium-updated', syncPremium as EventListener);
-      window.removeEventListener('gymrat-profile-updated', syncProfile as EventListener);
-      window.removeEventListener('profile-updated', syncProfile as EventListener);
+      window.removeEventListener('premium-updated', rerender);
+      window.removeEventListener('shop-updated', rerender);
+      window.removeEventListener('profile-updated', rerender);
+      window.removeEventListener('gymrat-profile-updated', rerender);
+      window.removeEventListener('storage', rerender);
     };
   }, []);
 
-  const closeAllOverlays = () => {
+  const goHome = () => {
     setMenuOpen(false);
-    setPaywallOpen(false);
-    setSelectingWorkout(false);
-  };
-
-  const navigateTo = (nextPage: AppPage, target: ReturnTarget = 'home') => {
-    setReturnTarget(target);
-    setPage(nextPage);
-    setMenuOpen(false);
-    setSelectingWorkout(false);
-  };
-
-  const goBack = () => {
-    setPaywallOpen(false);
-    setSelectingWorkout(false);
-
-    if (returnTarget === 'menu') {
-      setPage('home');
-      setMenuOpen(true);
-      return;
-    }
-
-    setMenuOpen(false);
-    setPage('home');
+    setRefreshKey((prev) => prev + 1);
+    setView(hasCompletedOnboarding() ? 'home' : 'training-level');
   };
 
   const openPremium = () => {
-    openManualPaywall({
-      onOpened: () => {
-        setMenuOpen(false);
-        setSelectingWorkout(false);
-        setPaywallOpen(true);
-      },
-    });
+    setMenuOpen(false);
+    setPremiumOpen(true);
   };
 
-  const handleOnboardingComplete = (values: OnboardingProfile) => {
-    setTrainingLevel(values.trainingLevel);
-    setSelectedPlanIndex(values.planIndex);
-
-    saveProfile({
-      height: values.height ? Number(values.height) : null,
-      weight: values.weight ? Number(values.weight) : null,
-      age: values.age ? Number(values.age) : null,
-      gender: values.gender,
-      goal: values.goal,
-      onboardingComplete: true,
-    });
-
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('gymrat-profile-updated'));
-      window.dispatchEvent(new CustomEvent('profile-updated'));
-    }
-
-    navigateTo('home');
+  const triggerPaywall = (trigger = 'manual') => {
+    setPremiumOpen(false);
+    openPaywall?.(trigger);
   };
 
-  const handleStartWorkout = (focus?: MuscleGroup) => {
-    closeAllOverlays();
-
-    if (focus === 'chest' || focus === 'back' || focus === 'arms' || focus === 'legs') {
-      setPendingWorkoutFocus(focus);
-    } else {
-      setPendingWorkoutFocus(undefined);
-    }
-
-    navigateTo('workout');
-  };
-
-  const handleCompleteWorkout = async (result: WorkoutCompleteResult) => {
-    const exercises = mapDetailsToHistoryExercises(result.details, result.focusArea);
-    const prs = detectPRs(exercises);
-    const earnedXP = buildXPReward(result);
-
-    addWorkoutHistory({
-      id:
-        typeof crypto !== 'undefined' && 'randomUUID' in crypto
-          ? crypto.randomUUID()
-          : `workout-${Date.now()}`,
-      workoutName: result.workoutName,
-      exercises,
-      durationMinutes: result.durationMinutes,
-      completedAt: new Date().toISOString(),
-    });
-
-    addXP(earnedXP);
-    logStreakActivity();
-
-    setLastSummary({
-      ...result,
-      earnedXP,
-      prs,
-    });
-
-    navigateTo('complete');
-    setPremiumVersion((value) => value + 1);
-    setPendingWorkoutFocus(undefined);
-
-    await refreshSmartNotifications();
-
-    if (prs.length > 0 && !checkPremium().isActive) {
-      maybeOpenPRPaywall({
-        onOpened: () => setPaywallOpen(true),
-      });
-    }
-  };
-
-  if (!hasCompletedOnboarding()) {
-    return <OnboardingScreen onComplete={handleOnboardingComplete} />;
-  }
-
-  if (page === 'workout') {
+  if (view === 'training-level') {
     return (
-      <>
-        <WorkoutFlow
-          onBack={goBack}
-          onComplete={handleCompleteWorkout}
-          initialFocus={pendingWorkoutFocus}
-        />
-        <PremiumPaywall isOpen={paywallOpen} onClose={() => setPaywallOpen(false)} />
-      </>
+      <TrainingLevelSelector
+        onComplete={() => {
+          markOnboardingCompleted();
+          setRefreshKey((prev) => prev + 1);
+          setView('home');
+        }}
+      />
     );
   }
 
-  if (page === 'complete' && lastSummary) {
+  if (view === 'settings') {
+    return <SettingsScreen onBack={goHome} />;
+  }
+
+  if (view === 'daily-check-in') {
     return (
-      <>
-        <WorkoutComplete
-          summary={lastSummary}
-          onContinue={goBack}
-          onOpenPaywall={() => {
-            setPaywallOpen(false);
-            openPremium();
-          }}
-        />
-        {paywallOpen ? (
-          <PremiumPaywall
-            isOpen={paywallOpen}
-            onClose={() => setPaywallOpen(false)}
-          />
-        ) : null}
-      </>
+      <DailyCheckInScreen
+        onClose={goHome}
+        onStartWorkout={(focus) => {
+          setView('workout');
+          if (focus) {
+            window.sessionStorage.setItem('gymrat-workout-focus', focus);
+          }
+        }}
+      />
     );
   }
 
-  if (page === 'gallery') {
+  if (view === 'gallery') {
+    return <GymRatGallery onBack={goHome} />;
+  }
+
+  if (view === 'shop') {
     return (
-      <>
-        <GymRatGallery onBack={goBack} />
-        <PremiumPaywall isOpen={paywallOpen} onClose={() => setPaywallOpen(false)} />
-      </>
+      <ShopScreen
+        onBack={goHome}
+        onOpenPaywall={() => triggerPaywall('shop')}
+      />
     );
   }
 
-  if (page === 'shop') {
+  if (view === 'workout') {
+    const focus = window.sessionStorage.getItem('gymrat-workout-focus') as
+      | 'chest'
+      | 'back'
+      | 'arms'
+      | 'legs'
+      | null;
+
     return (
-      <>
-        <RatShop onBack={goBack} onOpenPremium={openPremium} />
-        <PremiumPaywall isOpen={paywallOpen} onClose={() => setPaywallOpen(false)} />
-      </>
+      <WorkoutFlow
+        onBack={goHome}
+        initialFocus={focus ?? undefined}
+        onComplete={() => {
+          window.sessionStorage.removeItem('gymrat-workout-focus');
+          setRefreshKey((prev) => prev + 1);
+          setView('home');
+        }}
+      />
     );
   }
 
-  if (page === 'history') {
+  if (view === 'food') {
     return (
-      <>
-        <PlaceholderScreen
-          title="History"
-          body="Workout history is still wired through the premium trigger layer and now returns to the menu instead of dropping you back home."
-          onBack={goBack}
-          premiumHint
-        />
-        <PremiumPaywall isOpen={paywallOpen} onClose={() => setPaywallOpen(false)} />
-      </>
+      <PlaceholderScreen
+        title="Nutrition"
+        subtitle="Keep this stable for now until the premium nutrition flow is reconnected."
+        onBack={goHome}
+      />
     );
   }
 
-  if (page === 'nutrition') {
+  if (view === 'history') {
     return (
-      <>
-        <NutritionScreen onBack={goBack} onOpenPaywall={openPremium} />
-        <PremiumPaywall isOpen={paywallOpen} onClose={() => setPaywallOpen(false)} />
-      </>
-    );
-  }
-
-  if (page === 'settings') {
-    return (
-      <>
-        <SettingsScreen onBack={goBack} />
-        <PremiumPaywall isOpen={paywallOpen} onClose={() => setPaywallOpen(false)} />
-      </>
-    );
-  }
-
-  if (page === 'daily') {
-    return (
-      <>
-        <DailyCheckInScreen onClose={goBack} onStartWorkout={handleStartWorkout} />
-        <PremiumPaywall isOpen={paywallOpen} onClose={() => setPaywallOpen(false)} />
-      </>
+      <PlaceholderScreen
+        title="Training History"
+        subtitle="Keep this stable for now until the production-ready history flow is reconnected."
+        onBack={goHome}
+      />
     );
   }
 
   return (
     <>
-      <div className="h-screen overflow-hidden bg-black px-4 pb-4 pt-4 text-white">
-        <div className="mx-auto flex h-full max-w-2xl flex-col">
-          <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-[30px] border border-white/10 bg-gradient-to-b from-white/[0.05] to-white/[0.015] px-3 pt-3 shadow-[0_24px_80px_rgba(0,0,0,0.45)]">
-            <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-white/[0.03] to-transparent" />
+      <HomeScreen
+        stats={appState}
+        onOpenMenu={() => setMenuOpen(true)}
+        onStartWorkout={() => setView('workout')}
+        onOpenGallery={() => setView('gallery')}
+        onOpenShop={() => setView('shop')}
+      />
 
-            <div className="relative z-10 flex items-start justify-between gap-3">
-              <div className="px-1 pt-1">
-                <div className="text-[10px] font-black uppercase tracking-[0.18em] text-lime-300/80">
-                  Current level
-                </div>
-                <div className="mt-1 flex items-center gap-2 text-sm font-black text-white">
-                  <Flame className="h-4 w-4 text-lime-300" />
-                  LVL {level}
-                </div>
-              </div>
+      <AppMenu
+        isOpen={menuOpen}
+        isPremium={appState.premiumActive}
+        onClose={() => setMenuOpen(false)}
+        onOpenDaily={() => {
+          setMenuOpen(false);
+          setView('daily-check-in');
+        }}
+        onOpenHistory={() => {
+          setMenuOpen(false);
+          setView('history');
+        }}
+        onOpenNutrition={() => {
+          setMenuOpen(false);
+          setView('food');
+        }}
+        onOpenGallery={() => {
+          setMenuOpen(false);
+          setView('gallery');
+        }}
+        onOpenShop={() => {
+          setMenuOpen(false);
+          setView('shop');
+        }}
+        onOpenSettings={() => {
+          setMenuOpen(false);
+          setView('settings');
+        }}
+        onOpenPremium={openPremium}
+      />
 
-              <div className="flex items-center gap-2">
-                {premiumActive ? (
-                  <div className="inline-flex h-10 items-center gap-2 rounded-[16px] border border-yellow-300/20 bg-yellow-300/10 px-3 text-[11px] font-black uppercase tracking-[0.14em] text-yellow-100 backdrop-blur-sm">
-                    <Crown className="h-3.5 w-3.5" />
-                    Premium
-                  </div>
-                ) : null}
-
-                <button
-                  onClick={() => setMenuOpen(true)}
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-[16px] border border-white/10 bg-black/28 backdrop-blur-sm transition hover:bg-white/[0.09]"
-                  aria-label="Open menu"
-                >
-                  <Menu className="h-5 w-5" />
-                </button>
-              </div>
-            </div>
-
-            <div className="relative z-0 -mt-1 flex min-h-0 flex-1 items-end px-1 pb-2">
-              <GymRatStage
-                level={level}
-                variant={variant}
-                showMeta={false}
-                className="h-full w-full"
-              />
-            </div>
-          </div>
-
-          <div className="mt-3 shrink-0 rounded-[22px] border border-white/10 bg-white/[0.04] px-4 py-3">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <div className="text-[11px] font-black uppercase tracking-[0.18em] text-white/45">
-                  XP progress
-                </div>
-                <div className="mt-1 text-sm font-bold text-white/80">
-                  {currentLevelXP} / {nextLevelXP} XP
-                </div>
-              </div>
-
-              <div className="inline-flex items-center gap-2 text-xs font-bold text-white/55">
-                <Sparkles className="h-3.5 w-3.5" />
-                {progressPercent}%
-              </div>
-            </div>
-
-            <div className="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
-              <div
-                className="h-full rounded-full bg-lime-300 transition-[width] duration-500"
-                style={{ width: `${Math.max(0, Math.min(100, progressPercent))}%` }}
-              />
-            </div>
-          </div>
-
-          <div className="mt-3 shrink-0 grid gap-3">
-            <button
-              onClick={() => {
-                closeAllOverlays();
-                setSelectingWorkout(true);
-              }}
-              className="inline-flex min-h-[56px] items-center justify-center rounded-[24px] bg-lime-300 px-5 py-4 text-sm font-black uppercase tracking-[0.16em] text-black shadow-[0_18px_50px_rgba(163,230,53,0.2)] transition hover:brightness-105"
-            >
-              Start workout
-            </button>
-
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                onClick={() => navigateTo('gallery', 'home')}
-                className="inline-flex min-h-[50px] items-center justify-center rounded-[20px] border border-white/10 bg-white/[0.05] px-4 py-3 text-sm font-black uppercase tracking-[0.12em] text-white transition hover:bg-white/[0.08]"
-              >
-                Level gallery
-              </button>
-
-              <button
-                onClick={() => navigateTo('shop', 'home')}
-                className="inline-flex min-h-[50px] items-center justify-center rounded-[20px] border border-white/10 bg-white/[0.05] px-4 py-3 text-sm font-black uppercase tracking-[0.12em] text-white transition hover:bg-white/[0.08]"
-              >
-                Shop
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {menuOpen ? (
-        <AppMenu
-          isPremium={premiumActive}
-          onClose={() => setMenuOpen(false)}
-          onOpenDaily={() => navigateTo('daily', 'menu')}
-          onOpenHistory={() => {
-            maybeOpenHistoryPaywall({
-              onOpened: () => {
-                setMenuOpen(false);
-                setPaywallOpen(true);
-              },
-              onAllowed: () => navigateTo('history', 'menu'),
-            });
-          }}
-          onOpenNutrition={() => {
-            maybeOpenNutritionPaywall({
-              onOpened: () => {
-                setMenuOpen(false);
-                setPaywallOpen(true);
-              },
-              onAllowed: () => navigateTo('nutrition', 'menu'),
-            });
-          }}
-          onOpenGallery={() => navigateTo('gallery', 'menu')}
-          onOpenShop={() => navigateTo('shop', 'menu')}
-          onOpenSettings={() => navigateTo('settings', 'menu')}
-          onOpenPremium={openPremium}
-        />
-      ) : null}
-
-      {selectingWorkout ? (
-        <WorkoutTypeSelector
-          onClose={() => setSelectingWorkout(false)}
-          onSelect={(focus) => handleStartWorkout(focus)}
-        />
-      ) : null}
-
-      <PremiumPaywall isOpen={paywallOpen} onClose={() => setPaywallOpen(false)} />
+      <PremiumPaywall
+        isOpen={premiumOpen}
+        onClose={() => setPremiumOpen(false)}
+      />
     </>
   );
 }
