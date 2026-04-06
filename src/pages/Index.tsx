@@ -4,36 +4,39 @@ import AppMenu from '@/components/AppMenu';
 import DailyCheckInScreen from '@/components/DailyCheckInScreen';
 import GymRatGallery from '@/components/GymRatGallery';
 import HomeScreen from '@/components/HomeScreen';
+import NutritionScreen from '@/components/NutritionScreen';
 import PremiumPaywall from '@/components/PremiumPaywall';
 import SettingsScreen from '@/components/SettingsScreen';
 import ShopScreen from '@/components/ShopScreen';
-import TrainingLevelSelector from '@/components/TrainingLevelSelector';
 import WorkoutFlow from '@/components/WorkoutFlow';
-import { getLevelFromXP, getStreak, getTotalXP, isPremium } from '@/lib/gamificationStore';
+import {
+  getCurrentLevelXP,
+  getLevelFromXP,
+  getNextLevelXP,
+  getStreak,
+  getTotalXP,
+} from '@/lib/gamificationStore';
+import { checkPremium } from '@/lib/premiumStore';
 
 type ScreenView =
   | 'home'
-  | 'training-level'
-  | 'daily-check-in'
-  | 'food'
-  | 'history'
+  | 'daily'
+  | 'workout'
   | 'gallery'
   | 'shop'
-  | 'workout'
+  | 'history'
+  | 'nutrition'
   | 'settings';
 
-type IndexScreenProps = {
-  openPaywall?: (trigger: string) => void;
-};
+function resolveLevel(value: unknown): number {
+  if (typeof value === 'number') return value;
 
-const ONBOARDING_COMPLETED_KEY = 'gymrat-onboarding-completed';
+  if (value && typeof value === 'object' && 'level' in value) {
+    const candidate = (value as { level?: unknown }).level;
+    if (typeof candidate === 'number') return candidate;
+  }
 
-function hasCompletedOnboarding(): boolean {
-  return localStorage.getItem(ONBOARDING_COMPLETED_KEY) === 'true';
-}
-
-function markOnboardingCompleted(): void {
-  localStorage.setItem(ONBOARDING_COMPLETED_KEY, 'true');
+  return 1;
 }
 
 function PlaceholderScreen({
@@ -55,6 +58,7 @@ function PlaceholderScreen({
         >
           Back
         </button>
+
         <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-lime-300/70">
           GymRat
         </p>
@@ -65,26 +69,24 @@ function PlaceholderScreen({
   );
 }
 
-export default function IndexScreen({ openPaywall }: IndexScreenProps) {
-  const [view, setView] = useState<ScreenView>(
-    hasCompletedOnboarding() ? 'home' : 'training-level',
-  );
+export default function Index() {
+  const [page, setPage] = useState<ScreenView>('home');
   const [menuOpen, setMenuOpen] = useState(false);
-  const [premiumOpen, setPremiumOpen] = useState(false);
+  const [paywallOpen, setPaywallOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
   const appState = useMemo(() => {
     const totalXP = getTotalXP();
-    const levelData = getLevelFromXP(totalXP);
+    const level = resolveLevel(getLevelFromXP(totalXP));
 
     return {
       totalXP,
-      level: levelData.level,
-      currentLevelXP: levelData.currentXP,
-      nextLevelXP: levelData.xpToNext,
-      totalWorkouts: Number(levelData.level ?? 0) > 0 ? Math.max(0, Math.round(totalXP / 120)) : 0,
+      level,
+      currentLevelXP: getCurrentLevelXP(totalXP),
+      nextLevelXP: getNextLevelXP(totalXP),
+      totalWorkouts: level > 0 ? Math.max(0, Math.round(totalXP / 120)) : 0,
       streak: getStreak(),
-      premiumActive: isPremium(),
+      premiumActive: checkPremium().isActive,
     };
   }, [refreshKey]);
 
@@ -109,98 +111,63 @@ export default function IndexScreen({ openPaywall }: IndexScreenProps) {
   const goHome = () => {
     setMenuOpen(false);
     setRefreshKey((prev) => prev + 1);
-    setView(hasCompletedOnboarding() ? 'home' : 'training-level');
+    setPage('home');
   };
 
-  const openPremium = () => {
-    setMenuOpen(false);
-    setPremiumOpen(true);
-  };
-
-  const triggerPaywall = (trigger = 'manual') => {
-    setPremiumOpen(false);
-    openPaywall?.(trigger);
-  };
-
-  if (view === 'training-level') {
-    return (
-      <TrainingLevelSelector
-        onComplete={() => {
-          markOnboardingCompleted();
-          setRefreshKey((prev) => prev + 1);
-          setView('home');
-        }}
-      />
-    );
-  }
-
-  if (view === 'settings') {
+  if (page === 'settings') {
     return <SettingsScreen onBack={goHome} />;
   }
 
-  if (view === 'daily-check-in') {
+  if (page === 'daily') {
     return (
       <DailyCheckInScreen
         onClose={goHome}
-        onStartWorkout={(focus) => {
-          setView('workout');
-          if (focus) {
-            window.sessionStorage.setItem('gymrat-workout-focus', focus);
-          }
+        onStartWorkout={() => {
+          setPage('workout');
         }}
       />
     );
   }
 
-  if (view === 'gallery') {
+  if (page === 'gallery') {
     return <GymRatGallery onBack={goHome} />;
   }
 
-  if (view === 'shop') {
+  if (page === 'shop') {
     return (
       <ShopScreen
         onBack={goHome}
-        onOpenPaywall={() => triggerPaywall('shop')}
+        onOpenPaywall={() => setPaywallOpen(true)}
       />
     );
   }
 
-  if (view === 'workout') {
-    const focus = window.sessionStorage.getItem('gymrat-workout-focus') as
-      | 'chest'
-      | 'back'
-      | 'arms'
-      | 'legs'
-      | null;
-
+  if (page === 'workout') {
     return (
       <WorkoutFlow
         onBack={goHome}
-        initialFocus={focus ?? undefined}
         onComplete={() => {
-          window.sessionStorage.removeItem('gymrat-workout-focus');
           setRefreshKey((prev) => prev + 1);
-          setView('home');
+          setPage('home');
         }}
       />
     );
   }
 
-  if (view === 'food') {
-    return (
-      <PlaceholderScreen
-        title="Nutrition"
-        subtitle="Keep this stable for now until the premium nutrition flow is reconnected."
-        onBack={goHome}
-      />
-    );
-  }
+if (page === 'nutrition') {
+  return (
+    <NutritionScreen
+      onBack={goHome}
+      onOpenPaywall={() => setPaywallOpen(true)}
+    />
+  );
+}
 
-  if (view === 'history') {
+  if (page === 'history') {
     return (
       <PlaceholderScreen
         title="Training History"
-        subtitle="Keep this stable for now until the production-ready history flow is reconnected."
+        subtitle="History screen can be reconnected after the navigation is stable again."
         onBack={goHome}
       />
     );
@@ -211,9 +178,9 @@ export default function IndexScreen({ openPaywall }: IndexScreenProps) {
       <HomeScreen
         stats={appState}
         onOpenMenu={() => setMenuOpen(true)}
-        onStartWorkout={() => setView('workout')}
-        onOpenGallery={() => setView('gallery')}
-        onOpenShop={() => setView('shop')}
+        onStartWorkout={() => setPage('workout')}
+        onOpenGallery={() => setPage('gallery')}
+        onOpenShop={() => setPage('shop')}
       />
 
       <AppMenu
@@ -222,34 +189,37 @@ export default function IndexScreen({ openPaywall }: IndexScreenProps) {
         onClose={() => setMenuOpen(false)}
         onOpenDaily={() => {
           setMenuOpen(false);
-          setView('daily-check-in');
+          setPage('daily');
         }}
         onOpenHistory={() => {
           setMenuOpen(false);
-          setView('history');
+          setPage('history');
         }}
         onOpenNutrition={() => {
           setMenuOpen(false);
-          setView('food');
+          setPage('nutrition');
         }}
         onOpenGallery={() => {
           setMenuOpen(false);
-          setView('gallery');
+          setPage('gallery');
         }}
         onOpenShop={() => {
           setMenuOpen(false);
-          setView('shop');
+          setPage('shop');
         }}
         onOpenSettings={() => {
           setMenuOpen(false);
-          setView('settings');
+          setPage('settings');
         }}
-        onOpenPremium={openPremium}
+        onOpenPremium={() => {
+          setMenuOpen(false);
+          setPaywallOpen(true);
+        }}
       />
 
       <PremiumPaywall
-        isOpen={premiumOpen}
-        onClose={() => setPremiumOpen(false)}
+        isOpen={paywallOpen}
+        onClose={() => setPaywallOpen(false)}
       />
     </>
   );

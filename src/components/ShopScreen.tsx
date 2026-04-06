@@ -1,11 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Crown, Lock, ShoppingBag, Sparkles } from 'lucide-react';
+import { ArrowLeft, Crown, Lock, Sparkles } from 'lucide-react';
 
 import EquippedRatPreview from '@/components/EquippedRatPreview';
-import { getLevelFromXP, getTotalXP } from '@/lib/gamificationStore';
 import { getBackgroundImage, getItemImage } from '@/lib/assetRegistry';
-import { canAccessShopItem, equipItem, getEquippedItemIdForSlot, getShopItems, ownItem, type ShopItem } from '@/lib/shopStore';
 import type { SlotKey } from '@/lib/assetTypes';
+import { getLevelFromXP, getTotalXP } from '@/lib/gamificationStore';
+import {
+  canAccessShopItem,
+  equipItem,
+  getEquippedItemIdForSlot,
+  getShopItems,
+  ownItem,
+  type ShopItem,
+} from '@/lib/shopStore';
 
 type ShopScreenProps = {
   onBack: () => void;
@@ -39,6 +46,15 @@ type ShopTab = 'all' | 'regular' | 'premium';
 function getDisplayAsset(item: ShopItem) {
   if (item.slot === 'background') return getBackgroundImage(item.id);
   return getItemImage(item.id);
+}
+
+function getResolvedLevel(value: unknown): number {
+  if (typeof value === 'number') return value;
+  if (value && typeof value === 'object' && 'level' in value) {
+    const candidate = (value as { level?: unknown }).level;
+    if (typeof candidate === 'number') return candidate;
+  }
+  return 1;
 }
 
 function SlotButton({
@@ -147,7 +163,7 @@ export default function ShopScreen({
   const [activeTab, setActiveTab] = useState<ShopTab>('all');
   const [refreshKey, setRefreshKey] = useState(0);
 
-  const currentLevel = getLevelFromXP(getTotalXP());
+  const currentLevel = getResolvedLevel(getLevelFromXP(getTotalXP()));
 
   useEffect(() => {
     const rerender = () => setRefreshKey((value) => value + 1);
@@ -236,13 +252,13 @@ export default function ShopScreen({
             <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/50">
               Level
             </p>
-            <p className="mt-1 text-base font-black">{currentLevel.level}</p>
+            <p className="mt-1 text-base font-black">{currentLevel}</p>
           </div>
         </div>
 
         <div className="mb-3 rounded-[28px] border border-white/10 bg-white/[0.04] p-3">
           <EquippedRatPreview
-            level={currentLevel.level}
+            level={currentLevel}
             prioritySlot={activeSlot === 'background' ? null : activeSlot}
             className="mx-auto w-full"
           />

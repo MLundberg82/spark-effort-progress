@@ -2,7 +2,6 @@ import { Images, Menu, Play, ShoppingBag, Trophy, Zap } from 'lucide-react';
 
 import EquippedRatPreview from '@/components/EquippedRatPreview';
 import XPProgressBar from '@/components/XPProgressBar';
-import { getProfile } from '@/lib/profileStore';
 
 export type HomeStats = {
   level: number;
@@ -88,7 +87,6 @@ export default function HomeScreen({
   onOpenGallery,
   onOpenShop,
 }: HomeScreenProps) {
-  const profile = getProfile();
   const tierLabel = getTierLabel(stats.level);
 
   return (
@@ -144,11 +142,12 @@ export default function HomeScreen({
               <ActionButton icon={ShoppingBag} label="Shop" onClick={onOpenShop} />
             </div>
 
-            <ActionButton icon={Play} label="Start Workout" onClick={onStartWorkout} primary />
-
-            <div className="px-1 text-center text-xs text-white/42">
-              {profile?.trainingLevel ? `Training level: ${profile.trainingLevel}` : 'Finish your profile in settings anytime.'}
-            </div>
+            <ActionButton
+              icon={Play}
+              label="Start Workout"
+              onClick={onStartWorkout}
+              primary
+            />
           </div>
         </div>
       </div>
