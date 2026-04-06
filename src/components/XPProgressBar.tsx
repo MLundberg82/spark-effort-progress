@@ -1,6 +1,4 @@
-import { t, useAppLanguage } from '@/lib/languageStore';
-
-type XPProgressBarProps = {
+type Props = {
   level: number;
   currentXP: number;
   nextLevelXP: number;
@@ -14,52 +12,58 @@ export default function XPProgressBar({
   level,
   currentXP,
   nextLevelXP,
-}: XPProgressBarProps) {
-  const language = useAppLanguage();
+}: Props) {
   const safeNext = Math.max(1, nextLevelXP);
   const progressPercent = clamp((currentXP / safeNext) * 100, 0, 100);
   const xpLeft = Math.max(0, safeNext - currentXP);
 
   return (
-    <div className="rounded-[24px] border border-white/10 bg-zinc-950/70 p-4 shadow-[0_18px_50px_rgba(0,0,0,0.35)] backdrop-blur-xl">
-      <div className="mb-3 flex items-center justify-between gap-3">
+    <div className="rounded-[24px] border border-white/10 bg-white/[0.04] p-4 text-white">
+      <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-zinc-500">
-            {t('xp.progression', language)}
-          </p>
-          <h3 className="mt-1 text-lg font-black uppercase text-white">
-            {t('xp.level', language)} {level}
-          </h3>
+          <div className="text-[11px] font-black uppercase tracking-[0.18em] text-white/45">
+            Progression
+          </div>
+          <div className="mt-1 text-xl font-black tracking-tight">Level {level}</div>
         </div>
 
         <div className="text-right">
-          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-zinc-500">
-            {t('xp.progress', language)}
-          </p>
-          <p className="mt-1 text-base font-black text-lime-300">
+          <div className="text-[11px] font-black uppercase tracking-[0.18em] text-white/45">
+            Progress
+          </div>
+          <div className="mt-1 text-xl font-black tracking-tight">
             {progressPercent.toFixed(0)}%
-          </p>
+          </div>
         </div>
       </div>
 
-      <div className="relative h-9 overflow-hidden rounded-full border border-white/10 bg-zinc-900">
+      <div className="mt-4 h-3 w-full overflow-hidden rounded-full bg-white/10">
         <div
-          className="absolute inset-y-0 left-0 rounded-full bg-[linear-gradient(90deg,#d4af37_0%,#f6df8b_35%,#7CFF6B_100%)] shadow-[0_0_24px_rgba(124,255,107,0.22)] transition-all duration-500"
+          className="h-full rounded-full bg-lime-300 transition-[width] duration-500"
           style={{ width: `${progressPercent}%` }}
         />
+      </div>
 
-        <div className="absolute inset-0 flex items-center justify-center px-3">
-          <span className="text-[11px] font-black uppercase tracking-[0.14em] text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
-            {currentXP} / {safeNext} XP
-          </span>
+      <div className="mt-4 grid grid-cols-2 gap-3">
+        <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
+          <div className="text-[10px] font-black uppercase tracking-[0.14em] text-white/40">
+            Current XP
+          </div>
+          <div className="mt-1 text-lg font-black">
+            {currentXP} / {safeNext}
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
+          <div className="text-[10px] font-black uppercase tracking-[0.14em] text-white/40">
+            Next level in
+          </div>
+          <div className="mt-1 text-lg font-black">{xpLeft} XP</div>
         </div>
       </div>
 
-      <div className="mt-3 flex items-center justify-between text-[10px] font-black uppercase tracking-[0.16em] text-zinc-500">
-        <span>
-          {t('xp.nextLevelIn', language)} {xpLeft} XP
-        </span>
-        <span>{t('xp.status', language)}</span>
+      <div className="mt-3 text-xs font-bold text-white/45">
+        Status · Keep stacking reps
       </div>
     </div>
   );

@@ -130,15 +130,15 @@ function PlaceholderScreen({
 }: PlaceholderScreenProps) {
   return (
     <div className="min-h-screen bg-black px-5 pb-8 pt-6 text-white">
-      <button
-        onClick={onBack}
-        className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-black text-white/80 transition hover:bg-white/[0.08]"
-      >
-        ← Back
-      </button>
+      <div className="mx-auto max-w-xl rounded-[28px] border border-white/10 bg-white/[0.04] p-6">
+        <button
+          onClick={onBack}
+          className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-black text-white/80 transition hover:bg-white/[0.08]"
+        >
+          ← Back
+        </button>
 
-      <div className="mx-auto mt-6 max-w-xl rounded-[28px] border border-white/10 bg-white/[0.04] p-6">
-        <div className="text-xs font-black uppercase tracking-[0.22em] text-lime-300/80">
+        <div className="mt-5 text-xs font-black uppercase tracking-[0.22em] text-lime-300/80">
           Production-safe placeholder
         </div>
 
@@ -276,11 +276,15 @@ export default function Index() {
   const [page, setPage] = useState<AppPage>(
     hasCompletedOnboarding() ? initialAppState.page : 'settings',
   );
+  const [previousPage, setPreviousPage] = useState<AppPage>('home');
   const [menuOpen, setMenuOpen] = useState(initialAppState.overlay === 'menu');
   const [paywallOpen, setPaywallOpen] = useState(initialAppState.overlay === 'paywall');
   const [lastSummary, setLastSummary] = useState<WorkoutCompleteSummary | null>(null);
   const [profileVersion, setProfileVersion] = useState(0);
   const [premiumVersion, setPremiumVersion] = useState(0);
+  const [pendingWorkoutFocus, setPendingWorkoutFocus] = useState<
+    SupportedFocusArea | undefined
+  >(undefined);
 
   const totalXP = useMemo(() => getTotalXP(), [lastSummary, profileVersion]);
   const level = useMemo(() => getLevelFromXP(totalXP), [totalXP]);
@@ -336,9 +340,21 @@ export default function Index() {
     setPaywallOpen(false);
   };
 
-  const openHome = () => {
+  const navigateTo = (nextPage: AppPage) => {
+    setPage((currentPage) => {
+      if (currentPage !== nextPage) {
+        setPreviousPage(currentPage);
+      }
+      return nextPage;
+    });
+  };
+
+  const goBack = () => {
     closeAllOverlays();
-    setPage('home');
+    setPage((currentPage) => {
+      if (currentPage === 'home') return 'home';
+      return previousPage || 'home';
+    });
   };
 
   const openPremium = () => {
@@ -361,12 +377,19 @@ export default function Index() {
     });
 
     setProfileVersion((value) => value + 1);
-    setPage('home');
+    navigateTo('home');
   };
 
-  const handleStartWorkout = () => {
+  const handleStartWorkout = (focus?: MuscleGroup) => {
     closeAllOverlays();
-    setPage('workout');
+
+    if (focus === 'chest' || focus === 'back' || focus === 'arms' || focus === 'legs') {
+      setPendingWorkoutFocus(focus);
+    } else {
+      setPendingWorkoutFocus(undefined);
+    }
+
+    navigateTo('workout');
   };
 
   const handleCompleteWorkout = async (result: WorkoutCompleteResult) => {
@@ -394,8 +417,9 @@ export default function Index() {
       prs,
     });
 
-    setPage('complete');
+    navigateTo('complete');
     setPremiumVersion((value) => value + 1);
+    setPendingWorkoutFocus(undefined);
 
     await refreshSmartNotifications();
 
@@ -413,7 +437,11 @@ export default function Index() {
   if (page === 'workout') {
     return (
       <>
-        <WorkoutFlow onBack={openHome} onComplete={handleCompleteWorkout} />
+        <WorkoutFlow
+          onBack={goBack}
+          onComplete={handleCompleteWorkout}
+          initialFocus={pendingWorkoutFocus}
+        />
         <PremiumPaywall isOpen={paywallOpen} onClose={() => setPaywallOpen(false)} />
       </>
     );
@@ -429,7 +457,7 @@ export default function Index() {
             volume: lastSummary.volume,
             prs: lastSummary.prs,
           }}
-          onContinue={openHome}
+          onContinue={goBack}
         />
         <PremiumPaywall isOpen={paywallOpen} onClose={() => setPaywallOpen(false)} />
       </>
@@ -439,7 +467,7 @@ export default function Index() {
   if (page === 'gallery') {
     return (
       <>
-        <GymRatGallery onBack={openHome} />
+        <GymRatGallery onBack={goBack} />
         <PremiumPaywall isOpen={paywallOpen} onClose={() => setPaywallOpen(false)} />
       </>
     );
@@ -448,7 +476,7 @@ export default function Index() {
   if (page === 'shop') {
     return (
       <>
-        <RatShop onBack={openHome} onOpenPremium={openPremium} />
+        <RatShop onBack={goBack} onOpenPremium={openPremium} />
         <PremiumPaywall isOpen={paywallOpen} onClose={() => setPaywallOpen(false)} />
       </>
     );
@@ -460,7 +488,7 @@ export default function Index() {
         <PlaceholderScreen
           title="History"
           body="Workout history is connected through the new premium trigger layer and ready for the next production-safe pass."
-          onBack={openHome}
+          onBack={goBack}
           premiumHint
         />
         <PremiumPaywall isOpen={paywallOpen} onClose={() => setPaywallOpen(false)} />
@@ -474,7 +502,7 @@ export default function Index() {
         <PlaceholderScreen
           title="Nutrition"
           body="Nutrition remains available through the premium trigger flow and is ready for the next compact production-safe screen."
-          onBack={openHome}
+          onBack={goBack}
           premiumHint
         />
         <PremiumPaywall isOpen={paywallOpen} onClose={() => setPaywallOpen(false)} />
@@ -485,7 +513,7 @@ export default function Index() {
   if (page === 'settings') {
     return (
       <>
-        <SettingsScreen onBack={openHome} />
+        <SettingsScreen onBack={goBack} />
         <PremiumPaywall isOpen={paywallOpen} onClose={() => setPaywallOpen(false)} />
       </>
     );
@@ -495,8 +523,8 @@ export default function Index() {
     return (
       <>
         <DailyCheckInScreen
-          onClose={openHome}
-          onStartWorkout={() => handleStartWorkout()}
+          onClose={goBack}
+          onStartWorkout={handleStartWorkout}
         />
         <PremiumPaywall isOpen={paywallOpen} onClose={() => setPaywallOpen(false)} />
       </>
@@ -574,7 +602,7 @@ export default function Index() {
 
           <div className="mt-5 grid gap-3">
             <button
-              onClick={handleStartWorkout}
+              onClick={() => handleStartWorkout()}
               className="inline-flex min-h-[58px] items-center justify-center rounded-[26px] bg-lime-300 px-5 py-4 text-sm font-black uppercase tracking-[0.16em] text-black shadow-[0_18px_50px_rgba(163,230,53,0.2)] transition hover:brightness-105"
             >
               Start workout
@@ -582,14 +610,14 @@ export default function Index() {
 
             <div className="grid grid-cols-2 gap-3">
               <button
-                onClick={() => setPage('gallery')}
+                onClick={() => navigateTo('gallery')}
                 className="inline-flex min-h-[52px] items-center justify-center rounded-[22px] border border-white/10 bg-white/[0.05] px-4 py-3 text-sm font-black uppercase tracking-[0.12em] text-white transition hover:bg-white/[0.08]"
               >
                 Level gallery
               </button>
 
               <button
-                onClick={() => setPage('shop')}
+                onClick={() => navigateTo('shop')}
                 className="inline-flex min-h-[52px] items-center justify-center rounded-[22px] border border-white/10 bg-white/[0.05] px-4 py-3 text-sm font-black uppercase tracking-[0.12em] text-white transition hover:bg-white/[0.08]"
               >
                 Shop
@@ -605,51 +633,43 @@ export default function Index() {
           onClose={() => setMenuOpen(false)}
           onOpenDaily={() => {
             setMenuOpen(false);
-            setPage('daily');
+            navigateTo('daily');
           }}
           onOpenHistory={() => {
-            const allowed = maybeOpenHistoryPaywall({
+            maybeOpenHistoryPaywall({
               onOpened: () => {
                 setMenuOpen(false);
                 setPaywallOpen(true);
               },
               onAllowed: () => {
                 setMenuOpen(false);
-                setPage('history');
+                navigateTo('history');
               },
             });
-
-            if (allowed) {
-              setPage('history');
-            }
           }}
           onOpenNutrition={() => {
-            const allowed = maybeOpenNutritionPaywall({
+            maybeOpenNutritionPaywall({
               onOpened: () => {
                 setMenuOpen(false);
                 setPaywallOpen(true);
               },
               onAllowed: () => {
                 setMenuOpen(false);
-                setPage('nutrition');
+                navigateTo('nutrition');
               },
             });
-
-            if (allowed) {
-              setPage('nutrition');
-            }
           }}
           onOpenGallery={() => {
             setMenuOpen(false);
-            setPage('gallery');
+            navigateTo('gallery');
           }}
           onOpenShop={() => {
             setMenuOpen(false);
-            setPage('shop');
+            navigateTo('shop');
           }}
           onOpenSettings={() => {
             setMenuOpen(false);
-            setPage('settings');
+            navigateTo('settings');
           }}
           onOpenPremium={openPremium}
         />

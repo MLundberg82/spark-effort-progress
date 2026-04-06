@@ -35,30 +35,55 @@ type SettingsScreenProps = {
 };
 
 const CONTACT_EMAIL = 'hello@getgymrat.com';
-const TIMER_KEY = 'gymrat-rest-timer-seconds';
-const TIMER_OPTIONS = [45, 60, 75, 90, 120, 150, 180] as const;
 
-function getTimerSeconds(): number {
-  if (typeof window === 'undefined') return 90;
+const REST_TIMER_KEY = 'gymrat-rest-timer-seconds';
+const SET_TIMER_KEY = 'gymrat-set-timer-seconds';
+const TIMER_AUTO_LOOP_KEY = 'gymrat-timer-auto-loop';
 
-  const raw = localStorage.getItem(TIMER_KEY);
+const TIMER_OPTIONS = [15, 20, 30, 45, 60, 75, 90, 120, 150, 180] as const;
+
+function readNumber(key: string, fallback: number) {
+  if (typeof window === 'undefined') return fallback;
+
+  const raw = localStorage.getItem(key);
   const parsed = Number(raw);
 
-  if (Number.isFinite(parsed) && parsed >= 30 && parsed <= 600) {
+  if (Number.isFinite(parsed) && parsed > 0) {
     return Math.round(parsed);
   }
 
-  return 90;
+  return fallback;
 }
 
-function setTimerSeconds(value: number) {
+function readBoolean(key: string, fallback: boolean) {
+  if (typeof window === 'undefined') return fallback;
+
+  const raw = localStorage.getItem(key);
+  if (raw === 'true') return true;
+  if (raw === 'false') return false;
+  return fallback;
+}
+
+function writeTimerSettings(options: {
+  restSeconds: number;
+  setSeconds: number;
+  autoLoop: boolean;
+}) {
   if (typeof window === 'undefined') return;
 
-  const safeValue = Math.max(30, Math.min(600, Math.round(value)));
-  localStorage.setItem(TIMER_KEY, String(safeValue));
-  window.dispatchEvent(
-    new CustomEvent('gymrat-timer-updated', { detail: { seconds: safeValue } }),
-  );
+  localStorage.setItem(REST_TIMER_KEY, String(options.restSeconds));
+  localStorage.setItem(SET_TIMER_KEY, String(options.setSeconds));
+  localStorage.setItem(TIMER_AUTO_LOOP_KEY, String(options.autoLoop));
+
+  const detail = {
+    restSeconds: options.restSeconds,
+    setSeconds: options.setSeconds,
+    autoLoop: options.autoLoop,
+    autoStartWorkout: false,
+  };
+
+  window.dispatchEvent(new CustomEvent('gymrat-timer-updated', { detail }));
+  window.dispatchEvent(new CustomEvent('timer-settings-updated', { detail }));
 }
 
 function SectionTitle({
@@ -71,17 +96,17 @@ function SectionTitle({
   subtitle?: string;
 }) {
   return (
-    <div className="mb-3 flex items-start gap-3">
-      <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-white">
+    <div className="mb-2 flex items-start gap-2.5">
+      <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-white">
         {icon}
       </div>
 
       <div className="min-w-0">
-        <div className="text-sm font-black uppercase tracking-[0.12em] text-white">
+        <div className="text-[12px] font-black uppercase tracking-[0.12em] text-white">
           {title}
         </div>
         {subtitle ? (
-          <div className="mt-1 text-xs leading-5 text-white/55">{subtitle}</div>
+          <div className="mt-0.5 text-[11px] leading-5 text-white/50">{subtitle}</div>
         ) : null}
       </div>
     </div>
@@ -109,17 +134,17 @@ function ToggleCard<T extends string>({
             key={option.value}
             type="button"
             onClick={() => onChange(option.value)}
-            className={`rounded-2xl border px-4 py-3 text-left transition ${
+            className={`rounded-2xl border px-3 py-2.5 text-left transition ${
               active
                 ? 'border-lime-400/35 bg-lime-400/12 text-white shadow-[0_0_0_1px_rgba(163,230,53,0.08)]'
                 : 'border-white/10 bg-white/[0.04] text-white/75 hover:border-white/20 hover:bg-white/[0.07]'
             }`}
           >
-            <div className="text-sm font-black uppercase tracking-[0.1em]">
+            <div className="text-[12px] font-black uppercase tracking-[0.08em]">
               {option.label}
             </div>
             {option.sublabel ? (
-              <div className="mt-1 text-[11px] leading-4 text-white/55">
+              <div className="mt-0.5 text-[10px] leading-4 text-white/50">
                 {option.sublabel}
               </div>
             ) : null}
@@ -145,8 +170,8 @@ function CompactInput({
 }) {
   return (
     <label className="block">
-      <div className="mb-2 flex items-center gap-2 text-xs font-black uppercase tracking-[0.14em] text-white/55">
-        <span className="text-white/70">{icon}</span>
+      <div className="mb-1.5 flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.14em] text-white/50">
+        <span className="text-white/65">{icon}</span>
         {label}
       </div>
 
@@ -154,10 +179,10 @@ function CompactInput({
         <input
           value={value}
           onChange={(event) => onChange(event.target.value)}
-          className="w-full rounded-2xl border border-white/10 bg-zinc-950 px-4 py-3 pr-14 text-white outline-none transition focus:border-lime-400/50"
+          className="w-full rounded-2xl border border-white/10 bg-zinc-950 px-3.5 py-2.5 pr-12 text-sm text-white outline-none transition focus:border-lime-400/50"
         />
         {suffix ? (
-          <div className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-xs font-black uppercase tracking-[0.12em] text-white/35">
+          <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-[10px] font-black uppercase tracking-[0.12em] text-white/35">
             {suffix}
           </div>
         ) : null}
@@ -181,20 +206,20 @@ function ActionRow({
     <button
       type="button"
       onClick={onClick}
-      className="flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-left transition hover:border-white/20 hover:bg-white/[0.07]"
+      className="flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-3.5 py-3 text-left transition hover:border-white/20 hover:bg-white/[0.07]"
     >
-      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.05] text-white">
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.05] text-white">
         {icon}
       </div>
 
       <div className="min-w-0 flex-1">
-        <div className="text-sm font-black uppercase tracking-[0.1em] text-white">
+        <div className="text-[12px] font-black uppercase tracking-[0.08em] text-white">
           {title}
         </div>
-        <div className="mt-1 text-xs leading-5 text-white/55">{subtitle}</div>
+        <div className="mt-0.5 text-[11px] leading-5 text-white/50">{subtitle}</div>
       </div>
 
-      <ChevronRight className="h-4 w-4 text-white/35" />
+      <ChevronRight className="h-4 w-4 text-white/30" />
     </button>
   );
 }
@@ -203,18 +228,24 @@ export default function SettingsScreen({ onBack }: SettingsScreenProps) {
   const profile = getProfile();
 
   const [gender, setGender] = useState<ProfileGender>(profile.gender ?? 'male');
-  const [height, setHeight] = useState(
-    profile.height ? String(profile.height) : '',
-  );
-  const [weight, setWeight] = useState(
-    profile.weight ? String(profile.weight) : '',
-  );
+  const [height, setHeight] = useState(profile.height ? String(profile.height) : '');
+  const [weight, setWeight] = useState(profile.weight ? String(profile.weight) : '');
   const [age, setAge] = useState(profile.age ? String(profile.age) : '');
   const [goal, setGoal] = useState<FitnessGoal>(profile.goal ?? 'gain');
   const [trainingLevelState, setTrainingLevelState] =
     useState<TrainingLevel>(getTrainingLevel());
   const [language, setLanguageState] = useState<AppLanguage>(getLanguage());
-  const [timerSeconds, setTimerSecondsState] = useState<number>(getTimerSeconds());
+
+  const [restSeconds, setRestSeconds] = useState<number>(
+    readNumber(REST_TIMER_KEY, 90),
+  );
+  const [setSeconds, setSetSeconds] = useState<number>(
+    readNumber(SET_TIMER_KEY, 45),
+  );
+  const [autoLoop, setAutoLoop] = useState<boolean>(
+    readBoolean(TIMER_AUTO_LOOP_KEY, true),
+  );
+
   const [message, setMessage] = useState('');
 
   useEffect(() => {
@@ -228,13 +259,16 @@ export default function SettingsScreen({ onBack }: SettingsScreenProps) {
       setGoal(current.goal ?? 'gain');
       setTrainingLevelState(getTrainingLevel());
       setLanguageState(getLanguage());
-      setTimerSecondsState(getTimerSeconds());
+      setRestSeconds(readNumber(REST_TIMER_KEY, 90));
+      setSetSeconds(readNumber(SET_TIMER_KEY, 45));
+      setAutoLoop(readBoolean(TIMER_AUTO_LOOP_KEY, true));
     };
 
     window.addEventListener('gymrat-profile-updated', refreshFromStores);
     window.addEventListener('language-updated', refreshFromStores);
     window.addEventListener('storage', refreshFromStores);
     window.addEventListener('gymrat-timer-updated', refreshFromStores as EventListener);
+    window.addEventListener('timer-settings-updated', refreshFromStores as EventListener);
 
     return () => {
       window.removeEventListener('gymrat-profile-updated', refreshFromStores);
@@ -242,6 +276,10 @@ export default function SettingsScreen({ onBack }: SettingsScreenProps) {
       window.removeEventListener('storage', refreshFromStores);
       window.removeEventListener(
         'gymrat-timer-updated',
+        refreshFromStores as EventListener,
+      );
+      window.removeEventListener(
+        'timer-settings-updated',
         refreshFromStores as EventListener,
       );
     };
@@ -274,10 +312,14 @@ export default function SettingsScreen({ onBack }: SettingsScreenProps) {
 
     setTrainingLevel(trainingLevelState);
     setLanguage(language);
-    setTimerSeconds(timerSeconds);
+    writeTimerSettings({
+      restSeconds,
+      setSeconds,
+      autoLoop,
+    });
 
     setMessage(
-      `Saved · ${getLanguageLabel(language)} · ${Math.round(timerSeconds)}s timer`,
+      `Saved · ${getLanguageLabel(language)} · Rest ${restSeconds}s · Set ${setSeconds}s`,
     );
 
     window.setTimeout(() => setMessage(''), 2200);
@@ -294,56 +336,59 @@ export default function SettingsScreen({ onBack }: SettingsScreenProps) {
   return (
     <div className="min-h-screen bg-black px-5 pb-8 pt-6 text-white">
       <div className="mx-auto max-w-2xl">
-        <button
-          onClick={onBack}
-          className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-black text-white/80 transition hover:bg-white/[0.08]"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back
-        </button>
+        <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-4 sm:p-5">
+          <div className="flex items-center justify-between gap-3">
+            <button
+              onClick={onBack}
+              className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-black uppercase tracking-[0.12em] text-white/80 transition hover:bg-white/[0.08]"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back
+            </button>
 
-        <div className="mt-5 rounded-[30px] border border-white/10 bg-white/[0.04] p-5">
-          <div className="text-[11px] font-black uppercase tracking-[0.22em] text-lime-300/80">
-            Settings
+            <div className="text-[10px] font-black uppercase tracking-[0.22em] text-lime-300/80">
+              Settings
+            </div>
           </div>
-          <h1 className="mt-2 text-3xl font-black tracking-tight">Control Center</h1>
-          <p className="mt-2 text-sm leading-6 text-white/65">
-            Compact profile control, training setup, timer, language and support.
+
+          <h1 className="mt-4 text-2xl font-black tracking-tight">Control Center</h1>
+          <p className="mt-1 text-xs leading-5 text-white/55">
+            Compact profile control, timers, training setup, language and support.
           </p>
 
-          <div className="mt-6 space-y-5">
-            <section className="rounded-[24px] border border-white/10 bg-black/20 p-4">
+          <div className="mt-4 space-y-3.5">
+            <section className="rounded-[22px] border border-white/10 bg-black/20 p-3.5">
               <SectionTitle
-                icon={<User className="h-5 w-5" />}
+                icon={<User className="h-4 w-4" />}
                 title="Core profile"
-                subtitle="Age, gender, height, weight and goal in one compact block."
+                subtitle="Age, gender, height, weight and goal."
               />
 
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="grid gap-2.5 sm:grid-cols-3">
                 <CompactInput
                   label="Age"
                   value={age}
                   onChange={setAge}
                   suffix="yrs"
-                  icon={<User className="h-4 w-4" />}
+                  icon={<User className="h-3.5 w-3.5" />}
                 />
                 <CompactInput
                   label="Height"
                   value={height}
                   onChange={setHeight}
                   suffix="cm"
-                  icon={<Ruler className="h-4 w-4" />}
+                  icon={<Ruler className="h-3.5 w-3.5" />}
                 />
                 <CompactInput
                   label="Weight"
                   value={weight}
                   onChange={setWeight}
                   suffix="kg"
-                  icon={<Weight className="h-4 w-4" />}
+                  icon={<Weight className="h-3.5 w-3.5" />}
                 />
               </div>
 
-              <div className="mt-3">
+              <div className="mt-2.5">
                 <ToggleCard<ProfileGender>
                   value={gender}
                   onChange={setGender}
@@ -356,11 +401,11 @@ export default function SettingsScreen({ onBack }: SettingsScreenProps) {
               </div>
             </section>
 
-            <section className="rounded-[24px] border border-white/10 bg-black/20 p-4">
+            <section className="rounded-[22px] border border-white/10 bg-black/20 p-3.5">
               <SectionTitle
-                icon={<Target className="h-5 w-5" />}
+                icon={<Target className="h-4 w-4" />}
                 title="Goal"
-                subtitle="Used for overall direction and recommendations."
+                subtitle="Used for recommendations and direction."
               />
 
               <ToggleCard<FitnessGoal>
@@ -374,11 +419,11 @@ export default function SettingsScreen({ onBack }: SettingsScreenProps) {
               />
             </section>
 
-            <section className="rounded-[24px] border border-white/10 bg-black/20 p-4">
+            <section className="rounded-[22px] border border-white/10 bg-black/20 p-3.5">
               <SectionTitle
-                icon={<Dumbbell className="h-5 w-5" />}
+                icon={<Dumbbell className="h-4 w-4" />}
                 title="Training level"
-                subtitle="Controls the base level of suggested workout structure."
+                subtitle="Controls suggested workout structure."
               />
 
               <ToggleCard<TrainingLevel>
@@ -392,27 +437,69 @@ export default function SettingsScreen({ onBack }: SettingsScreenProps) {
               />
             </section>
 
-            <section className="rounded-[24px] border border-white/10 bg-black/20 p-4">
+            <section className="rounded-[22px] border border-white/10 bg-black/20 p-3.5">
               <SectionTitle
-                icon={<Clock3 className="h-5 w-5" />}
-                title="Timer"
-                subtitle="Default rest timer used by the app."
+                icon={<Clock3 className="h-4 w-4" />}
+                title="Workout timer"
+                subtitle="User starts and stops manually. Does not auto-start when a workout begins."
               />
 
-              <ToggleCard<string>
-                value={String(timerSeconds)}
-                onChange={(value) => setTimerSecondsState(Number(value))}
-                options={TIMER_OPTIONS.map((seconds) => ({
-                  value: String(seconds),
-                  label: `${seconds}s`,
-                }))}
-                columns="grid-cols-3 sm:grid-cols-4"
-              />
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <div className="mb-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-white/50">
+                    Rest timer
+                  </div>
+                  <ToggleCard<string>
+                    value={String(restSeconds)}
+                    onChange={(value) => setRestSeconds(Number(value))}
+                    options={TIMER_OPTIONS.map((seconds) => ({
+                      value: String(seconds),
+                      label: `${seconds}s`,
+                    }))}
+                    columns="grid-cols-3"
+                  />
+                </div>
+
+                <div>
+                  <div className="mb-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-white/50">
+                    Set timer
+                  </div>
+                  <ToggleCard<string>
+                    value={String(setSeconds)}
+                    onChange={(value) => setSetSeconds(Number(value))}
+                    options={TIMER_OPTIONS.map((seconds) => ({
+                      value: String(seconds),
+                      label: `${seconds}s`,
+                    }))}
+                    columns="grid-cols-3"
+                  />
+                </div>
+              </div>
+
+              <div className="mt-3">
+                <ToggleCard<string>
+                  value={autoLoop ? 'loop' : 'single'}
+                  onChange={(value) => setAutoLoop(value === 'loop')}
+                  options={[
+                    {
+                      value: 'loop',
+                      label: 'Auto loop',
+                      sublabel: 'Keeps rolling set/rest until user stops it',
+                    },
+                    {
+                      value: 'single',
+                      label: 'Single cycle',
+                      sublabel: 'One phase at a time until manually changed',
+                    },
+                  ]}
+                  columns="grid-cols-1 sm:grid-cols-2"
+                />
+              </div>
             </section>
 
-            <section className="rounded-[24px] border border-white/10 bg-black/20 p-4">
+            <section className="rounded-[22px] border border-white/10 bg-black/20 p-3.5">
               <SectionTitle
-                icon={<Globe className="h-5 w-5" />}
+                icon={<Globe className="h-4 w-4" />}
                 title="Language"
                 subtitle="App language and labels."
               />
@@ -428,22 +515,22 @@ export default function SettingsScreen({ onBack }: SettingsScreenProps) {
               />
             </section>
 
-            <section className="rounded-[24px] border border-white/10 bg-black/20 p-4">
+            <section className="rounded-[22px] border border-white/10 bg-black/20 p-3.5">
               <SectionTitle
-                icon={<Mail className="h-5 w-5" />}
+                icon={<Mail className="h-4 w-4" />}
                 title="Support"
                 subtitle="Quick access for contact and bug reports."
               />
 
-              <div className="grid gap-3">
+              <div className="grid gap-2.5">
                 <ActionRow
-                  icon={<Mail className="h-5 w-5" />}
+                  icon={<Mail className="h-4 w-4" />}
                   title="Contact"
                   subtitle="Questions, feedback or partnerships"
                   onClick={openContact}
                 />
                 <ActionRow
-                  icon={<Bug className="h-5 w-5" />}
+                  icon={<Bug className="h-4 w-4" />}
                   title="Report bug"
                   subtitle="Send steps, screen and device details"
                   onClick={reportBug}
@@ -455,19 +542,19 @@ export default function SettingsScreen({ onBack }: SettingsScreenProps) {
           <button
             type="button"
             onClick={handleSave}
-            className="mt-6 inline-flex min-h-[56px] w-full items-center justify-center gap-2 rounded-[24px] bg-lime-300 px-5 py-3 text-sm font-black uppercase tracking-[0.16em] text-black shadow-[0_18px_50px_rgba(163,230,53,0.2)] transition hover:brightness-105"
+            className="mt-4 inline-flex min-h-[48px] w-full items-center justify-center gap-2 rounded-[22px] bg-lime-300 px-4 py-3 text-xs font-black uppercase tracking-[0.16em] text-black shadow-[0_18px_50px_rgba(163,230,53,0.2)] transition hover:brightness-105"
           >
             <Save className="h-4 w-4" />
             Save settings
           </button>
 
           {message ? (
-            <div className="mt-3 rounded-2xl border border-lime-400/20 bg-lime-400/10 px-4 py-3 text-sm font-bold text-lime-100">
+            <div className="mt-3 rounded-2xl border border-lime-400/20 bg-lime-400/10 px-4 py-2.5 text-xs font-bold text-lime-100">
               {message}
             </div>
           ) : null}
 
-          <div className="mt-4 text-xs text-white/35">Contact: {CONTACT_EMAIL}</div>
+          <div className="mt-3 text-[11px] text-white/35">Contact: {CONTACT_EMAIL}</div>
         </div>
       </div>
     </div>
