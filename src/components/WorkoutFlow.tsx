@@ -12,8 +12,9 @@ import {
 } from 'lucide-react';
 
 import WorkoutComplete from '@/components/WorkoutComplete';
+import { logStreakActivity } from '@/lib/streakStore';
 
-type Focus = 'chest' | 'back' | 'arms' | 'legs';
+type Focus = 'chest' | 'back' | 'arms' | 'legs' | 'walk';
 
 type WorkoutFlowProps = {
   initialFocus?: Focus;
@@ -90,6 +91,14 @@ const PRESETS: WorkoutPreset[] = [
     description: 'A lower body session for quads, glutes and strong basics that move the needle.',
     vibe: 'Serious lower body',
     exercises: ['Squat', 'Leg Press', 'Romanian Deadlift', 'Leg Curl'],
+  },
+  {
+    id: 'walk',
+    title: 'Walk',
+    subtitle: 'Keep the streak alive without lifting',
+    description: 'A simple walk session for recovery, momentum and keeping your streak alive on lighter days.',
+    vibe: 'Recovery reset',
+    exercises: ['Walk Session'],
   },
 ];
 
@@ -426,6 +435,7 @@ export default function WorkoutFlow({
     if (!selectedPreset) return;
 
     setIsRunning(false);
+    logStreakActivity();
     setSummary({
       workoutName: selectedPreset.title,
       durationMinutes: 42,
