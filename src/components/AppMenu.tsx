@@ -2,9 +2,12 @@ import { type ReactNode } from 'react';
 import {
   Clock3,
   Crown,
+  FileText,
   Flame,
   History,
+  Mail,
   Settings,
+  Shield,
   UtensilsCrossed,
   X,
 } from 'lucide-react';
@@ -19,6 +22,8 @@ type AppMenuProps = {
   onOpenSettings: () => void;
   onOpenTimer: () => void;
   onOpenPremium: () => void;
+  onOpenTerms: () => void;
+  onOpenPrivacy: () => void;
 };
 
 type MenuButtonProps = {
@@ -45,16 +50,16 @@ function MenuButton({
       className={[
         'flex w-full items-center gap-3 rounded-[20px] border px-3.5 py-3.5 text-left transition',
         isPremium
-          ? 'border-yellow-300/35 bg-[#3a2a00] hover:bg-[#4a3500] shadow-[0_0_28px_rgba(250,204,21,0.18)]'
-          : 'border-white/12 bg-black hover:bg-[#0f0f0f]',
+          ? 'border-yellow-300/35 bg-[#4a3400] hover:bg-[#5c4100] shadow-[0_0_28px_rgba(250,204,21,0.18)]'
+          : 'border-white/12 bg-[#0a0a0a] hover:bg-[#131313]',
       ].join(' ')}
     >
       <div
         className={[
           'flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] border',
           isPremium
-            ? 'border-yellow-300/35 bg-yellow-300/15 text-yellow-100'
-            : 'border-white/12 bg-[#111111] text-lime-300',
+            ? 'border-yellow-300/35 bg-yellow-300/12 text-yellow-100'
+            : 'border-white/12 bg-[#141414] text-lime-300',
         ].join(' ')}
       >
         {icon}
@@ -64,15 +69,16 @@ function MenuButton({
         <div
           className={[
             'text-sm font-black uppercase tracking-[0.14em]',
-            isPremium ? 'text-yellow-50' : 'text-white',
+            isPremium ? 'text-yellow-50' : 'text-lime-200',
           ].join(' ')}
         >
           {label}
         </div>
+
         <div
           className={[
             'mt-1 text-sm leading-snug',
-            isPremium ? 'text-yellow-50/88' : 'text-lime-100/88',
+            isPremium ? 'text-yellow-50/90' : 'text-white/88',
           ].join(' ')}
         >
           {description}
@@ -90,6 +96,8 @@ export default function AppMenu({
   onOpenSettings,
   onOpenTimer,
   onOpenPremium,
+  onOpenTerms,
+  onOpenPrivacy,
 }: AppMenuProps) {
   return (
     <div className="flex min-h-full flex-col gap-4">
@@ -114,7 +122,7 @@ export default function AppMenu({
         </button>
       </div>
 
-      <section className="rounded-[22px] border border-white/12 bg-[#050505] p-4 shadow-[0_10px_30px_rgba(0,0,0,0.28)]">
+      <section className="rounded-[22px] border border-white/12 bg-black p-4 shadow-[0_10px_30px_rgba(0,0,0,0.32)]">
         <div className="space-y-2.5">
           <MenuButton
             label="Daily Check-In"
@@ -157,6 +165,33 @@ export default function AppMenu({
             onClick={onOpenPremium}
             icon={<Crown className="h-4.5 w-4.5" />}
             accent="premium"
+          />
+        </div>
+      </section>
+
+      <section className="mt-auto rounded-[22px] border border-white/12 bg-black p-4 shadow-[0_10px_30px_rgba(0,0,0,0.32)]">
+        <div className="space-y-2.5">
+          <MenuButton
+            label="Terms of Use"
+            description="Open the in-app terms."
+            onClick={onOpenTerms}
+            icon={<Shield className="h-4.5 w-4.5" />}
+          />
+
+          <MenuButton
+            label="Privacy Policy"
+            description="Open the in-app privacy policy."
+            onClick={onOpenPrivacy}
+            icon={<FileText className="h-4.5 w-4.5" />}
+          />
+
+          <MenuButton
+            label="Contact"
+            description="hello@getgymrat.com"
+            onClick={() => {
+              window.location.href = 'mailto:hello@getgymrat.com';
+            }}
+            icon={<Mail className="h-4.5 w-4.5" />}
           />
         </div>
       </section>
