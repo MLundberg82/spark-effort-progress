@@ -1,11 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 
 import AppMenu from '@/components/AppMenu';
 import DailyCheckInScreen from '@/components/DailyCheckInScreen';
 import GymRatGallery from '@/components/GymRatGallery';
 import HistoryScreen from '@/components/HistoryScreen';
 import HomeScreen from '@/components/HomeScreen';
-import LegalScreen from '@/components/LegalScreen';
 import NutritionScreen from '@/components/NutritionScreen';
 import PremiumPaywall from '@/components/PremiumPaywall';
 import SettingsScreen from '@/components/SettingsScreen';
@@ -22,15 +21,7 @@ import {
 } from '@/lib/gamificationStore';
 
 type BaseView = 'home' | 'gallery' | 'shop' | 'workout';
-type MenuView =
-  | 'root'
-  | 'settings'
-  | 'timer'
-  | 'daily'
-  | 'history'
-  | 'nutrition'
-  | 'terms'
-  | 'privacy';
+type MenuView = 'root' | 'settings' | 'timer' | 'daily' | 'history' | 'nutrition';
 type WorkoutFocus = 'chest' | 'back' | 'arms' | 'legs' | undefined;
 
 type IndexScreenProps = {
@@ -42,25 +33,24 @@ function MenuScreenShell({
   isVisible,
   onOutsideClick,
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
   isVisible: boolean;
   onOutsideClick: () => void;
 }) {
   return (
     <div
       className={[
-        'fixed inset-0 z-[70] transition-opacity duration-300 ease-out',
+        'fixed inset-0 z-[70] transition-opacity duration-500 ease-out',
         isVisible
-          ? 'bg-black/42 opacity-100 backdrop-blur-[6px]'
+          ? 'bg-black/70 opacity-100'
           : 'pointer-events-none bg-black/0 opacity-0',
       ].join(' ')}
       onClick={onOutsideClick}
     >
       <div
         className={[
-          'ml-auto h-full w-full overflow-hidden border-l border-white/12',
-          'bg-[#050505]/78 shadow-[-18px_0_52px_rgba(0,0,0,0.42)] backdrop-blur-2xl',
-          'transition-transform duration-300 ease-out',
+          'ml-auto h-full w-full overflow-hidden border-l border-white/10 bg-black shadow-[-18px_0_52px_rgba(0,0,0,0.58)]',
+          'transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]',
           isVisible ? 'translate-x-0' : 'translate-x-full',
         ].join(' ')}
         onClick={(event) => event.stopPropagation()}
@@ -153,13 +143,12 @@ export default function IndexScreen({ openPaywall }: IndexScreenProps) {
     window.setTimeout(() => {
       setMenuMounted(false);
       setMenuStack(['root']);
-    }, 300);
+    }, 500);
   };
 
   const openMenu = () => {
     setMenuMounted(true);
     setMenuStack(['root']);
-
     window.requestAnimationFrame(() => {
       window.requestAnimationFrame(() => {
         setMenuOpen(true);
@@ -224,14 +213,6 @@ export default function IndexScreen({ openPaywall }: IndexScreenProps) {
       return <NutritionScreen onBack={popMenuView} />;
     }
 
-    if (currentMenuView === 'terms') {
-      return <LegalScreen variant="terms" onBack={popMenuView} />;
-    }
-
-    if (currentMenuView === 'privacy') {
-      return <LegalScreen variant="privacy" onBack={popMenuView} />;
-    }
-
     return null;
   };
 
@@ -277,13 +258,13 @@ export default function IndexScreen({ openPaywall }: IndexScreenProps) {
 
       {menuMounted ? (
         <MenuScreenShell isVisible={menuOpen} onOutsideClick={closeMenu}>
-          <div className="relative h-full w-full overflow-hidden">
+          <div className="relative h-full w-full overflow-hidden bg-black">
             <div
               className={[
-                'absolute inset-0 overflow-y-auto px-4 pb-8 pt-4 transition-all duration-300 ease-out',
+                'absolute inset-0 overflow-y-auto bg-black px-4 pb-8 pt-4 transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]',
                 currentMenuView === 'root'
                   ? 'translate-x-0 scale-100 opacity-100'
-                  : '-translate-x-6 scale-[0.985] opacity-55',
+                  : '-translate-x-8 scale-[0.985] opacity-35',
               ].join(' ')}
             >
               <div className="mx-auto w-full max-w-[520px]">
@@ -295,15 +276,13 @@ export default function IndexScreen({ openPaywall }: IndexScreenProps) {
                   onOpenSettings={() => pushMenuView('settings')}
                   onOpenTimer={() => pushMenuView('timer')}
                   onOpenPremium={() => openPremium('menu')}
-                  onOpenTerms={() => pushMenuView('terms')}
-                  onOpenPrivacy={() => pushMenuView('privacy')}
                 />
               </div>
             </div>
 
             <div
               className={[
-                'absolute inset-0 overflow-y-auto border-l border-white/12 bg-[#050505]/82 px-4 pb-8 pt-4 backdrop-blur-2xl transition-all duration-300 ease-out',
+                'absolute inset-0 overflow-y-auto border-l border-white/10 bg-black px-4 pb-8 pt-4 transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]',
                 currentMenuView === 'root'
                   ? 'translate-x-full opacity-0'
                   : 'translate-x-0 opacity-100',

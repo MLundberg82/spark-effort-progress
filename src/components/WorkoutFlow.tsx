@@ -512,11 +512,11 @@ export default function WorkoutFlow({
 
 <button
   type="button"
-  onClick={startWorkout}
-  className="inline-flex min-h-[46px] items-center justify-center gap-2 rounded-[16px] border border-white/12 bg-white/[0.08] px-4 py-3 text-[11px] font-black uppercase tracking-[0.14em] text-white transition hover:bg-white/[0.12]"
+  onClick={() => setIsRunning((prev) => !prev)}
+  className="inline-flex h-11 items-center justify-center gap-2 rounded-[16px] border border-lime-300/35 bg-lime-500 px-4 text-[11px] font-black uppercase tracking-[0.14em] text-white transition hover:brightness-110"
 >
-  Start workout
-  <ChevronRight className="h-4 w-4" />
+  {isRunning ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+  {isRunning ? 'Pause' : 'Start'}
 </button>
       </ScreenShell>
     );
@@ -633,14 +633,14 @@ export default function WorkoutFlow({
         </button>
       </div>
 
-      <button
-        type="button"
-        onClick={completeWorkout}
-        className="inline-flex min-h-[46px] items-center justify-center gap-2 rounded-[16px] bg-white px-4 py-3 text-[11px] font-black uppercase tracking-[0.14em] text-black transition hover:brightness-95"
-      >
-        Complete workout
-        <Check className="h-4 w-4" />
-      </button>
+<button
+  type="button"
+  onClick={completeWorkout}
+  className="inline-flex min-h-[46px] items-center justify-center gap-2 rounded-[16px] border border-lime-300/35 bg-lime-500 px-4 py-3 text-[11px] font-black uppercase tracking-[0.14em] text-white transition hover:brightness-110"
+>
+  Complete workout
+  <Check className="h-4 w-4" />
+</button>
     </ScreenShell>
   );
 }
