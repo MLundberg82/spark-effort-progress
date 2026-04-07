@@ -3,7 +3,6 @@ import {
   ArrowLeft,
   Check,
   ChevronRight,
-  Dumbbell,
   Minus,
   Pause,
   Play,
@@ -11,6 +10,7 @@ import {
   RotateCcw,
   Timer,
 } from 'lucide-react';
+
 import WorkoutComplete from '@/components/WorkoutComplete';
 
 type Focus = 'chest' | 'back' | 'arms' | 'legs';
@@ -129,8 +129,10 @@ function createInitialLog(exercises: string[]): WorkoutLog {
 
 function ScreenShell({ children }: { children: ReactNode }) {
   return (
-    <div className="min-h-screen bg-black px-4 pb-6 pt-4 text-white">
-      <div className="mx-auto max-w-4xl">{children}</div>
+    <div className="min-h-screen bg-[#050505] px-4 pb-6 pt-4">
+      <div className="mx-auto flex w-full max-w-[560px] flex-col gap-3">
+        {children}
+      </div>
     </div>
   );
 }
@@ -145,26 +147,25 @@ function TopBar({
   onBack: () => void;
 }) {
   return (
-    <div className="mb-4 flex items-start justify-between gap-3">
+    <div className="flex items-start gap-3">
       <button
         type="button"
         onClick={onBack}
-        className="inline-flex h-10 w-10 items-center justify-center rounded-[14px] border border-white/10 bg-white/[0.04] text-white/78 transition hover:bg-white/[0.08]"
+        className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] border border-white/10 bg-white/[0.04] text-white transition hover:bg-white/[0.08]"
+        aria-label="Back"
       >
         <ArrowLeft className="h-4.5 w-4.5" />
       </button>
 
-      <div className="min-w-0 flex-1 text-center">
-        <p className="text-[10px] font-black uppercase tracking-[0.22em] text-lime-300/85">
+      <div className="min-w-0">
+        <div className="text-[10px] font-black uppercase tracking-[0.18em] text-white/45">
           Workout Flow
-        </p>
-        <h1 className="mt-1 text-[28px] font-black tracking-tight text-white">
+        </div>
+        <h1 className="mt-1 text-[1.55rem] font-black uppercase tracking-tight text-white">
           {title}
         </h1>
-        {subtitle ? <p className="mt-2 text-sm leading-5 text-white/72">{subtitle}</p> : null}
+        {subtitle ? <p className="mt-1 text-sm text-white/55">{subtitle}</p> : null}
       </div>
-
-      <div className="h-10 w-10 shrink-0" />
     </div>
   );
 }
@@ -180,31 +181,32 @@ function PresetCard({
     <button
       type="button"
       onClick={onSelect}
-      className="rounded-[22px] border border-white/10 bg-[#0d0d0d] p-4 text-left transition hover:bg-[#141414]"
+      className="rounded-[18px] border border-white/10 bg-white/[0.03] p-3 text-left transition hover:bg-white/[0.05]"
     >
-      <div className="text-[10px] font-black uppercase tracking-[0.18em] text-lime-300/90">
+      <div className="text-[10px] font-black uppercase tracking-[0.16em] text-lime-200/70">
         {preset.vibe}
       </div>
-      <h3 className="mt-1 text-[22px] font-black tracking-tight text-white">
-        {preset.title}
-      </h3>
-      <p className="mt-1 text-sm text-white/72">{preset.subtitle}</p>
-      <p className="mt-3 text-sm leading-6 text-white/72">{preset.description}</p>
+      <div className="mt-1 flex items-center justify-between gap-3">
+        <div>
+          <h3 className="text-lg font-black text-white">{preset.title}</h3>
+          <p className="text-sm text-white/60">{preset.subtitle}</p>
+        </div>
+        <div className="flex h-9 w-9 items-center justify-center rounded-[12px] border border-white/10 bg-white/[0.04] text-white/70">
+          <ChevronRight className="h-4 w-4" />
+        </div>
+      </div>
 
-      <div className="mt-3 flex flex-wrap gap-2">
+      <p className="mt-2 text-sm text-white/58">{preset.description}</p>
+
+      <div className="mt-3 flex flex-wrap gap-1.5">
         {preset.exercises.map((exercise) => (
           <span
             key={exercise}
-            className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[11px] font-bold text-white/78"
+            className="rounded-full border border-white/10 bg-black/20 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-white/62"
           >
             {exercise}
           </span>
         ))}
-      </div>
-
-      <div className="mt-4 inline-flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.16em] text-white">
-        Select
-        <ChevronRight className="h-4 w-4" />
       </div>
     </button>
   );
@@ -212,11 +214,14 @@ function PresetCard({
 
 function PreviewExerciseRow({ index, label }: { index: number; label: string }) {
   return (
-    <div className="flex items-center gap-3 rounded-[16px] border border-white/10 bg-white/[0.03] px-3 py-3">
-      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[12px] border border-white/10 bg-white/[0.04] text-xs font-black text-white">
-        {index + 1}
+    <div className="flex items-center justify-between rounded-[14px] border border-white/10 bg-white/[0.03] px-3 py-2.5">
+      <div className="flex items-center gap-2.5">
+        <div className="flex h-7 w-7 items-center justify-center rounded-[10px] border border-white/10 bg-white/[0.04] text-[10px] font-black text-white/75">
+          {index + 1}
+        </div>
+        <div className="text-sm font-semibold text-white">{label}</div>
       </div>
-      <div className="min-w-0 text-sm font-bold text-white">{label}</div>
+      <Check className="h-4 w-4 text-lime-200/75" />
     </div>
   );
 }
@@ -232,11 +237,10 @@ function NumberPillInput({
 }) {
   return (
     <input
-      inputMode="numeric"
       value={value}
       onChange={(event) => onChange(event.target.value.replace(/[^\d]/g, ''))}
       placeholder={placeholder}
-      className="h-10 min-w-0 rounded-[12px] border border-white/10 bg-black/20 px-2.5 text-center text-sm font-bold text-white outline-none placeholder:text-white/28"
+      className="h-9 min-w-0 rounded-[10px] border border-white/10 bg-black/20 px-2 text-center text-sm font-bold text-white outline-none placeholder:text-white/28"
     />
   );
 }
@@ -255,21 +259,21 @@ function ActiveExerciseCard({
   onAddSet: () => void;
 }) {
   return (
-    <div className="rounded-[20px] border border-white/10 bg-[#0d0d0d] p-4">
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <div className="text-[10px] font-black uppercase tracking-[0.18em] text-white/52">
+    <section className="rounded-[18px] border border-white/10 bg-white/[0.03] p-3">
+      <div className="mb-2 flex items-start justify-between gap-3">
+        <div>
+          <div className="text-[10px] font-black uppercase tracking-[0.16em] text-white/42">
             Exercise {index + 1}
           </div>
-          <h3 className="mt-1 text-[18px] font-black text-white">{label}</h3>
+          <h3 className="mt-1 text-base font-black text-white">{label}</h3>
         </div>
 
         <button
           type="button"
           onClick={onAddSet}
-          className="inline-flex h-10 items-center justify-center gap-2 rounded-[14px] border border-white/10 bg-white/[0.04] px-3 text-[11px] font-black uppercase tracking-[0.14em] text-white transition hover:bg-white/[0.08]"
+          className="inline-flex h-8 items-center justify-center gap-1 rounded-[10px] border border-white/10 bg-white/[0.04] px-2.5 text-[10px] font-black uppercase tracking-[0.14em] text-white transition hover:bg-white/[0.08]"
         >
-          <Plus className="h-4 w-4" />
+          <Plus className="h-3.5 w-3.5" />
           Set
         </button>
       </div>
@@ -278,9 +282,9 @@ function ActiveExerciseCard({
         {sets.map((set, setIndex) => (
           <div
             key={`${label}-${setIndex}`}
-            className="grid grid-cols-[54px_1fr_1fr] items-center gap-2 rounded-[14px] border border-white/10 bg-white/[0.03] px-2.5 py-2.5"
+            className="grid grid-cols-[40px_1fr_1fr] items-center gap-2 rounded-[14px] border border-white/8 bg-black/20 px-2.5 py-2"
           >
-            <div className="text-center text-[11px] font-black uppercase tracking-[0.14em] text-white/72">
+            <div className="text-center text-[10px] font-black uppercase tracking-[0.12em] text-white/48">
               {setIndex + 1}
             </div>
 
@@ -298,7 +302,7 @@ function ActiveExerciseCard({
           </div>
         ))}
       </div>
-    </div>
+    </section>
   );
 }
 
@@ -340,6 +344,7 @@ export default function WorkoutFlow({
       setSetSeconds(nextSet);
       setRestSeconds(nextRest);
       setAutoLoop(nextAutoLoop);
+
       setRemainingSeconds((current) => {
         if (timerMode === 'set') return Math.min(current, nextSet);
         return Math.min(current, nextRest);
@@ -456,7 +461,7 @@ export default function WorkoutFlow({
       <WorkoutComplete
         summary={summary}
         onContinue={onComplete}
-        onOpenPaywall={() => undefined}
+        onOpenPaywall={undefined}
       />
     );
   }
@@ -466,13 +471,17 @@ export default function WorkoutFlow({
       <ScreenShell>
         <TopBar
           title="Choose workout"
-          subtitle="Cleaner layout, tighter inputs, faster flow."
+          subtitle="Pick a focused session and keep it lean."
           onBack={onBack}
         />
 
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className="space-y-2.5">
           {PRESETS.map((preset) => (
-            <PresetCard key={preset.id} preset={preset} onSelect={() => choosePreset(preset)} />
+            <PresetCard
+              key={preset.id}
+              preset={preset}
+              onSelect={() => choosePreset(preset)}
+            />
           ))}
         </div>
       </ScreenShell>
@@ -488,27 +497,27 @@ export default function WorkoutFlow({
           onBack={() => setStep('choose')}
         />
 
-        <div className="rounded-[22px] border border-white/10 bg-[#0d0d0d] p-4">
-          <div className="text-[10px] font-black uppercase tracking-[0.18em] text-lime-300/85">
+        <section className="rounded-[18px] border border-white/10 bg-white/[0.03] p-3">
+          <div className="text-[10px] font-black uppercase tracking-[0.16em] text-lime-200/70">
             {selectedPreset.vibe}
           </div>
-          <p className="mt-2 text-sm leading-6 text-white/74">{selectedPreset.description}</p>
+          <p className="mt-2 text-sm text-white/62">{selectedPreset.description}</p>
 
-          <div className="mt-4 space-y-2">
+          <div className="mt-3 space-y-2">
             {selectedPreset.exercises.map((exercise, index) => (
               <PreviewExerciseRow key={exercise} index={index} label={exercise} />
             ))}
           </div>
+        </section>
 
-          <button
-            type="button"
-            onClick={startWorkout}
-            className="mt-4 inline-flex min-h-[56px] w-full items-center justify-center gap-2 rounded-[18px] bg-lime-300 px-5 py-4 text-[13px] font-black uppercase tracking-[0.16em] text-black transition hover:brightness-105"
-          >
-            <Dumbbell className="h-4.5 w-4.5" />
-            Start workout
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={startWorkout}
+          className="inline-flex min-h-[46px] items-center justify-center gap-2 rounded-[16px] bg-lime-300 px-4 py-3 text-[11px] font-black uppercase tracking-[0.14em] text-black transition hover:brightness-105"
+        >
+          Start workout
+          <ChevronRight className="h-4 w-4" />
+        </button>
       </ScreenShell>
     );
   }
@@ -518,83 +527,85 @@ export default function WorkoutFlow({
   return (
     <ScreenShell>
       <TopBar
-        title={`${selectedPreset.title} session`}
-        subtitle="Smaller weight and reps controls. Faster active view."
+        title={selectedPreset.title}
+        subtitle="Compact logging, less drag, cleaner flow."
         onBack={() => setStep('preview')}
       />
 
-      <div className="mb-4 rounded-[20px] border border-white/10 bg-[#0d0d0d] p-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <div className="text-[10px] font-black uppercase tracking-[0.18em] text-white/52">
-              Timer
-            </div>
-            <div className="mt-1 text-[28px] font-black tracking-tight text-white">
-              {formatSeconds(remainingSeconds)}
-            </div>
-          </div>
-
+      <section className="rounded-[18px] border border-white/10 bg-white/[0.03] p-3">
+        <div className="mb-2 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                const nextMode = timerMode === 'set' ? 'rest' : 'set';
-                setTimerMode(nextMode);
-                setRemainingSeconds(nextMode === 'set' ? setSeconds : restSeconds);
-                setIsRunning(false);
-              }}
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-[16px] border border-white/10 bg-white/[0.04] px-3 text-[11px] font-black uppercase tracking-[0.14em] text-white transition hover:bg-white/[0.08]"
-            >
+            <div className="flex h-8 w-8 items-center justify-center rounded-[12px] border border-white/10 bg-white/[0.04] text-white/75">
               <Timer className="h-4 w-4" />
-              {timerMode === 'set' ? 'Set' : 'Rest'}
-            </button>
+            </div>
+            <div>
+              <div className="text-[10px] font-black uppercase tracking-[0.16em] text-white/42">
+                Timer
+              </div>
+              <div className="text-lg font-black text-white">
+                {formatSeconds(remainingSeconds)}
+              </div>
+            </div>
+          </div>
 
-            <button
-              type="button"
-              onClick={() => setIsRunning((prev) => !prev)}
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-[16px] bg-lime-300 px-4 text-[11px] font-black uppercase tracking-[0.14em] text-black transition hover:brightness-105"
-            >
-              {isRunning ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-              {isRunning ? 'Pause' : 'Start'}
-            </button>
+          <button
+            type="button"
+            onClick={() => {
+              const nextMode = timerMode === 'set' ? 'rest' : 'set';
+              setTimerMode(nextMode);
+              setRemainingSeconds(nextMode === 'set' ? setSeconds : restSeconds);
+              setIsRunning(false);
+            }}
+            className="inline-flex h-9 items-center justify-center rounded-[12px] border border-white/10 bg-white/[0.04] px-3 text-[10px] font-black uppercase tracking-[0.14em] text-white transition hover:bg-white/[0.08]"
+          >
+            {timerMode === 'set' ? 'Set' : 'Rest'}
+          </button>
+        </div>
 
-            <button
-              type="button"
-              onClick={() => {
-                setRemainingSeconds(timerMode === 'set' ? setSeconds : restSeconds);
-                setIsRunning(false);
-              }}
-              className="inline-flex h-11 w-11 items-center justify-center rounded-[16px] border border-white/10 bg-white/[0.04] text-white transition hover:bg-white/[0.08]"
-            >
-              <RotateCcw className="h-4 w-4" />
-            </button>
+        <div className="grid grid-cols-[1fr_auto_auto] gap-2">
+          <button
+            type="button"
+            onClick={() => setIsRunning((prev) => !prev)}
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-[12px] bg-lime-300 px-4 text-[11px] font-black uppercase tracking-[0.14em] text-black transition hover:brightness-105"
+          >
+            {isRunning ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+            {isRunning ? 'Pause' : 'Start'}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setRemainingSeconds(timerMode === 'set' ? setSeconds : restSeconds);
+              setIsRunning(false);
+            }}
+            className="inline-flex h-10 w-10 items-center justify-center rounded-[12px] border border-white/10 bg-white/[0.04] text-white transition hover:bg-white/[0.08]"
+            aria-label="Reset timer"
+          >
+            <RotateCcw className="h-4 w-4" />
+          </button>
+
+          <div className="flex items-center justify-center rounded-[12px] border border-white/10 bg-black/20 px-3 text-[10px] font-black uppercase tracking-[0.12em] text-white/55">
+            Loop {autoLoop ? 'on' : 'off'}
           </div>
         </div>
+      </section>
 
-        <div className="mt-3 flex flex-wrap gap-2">
-          <span className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5 text-[11px] font-bold text-white/78">
-            {timerMode === 'set' ? 'Set phase' : 'Rest phase'}
-          </span>
-          <span className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5 text-[11px] font-bold text-white/78">
-            Auto loop {autoLoop ? 'on' : 'off'}
-          </span>
-        </div>
-      </div>
-
-      <div className="space-y-3">
+      <div className="space-y-2.5">
         {selectedPreset.exercises.map((exercise, index) => (
           <ActiveExerciseCard
             key={exercise}
             index={index}
             label={exercise}
             sets={workoutLog[exercise] ?? []}
-            onUpdateSet={(setIndex, field, value) => updateSet(exercise, setIndex, field, value)}
+            onUpdateSet={(setIndex, field, value) =>
+              updateSet(exercise, setIndex, field, value)
+            }
             onAddSet={() => addSet(exercise)}
           />
         ))}
       </div>
 
-      <div className="mt-4 grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-2 gap-2">
         <button
           type="button"
           onClick={() => {
@@ -602,9 +613,9 @@ export default function WorkoutFlow({
             setRemainingSeconds(setSeconds);
             setIsRunning(false);
           }}
-          className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-[16px] border border-white/10 bg-white/[0.04] px-4 py-3 text-[11px] font-black uppercase tracking-[0.14em] text-white transition hover:bg-white/[0.08]"
+          className="inline-flex min-h-[42px] items-center justify-center gap-2 rounded-[14px] border border-white/10 bg-white/[0.04] px-4 py-2.5 text-[10px] font-black uppercase tracking-[0.14em] text-white transition hover:bg-white/[0.08]"
         >
-          <Minus className="h-4 w-4" />
+          <Minus className="h-3.5 w-3.5" />
           Set
         </button>
 
@@ -615,9 +626,9 @@ export default function WorkoutFlow({
             setRemainingSeconds(restSeconds);
             setIsRunning(false);
           }}
-          className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-[16px] border border-white/10 bg-white/[0.04] px-4 py-3 text-[11px] font-black uppercase tracking-[0.14em] text-white transition hover:bg-white/[0.08]"
+          className="inline-flex min-h-[42px] items-center justify-center gap-2 rounded-[14px] border border-white/10 bg-white/[0.04] px-4 py-2.5 text-[10px] font-black uppercase tracking-[0.14em] text-white transition hover:bg-white/[0.08]"
         >
-          <Plus className="h-4 w-4" />
+          <Plus className="h-3.5 w-3.5" />
           Rest
         </button>
       </div>
@@ -625,10 +636,10 @@ export default function WorkoutFlow({
       <button
         type="button"
         onClick={completeWorkout}
-        className="mt-4 inline-flex min-h-[60px] w-full items-center justify-center gap-2 rounded-[18px] bg-lime-300 px-5 py-4 text-[13px] font-black uppercase tracking-[0.16em] text-black transition hover:brightness-105"
+        className="inline-flex min-h-[46px] items-center justify-center gap-2 rounded-[16px] bg-white px-4 py-3 text-[11px] font-black uppercase tracking-[0.14em] text-black transition hover:brightness-95"
       >
-        <Check className="h-4.5 w-4.5" />
         Complete workout
+        <Check className="h-4 w-4" />
       </button>
     </ScreenShell>
   );

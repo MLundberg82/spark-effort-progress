@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
+
 import AppMenu from '@/components/AppMenu';
 import DailyCheckInScreen from '@/components/DailyCheckInScreen';
 import GymRatGallery from '@/components/GymRatGallery';
@@ -29,23 +30,29 @@ type IndexScreenProps = {
 
 function MenuScreenShell({
   children,
+  isVisible,
   onOutsideClick,
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
+  isVisible: boolean;
   onOutsideClick: () => void;
 }) {
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/55 backdrop-blur-[2px]"
+      className={[
+        'fixed inset-0 z-[70] transition-opacity duration-300',
+        isVisible ? 'bg-black/50 opacity-100 backdrop-blur-[5px]' : 'pointer-events-none bg-black/0 opacity-0',
+      ].join(' ')}
       onClick={onOutsideClick}
     >
-      <div className="flex h-full w-full justify-end">
-        <div
-          className="pointer-events-auto h-full w-full max-w-[440px] overflow-y-auto"
-          onClick={(event) => event.stopPropagation()}
-        >
-          {children}
-        </div>
+      <div
+        className={[
+          'ml-auto h-full w-full max-w-[560px] overflow-y-auto border-l border-white/10 bg-[#050505]/92 shadow-[-20px_0_60px_rgba(0,0,0,0.45)] backdrop-blur-xl transition-transform duration-300 ease-out',
+          isVisible ? 'translate-x-0' : 'translate-x-full',
+        ].join(' ')}
+        onClick={(event) => event.stopPropagation()}
+      >
+        {children}
       </div>
     </div>
   );
@@ -54,6 +61,7 @@ function MenuScreenShell({
 export default function IndexScreen({ openPaywall }: IndexScreenProps) {
   const [baseView, setBaseView] = useState<BaseView>('home');
   const [menuOpen, setMenuOpen] = useState(false);
+  const [menuMounted, setMenuMounted] = useState(false);
   const [menuStack, setMenuStack] = useState<MenuView[]>(['root']);
   const [premiumOpen, setPremiumOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -63,7 +71,7 @@ export default function IndexScreen({ openPaywall }: IndexScreenProps) {
   const canGoBackInMenu = menuStack.length > 1;
 
   useEffect(() => {
-    if (baseView === 'home' && !menuOpen) {
+    if (baseView === 'home' && !menuMounted) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = 'auto';
@@ -72,7 +80,7 @@ export default function IndexScreen({ openPaywall }: IndexScreenProps) {
     return () => {
       document.body.style.overflow = 'auto';
     };
-  }, [baseView, menuOpen]);
+  }, [baseView, menuMounted]);
 
   useEffect(() => {
     const rerender = () => setRefreshKey((prev) => prev + 1);
@@ -83,6 +91,7 @@ export default function IndexScreen({ openPaywall }: IndexScreenProps) {
     window.addEventListener('nutrition-updated', rerender);
     window.addEventListener('profile-updated', rerender);
     window.addEventListener('gymrat-profile-updated', rerender);
+    window.addEventListener('history-updated', rerender);
 
     return () => {
       window.removeEventListener('premium-updated', rerender);
@@ -91,25 +100,27 @@ export default function IndexScreen({ openPaywall }: IndexScreenProps) {
       window.removeEventListener('nutrition-updated', rerender);
       window.removeEventListener('profile-updated', rerender);
       window.removeEventListener('gymrat-profile-updated', rerender);
+      window.removeEventListener('history-updated', rerender);
     };
   }, []);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (!menuOpen || event.key !== 'Escape') return;
+      if (!menuMounted || event.key !== 'Escape') return;
 
       event.preventDefault();
 
       if (canGoBackInMenu) {
         setMenuStack((prev) => prev.slice(0, -1));
-      } else {
-        closeMenu();
+        return;
       }
+
+      closeMenu();
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [menuOpen, canGoBackInMenu]);
+  }, [menuMounted, canGoBackInMenu]);
 
   const appState = useMemo(() => {
     const totalXP = getTotalXP();
@@ -126,12 +137,20 @@ export default function IndexScreen({ openPaywall }: IndexScreenProps) {
 
   const closeMenu = () => {
     setMenuOpen(false);
-    setMenuStack(['root']);
+    window.setTimeout(() => {
+      setMenuMounted(false);
+      setMenuStack(['root']);
+    }, 300);
   };
 
   const openMenu = () => {
-    setMenuOpen(true);
+    setMenuMounted(true);
     setMenuStack(['root']);
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        setMenuOpen(true);
+      });
+    });
   };
 
   const pushMenuView = (view: MenuView) => {
@@ -159,76 +178,51 @@ export default function IndexScreen({ openPaywall }: IndexScreenProps) {
     closeMenu();
   };
 
-  const renderMenuOverlay = () => {
-    if (!menuOpen) return null;
+  const openPremium = (trigger: string) => {
+    closeMenu();
+    setPremiumOpen(true);
+    openPaywall?.(trigger);
+  };
 
+  const renderMenuContent = () => {
     if (currentMenuView === 'root') {
       return (
-        <div
-          className="fixed inset-0 z-50 bg-black/55 backdrop-blur-[2px]"
-          onClick={closeMenu}
-        >
-          <div className="flex h-full w-full justify-end">
-            <AppMenu
-              isPremium={appState.premiumActive}
-              onClose={closeMenu}
-              onOpenDaily={() => pushMenuView('daily')}
-              onOpenHistory={() => pushMenuView('history')}
-              onOpenNutrition={() => pushMenuView('nutrition')}
-              onOpenSettings={() => pushMenuView('settings')}
-              onOpenTimer={() => pushMenuView('timer')}
-              onOpenPremium={() => {
-                closeMenu();
-                setPremiumOpen(true);
-                openPaywall?.('menu');
-              }}
-            />
-          </div>
-        </div>
+        <AppMenu
+          isPremium={appState.premiumActive}
+          onClose={closeMenu}
+          onOpenDaily={() => pushMenuView('daily')}
+          onOpenHistory={() => pushMenuView('history')}
+          onOpenNutrition={() => pushMenuView('nutrition')}
+          onOpenSettings={() => pushMenuView('settings')}
+          onOpenTimer={() => pushMenuView('timer')}
+          onOpenPremium={() => openPremium('menu')}
+        />
       );
     }
 
     if (currentMenuView === 'settings') {
-      return (
-        <MenuScreenShell onOutsideClick={closeMenu}>
-          <SettingsScreen onBack={popMenuView} />
-        </MenuScreenShell>
-      );
+      return <SettingsScreen onBack={popMenuView} />;
     }
 
     if (currentMenuView === 'timer') {
-      return (
-        <MenuScreenShell onOutsideClick={closeMenu}>
-          <TimerSettingsScreen onBack={popMenuView} />
-        </MenuScreenShell>
-      );
+      return <TimerSettingsScreen onBack={popMenuView} />;
     }
 
     if (currentMenuView === 'daily') {
       return (
-        <MenuScreenShell onOutsideClick={closeMenu}>
-          <DailyCheckInScreen
-            onClose={popMenuView}
-            onStartWorkout={(focus) => openWorkout(focus as WorkoutFocus)}
-          />
-        </MenuScreenShell>
+        <DailyCheckInScreen
+          onClose={popMenuView}
+          onStartWorkout={(focus) => openWorkout(focus as WorkoutFocus)}
+        />
       );
     }
 
     if (currentMenuView === 'history') {
-      return (
-        <MenuScreenShell onOutsideClick={closeMenu}>
-          <HistoryScreen onBack={popMenuView} />
-        </MenuScreenShell>
-      );
+      return <HistoryScreen onBack={popMenuView} />;
     }
 
     if (currentMenuView === 'nutrition') {
-      return (
-        <MenuScreenShell onOutsideClick={closeMenu}>
-          <NutritionScreen onBack={popMenuView} />
-        </MenuScreenShell>
-      );
+      return <NutritionScreen onBack={popMenuView} />;
     }
 
     return null;
@@ -239,7 +233,15 @@ export default function IndexScreen({ openPaywall }: IndexScreenProps) {
   }
 
   if (baseView === 'shop') {
-    return <ShopScreen onBack={goHome} />;
+    return (
+      <ShopScreen
+        onBack={goHome}
+        onOpenPaywall={() => {
+          setPremiumOpen(true);
+          openPaywall?.('shop');
+        }}
+      />
+    );
   }
 
   if (baseView === 'workout') {
@@ -266,7 +268,11 @@ export default function IndexScreen({ openPaywall }: IndexScreenProps) {
         onOpenShop={() => setBaseView('shop')}
       />
 
-      {renderMenuOverlay()}
+      {menuMounted ? (
+        <MenuScreenShell isVisible={menuOpen} onOutsideClick={closeMenu}>
+          {renderMenuContent()}
+        </MenuScreenShell>
+      ) : null}
 
       <PremiumPaywall
         isOpen={premiumOpen}
