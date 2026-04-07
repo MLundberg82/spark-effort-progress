@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 
 import WorkoutComplete from '@/components/WorkoutComplete';
+import { addWorkoutHistory, detectPRs } from '@/lib/historyStore';
 import { logStreakActivity } from '@/lib/streakStore';
 
 type Focus = 'chest' | 'back' | 'arms' | 'legs' | 'walk';
@@ -121,6 +122,13 @@ function formatSeconds(totalSeconds: number) {
   const mins = Math.floor(totalSeconds / 60);
   const secs = totalSeconds % 60;
   return `${mins}:${String(secs).padStart(2, '0')}`;
+}
+
+function formatElapsedTime(totalSeconds: number) {
+  const hours = Math.floor(totalSeconds / 3600);
+  const mins = Math.floor((totalSeconds % 3600) / 60);
+  const secs = totalSeconds % 60;
+  return `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
 }
 
 function clampTimerValue(value: number) {
@@ -345,6 +353,8 @@ export default function WorkoutFlow({
     earnedXP: 75,
     prs: [],
   });
+  const [sessionStartedAt, setSessionStartedAt] = useState<number | null>(null);
+  const [walkElapsedSeconds, setWalkElapsedSeconds] = useState(0);
 
   useEffect(() => {
     const syncTimerSettings = () => {
@@ -374,7 +384,7 @@ export default function WorkoutFlow({
   }, [timerMode]);
 
   useEffect(() => {
-    if (!isRunning) return;
+    if (!isRunning || selectedPreset?.id === 'walk') return;
 
     const interval = window.setInterval(() => {
       setRemainingSeconds((current) => {
@@ -396,7 +406,17 @@ export default function WorkoutFlow({
     }, 1000);
 
     return () => window.clearInterval(interval);
-  }, [isRunning, autoLoop, timerMode, setSeconds, restSeconds]);
+  }, [isRunning, autoLoop, timerMode, setSeconds, restSeconds, selectedPreset?.id]);
+
+  useEffect(() => {
+    if (!isRunning || selectedPreset?.id !== 'walk') return;
+
+    const interval = window.setInterval(() => {
+      setWalkElapsedSeconds((current) => current + 1);
+    }, 1000);
+
+    return () => window.clearInterval(interval);
+  }, [isRunning, selectedPreset?.id]);
 
   const totalVolume = useMemo(() => {
     if (!selectedPreset) return 0;
@@ -427,6 +447,9 @@ export default function WorkoutFlow({
   const startWorkout = () => {
     if (!selectedPreset) return;
     setStep('active');
+    setSessionStartedAt(Date.now());
+    setWalkElapsedSeconds(0);
+    setIsRunning(selectedPreset.id === 'walk');
     setTimerMode('rest');
     setRemainingSeconds(restSeconds);
   };
@@ -434,15 +457,58 @@ export default function WorkoutFlow({
   const completeWorkout = () => {
     if (!selectedPreset) return;
 
+    const durationSeconds = selectedPreset.id === 'walk'
+      ? walkElapsedSeconds
+      : Math.max(
+          60,
+          Math.round(
+            ((Date.now() - (sessionStartedAt ?? Date.now())) / 1000),
+          ),
+        );
+    const durationMinutes = Math.max(1, Math.round(durationSeconds / 60));
+    const historyExercises = selectedPreset.id === 'walk'
+      ? [
+          {
+            name: 'Walk Session',
+            muscleGroup: 'core' as const,
+            sets: [
+              {
+                reps: durationMinutes,
+                weight: 0,
+              },
+            ],
+          },
+        ]
+      : selectedPreset.exercises.map((exercise) => ({
+          name: exercise,
+          muscleGroup: selectedPreset.id,
+          sets: (workoutLog[exercise] ?? [])
+            .map((entry) => ({
+              reps: Number(entry.reps) || 0,
+              weight: Number(entry.weight) || 0,
+            }))
+            .filter((set) => set.reps > 0 || set.weight > 0),
+        }));
+    const completedExercises = historyExercises.filter((exercise) => exercise.sets.length > 0);
+    const prs = selectedPreset.id === 'walk' ? [] : detectPRs(completedExercises);
+
+    addWorkoutHistory({
+      id: `workout-${Date.now()}`,
+      workoutName: selectedPreset.title,
+      exercises: completedExercises.length > 0 ? completedExercises : historyExercises,
+      durationMinutes,
+      completedAt: new Date().toISOString(),
+    });
+
     setIsRunning(false);
     logStreakActivity();
     setSummary({
       workoutName: selectedPreset.title,
-      durationMinutes: 42,
-      exercisesCompleted: selectedPreset.exercises.length,
+      durationMinutes,
+      exercisesCompleted: selectedPreset.id === 'walk' ? 1 : selectedPreset.exercises.length,
       volume: totalVolume,
-      earnedXP: totalVolume > 0 ? 120 : 60,
-      prs: [],
+      earnedXP: totalVolume > 0 ? 120 : selectedPreset.id === 'walk' ? 40 : 60,
+      prs,
     });
     setStep('complete');
   };
@@ -547,30 +613,32 @@ export default function WorkoutFlow({
 
   return (
     <ScreenShell>
-      <button
-        type="button"
-        onClick={openTimerSettings}
-        className="sticky top-0 z-20 flex items-center justify-between gap-3 rounded-[18px] border border-white/12 bg-black/95 px-3.5 py-3 backdrop-blur-xl"
-      >
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-[14px] border border-white/12 bg-[#121212] text-lime-300">
-            <Timer className="h-4.5 w-4.5" />
+      {selectedPreset.id !== 'walk' ? (
+        <button
+          type="button"
+          onClick={openTimerSettings}
+          className="sticky top-0 z-20 flex items-center justify-between gap-3 rounded-[18px] border border-white/12 bg-black/95 px-3.5 py-3 backdrop-blur-xl"
+        >
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-[14px] border border-white/12 bg-[#121212] text-lime-300">
+              <Timer className="h-4.5 w-4.5" />
+            </div>
+
+            <div className="text-left">
+              <div className="text-[10px] font-black uppercase tracking-[0.16em] text-lime-200">
+                Workout timer
+              </div>
+              <div className="mt-1 text-sm font-semibold text-white">
+                Set {setSeconds}s · Rest {restSeconds}s
+              </div>
+            </div>
           </div>
 
-          <div className="text-left">
-            <div className="text-[10px] font-black uppercase tracking-[0.16em] text-lime-200">
-              Workout timer
-            </div>
-            <div className="mt-1 text-sm font-semibold text-white">
-              Set {setSeconds}s · Rest {restSeconds}s
-            </div>
+          <div className="inline-flex items-center gap-2 rounded-[12px] border border-white/10 bg-[#121212] px-3 py-2 text-[10px] font-black uppercase tracking-[0.14em] text-white">
+            Settings
           </div>
-        </div>
-
-        <div className="inline-flex items-center gap-2 rounded-[12px] border border-white/10 bg-[#121212] px-3 py-2 text-[10px] font-black uppercase tracking-[0.14em] text-white">
-          Settings
-        </div>
-      </button>
+        </button>
+      ) : null}
 
       <TopBar
         title={selectedPreset.title}
@@ -578,106 +646,156 @@ export default function WorkoutFlow({
         onBack={() => setStep('preview')}
       />
 
-      <section className="rounded-[18px] border border-white/10 bg-black p-3">
-        <div className="mb-2 flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-[12px] border border-white/10 bg-white/[0.04] text-white/80">
-              <Timer className="h-4 w-4" />
+      {selectedPreset.id === 'walk' ? (
+        <section className="rounded-[18px] border border-white/10 bg-black p-3">
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-[12px] border border-white/10 bg-white/[0.04] text-white/80">
+                <Timer className="h-4 w-4" />
+              </div>
+              <div>
+                <div className="text-[10px] font-black uppercase tracking-[0.16em] text-white/55">
+                  Walk timer
+                </div>
+                <div className="text-lg font-black text-white">
+                  {formatElapsedTime(walkElapsedSeconds)}
+                </div>
+              </div>
             </div>
-            <div>
-              <div className="text-[10px] font-black uppercase tracking-[0.16em] text-white/55">
-                Timer
-              </div>
-              <div className="text-lg font-black text-white">
-                {formatSeconds(remainingSeconds)}
-              </div>
+
+            <div className="rounded-[12px] border border-white/10 bg-[#121212] px-3 py-2 text-[10px] font-black uppercase tracking-[0.14em] text-white/78">
+              Live
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={() => {
-              const nextMode = timerMode === 'set' ? 'rest' : 'set';
-              setTimerMode(nextMode);
-              setRemainingSeconds(nextMode === 'set' ? setSeconds : restSeconds);
-              setIsRunning(false);
-            }}
-            className="inline-flex h-9 items-center justify-center rounded-[12px] border border-white/10 bg-[#121212] px-3 text-[10px] font-black uppercase tracking-[0.14em] text-white transition hover:bg-[#1a1a1a]"
-          >
-            {timerMode === 'set' ? 'Set' : 'Rest'}
-          </button>
-        </div>
+          <div className="grid grid-cols-[1fr_auto] gap-2">
+            <button
+              type="button"
+              onClick={() => setIsRunning((prev) => !prev)}
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-[12px] border border-lime-300/35 bg-lime-500 px-4 text-[11px] font-black uppercase tracking-[0.14em] text-white transition hover:brightness-110"
+            >
+              {isRunning ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+              {isRunning ? 'Pause' : 'Resume'}
+            </button>
 
-        <div className="grid grid-cols-[1fr_auto_auto] gap-2">
-          <button
-            type="button"
-            onClick={() => setIsRunning((prev) => !prev)}
-            className="inline-flex h-10 items-center justify-center gap-2 rounded-[12px] border border-lime-300/35 bg-lime-500 px-4 text-[11px] font-black uppercase tracking-[0.14em] text-white transition hover:brightness-110"
-          >
-            {isRunning ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-            {isRunning ? 'Pause' : 'Start'}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              setRemainingSeconds(timerMode === 'set' ? setSeconds : restSeconds);
-              setIsRunning(false);
-            }}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-[12px] border border-white/10 bg-[#121212] text-white transition hover:bg-[#1a1a1a]"
-            aria-label="Reset timer"
-          >
-            <RotateCcw className="h-4 w-4" />
-          </button>
-
-          <div className="flex items-center justify-center rounded-[12px] border border-white/10 bg-[#121212] px-3 text-[10px] font-black uppercase tracking-[0.12em] text-white/78">
-            Loop {autoLoop ? 'on' : 'off'}
+            <button
+              type="button"
+              onClick={() => {
+                setWalkElapsedSeconds(0);
+                setIsRunning(false);
+                setSessionStartedAt(Date.now());
+              }}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-[12px] border border-white/10 bg-[#121212] text-white transition hover:bg-[#1a1a1a]"
+              aria-label="Reset walk timer"
+            >
+              <RotateCcw className="h-4 w-4" />
+            </button>
           </div>
-        </div>
-      </section>
+        </section>
+      ) : (
+        <>
+          <section className="rounded-[18px] border border-white/10 bg-black p-3">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-[12px] border border-white/10 bg-white/[0.04] text-white/80">
+                  <Timer className="h-4 w-4" />
+                </div>
+                <div>
+                  <div className="text-[10px] font-black uppercase tracking-[0.16em] text-white/55">
+                    Timer
+                  </div>
+                  <div className="text-lg font-black text-white">
+                    {formatSeconds(remainingSeconds)}
+                  </div>
+                </div>
+              </div>
 
-      <div className="space-y-2.5">
-        {selectedPreset.exercises.map((exercise, index) => (
-          <ActiveExerciseCard
-            key={exercise}
-            index={index}
-            label={exercise}
-            sets={workoutLog[exercise] ?? []}
-            onUpdateSet={(setIndex, field, value) =>
-              updateSet(exercise, setIndex, field, value)
-            }
-            onAddSet={() => addSet(exercise)}
-          />
-        ))}
-      </div>
+              <button
+                type="button"
+                onClick={() => {
+                  const nextMode = timerMode === 'set' ? 'rest' : 'set';
+                  setTimerMode(nextMode);
+                  setRemainingSeconds(nextMode === 'set' ? setSeconds : restSeconds);
+                  setIsRunning(false);
+                }}
+                className="inline-flex h-9 items-center justify-center rounded-[12px] border border-white/10 bg-[#121212] px-3 text-[10px] font-black uppercase tracking-[0.14em] text-white transition hover:bg-[#1a1a1a]"
+              >
+                {timerMode === 'set' ? 'Set' : 'Rest'}
+              </button>
+            </div>
 
-      <div className="grid grid-cols-2 gap-2">
-        <button
-          type="button"
-          onClick={() => {
-            setTimerMode('set');
-            setRemainingSeconds(setSeconds);
-            setIsRunning(false);
-          }}
-          className="inline-flex min-h-[42px] items-center justify-center gap-2 rounded-[14px] border border-white/10 bg-[#121212] px-4 py-2.5 text-[10px] font-black uppercase tracking-[0.14em] text-white transition hover:bg-[#1a1a1a]"
-        >
-          <Minus className="h-3.5 w-3.5 text-lime-300" />
-          Set
-        </button>
+            <div className="grid grid-cols-[1fr_auto_auto] gap-2">
+              <button
+                type="button"
+                onClick={() => setIsRunning((prev) => !prev)}
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-[12px] border border-lime-300/35 bg-lime-500 px-4 text-[11px] font-black uppercase tracking-[0.14em] text-white transition hover:brightness-110"
+              >
+                {isRunning ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+                {isRunning ? 'Pause' : 'Start'}
+              </button>
 
-        <button
-          type="button"
-          onClick={() => {
-            setTimerMode('rest');
-            setRemainingSeconds(restSeconds);
-            setIsRunning(false);
-          }}
-          className="inline-flex min-h-[42px] items-center justify-center gap-2 rounded-[14px] border border-white/10 bg-[#121212] px-4 py-2.5 text-[10px] font-black uppercase tracking-[0.14em] text-white transition hover:bg-[#1a1a1a]"
-        >
-          <Plus className="h-3.5 w-3.5 text-lime-300" />
-          Rest
-        </button>
-      </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setRemainingSeconds(timerMode === 'set' ? setSeconds : restSeconds);
+                  setIsRunning(false);
+                }}
+                className="inline-flex h-10 w-10 items-center justify-center rounded-[12px] border border-white/10 bg-[#121212] text-white transition hover:bg-[#1a1a1a]"
+                aria-label="Reset timer"
+              >
+                <RotateCcw className="h-4 w-4" />
+              </button>
+
+              <div className="flex items-center justify-center rounded-[12px] border border-white/10 bg-[#121212] px-3 text-[10px] font-black uppercase tracking-[0.12em] text-white/78">
+                Loop {autoLoop ? 'on' : 'off'}
+              </div>
+            </div>
+          </section>
+
+          <div className="space-y-2.5">
+            {selectedPreset.exercises.map((exercise, index) => (
+              <ActiveExerciseCard
+                key={exercise}
+                index={index}
+                label={exercise}
+                sets={workoutLog[exercise] ?? []}
+                onUpdateSet={(setIndex, field, value) =>
+                  updateSet(exercise, setIndex, field, value)
+                }
+                onAddSet={() => addSet(exercise)}
+              />
+            ))}
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setTimerMode('set');
+                setRemainingSeconds(setSeconds);
+                setIsRunning(false);
+              }}
+              className="inline-flex min-h-[42px] items-center justify-center gap-2 rounded-[14px] border border-white/10 bg-[#121212] px-4 py-2.5 text-[10px] font-black uppercase tracking-[0.14em] text-white transition hover:bg-[#1a1a1a]"
+            >
+              <Minus className="h-3.5 w-3.5 text-lime-300" />
+              Set
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setTimerMode('rest');
+                setRemainingSeconds(restSeconds);
+                setIsRunning(false);
+              }}
+              className="inline-flex min-h-[42px] items-center justify-center gap-2 rounded-[14px] border border-white/10 bg-[#121212] px-4 py-2.5 text-[10px] font-black uppercase tracking-[0.14em] text-white transition hover:bg-[#1a1a1a]"
+            >
+              <Plus className="h-3.5 w-3.5 text-lime-300" />
+              Rest
+            </button>
+          </div>
+        </>
+      )}
 
       <button
         type="button"
