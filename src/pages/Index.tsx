@@ -32,6 +32,7 @@ type MenuView =
   | 'terms'
   | 'privacy';
 type WorkoutFocus = 'chest' | 'back' | 'arms' | 'legs' | undefined;
+type MenuSource = 'menu' | 'workout';
 
 type IndexScreenProps = {
   openPaywall?: (trigger: string) => void;
@@ -195,6 +196,7 @@ export default function IndexScreen({ openPaywall }: IndexScreenProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuMounted, setMenuMounted] = useState(false);
   const [menuStack, setMenuStack] = useState<MenuView[]>(['root']);
+  const [menuSource, setMenuSource] = useState<MenuSource>('menu');
   const [premiumOpen, setPremiumOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [workoutFocus, setWorkoutFocus] = useState<WorkoutFocus>(undefined);
@@ -251,6 +253,7 @@ export default function IndexScreen({ openPaywall }: IndexScreenProps) {
     };
 
     const handleOpenTimerMenu = () => {
+      setMenuSource('workout');
       setMenuMounted(true);
       setMenuStack(['timer']);
 
@@ -288,12 +291,26 @@ export default function IndexScreen({ openPaywall }: IndexScreenProps) {
     window.setTimeout(() => {
       setMenuMounted(false);
       setMenuStack(['root']);
+      setMenuSource('menu');
     }, 500);
   };
 
   const openMenu = () => {
+    setMenuSource('menu');
     setMenuMounted(true);
     setMenuStack(['root']);
+
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        setMenuOpen(true);
+      });
+    });
+  };
+
+  const openWorkoutTimerSettings = () => {
+    setMenuSource('workout');
+    setMenuMounted(true);
+    setMenuStack(['timer']);
 
     window.requestAnimationFrame(() => {
       window.requestAnimationFrame(() => {
@@ -339,7 +356,11 @@ export default function IndexScreen({ openPaywall }: IndexScreenProps) {
     }
 
     if (currentMenuView === 'timer') {
-      return <TimerSettingsScreen onBack={popMenuView} />;
+      return (
+        <TimerSettingsScreen
+          onBack={menuSource === 'workout' ? closeMenu : popMenuView}
+        />
+      );
     }
 
     if (currentMenuView === 'daily') {
@@ -402,6 +423,7 @@ export default function IndexScreen({ openPaywall }: IndexScreenProps) {
         initialFocus={workoutFocus}
         onBack={goHome}
         onComplete={goHome}
+        onOpenTimerSettings={openWorkoutTimerSettings}
       />
     );
   } else {
@@ -430,9 +452,11 @@ export default function IndexScreen({ openPaywall }: IndexScreenProps) {
             <div
               className={[
                 'absolute inset-0 overflow-y-auto bg-black px-4 pb-8 pt-4 transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]',
-                currentMenuView === 'root'
-                  ? 'translate-x-0 scale-100 opacity-100'
-                  : '-translate-x-8 scale-[0.985] opacity-35',
+                menuSource === 'workout'
+                  ? 'pointer-events-none translate-x-0 scale-100 opacity-0'
+                  : currentMenuView === 'root'
+                    ? 'translate-x-0 scale-100 opacity-100'
+                    : '-translate-x-8 scale-[0.985] opacity-35',
               ].join(' ')}
             >
               <div className="mx-auto w-full max-w-[520px]">
@@ -453,9 +477,11 @@ export default function IndexScreen({ openPaywall }: IndexScreenProps) {
             <div
               className={[
                 'absolute inset-0 overflow-y-auto border-l border-white/10 bg-black px-4 pb-8 pt-4 transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]',
-                currentMenuView === 'root'
-                  ? 'translate-x-full opacity-0'
-                  : 'translate-x-0 opacity-100',
+                menuSource === 'workout'
+                  ? 'translate-x-0 opacity-100'
+                  : currentMenuView === 'root'
+                    ? 'translate-x-full opacity-0'
+                    : 'translate-x-0 opacity-100',
               ].join(' ')}
             >
               <div className="mx-auto w-full max-w-[520px]">

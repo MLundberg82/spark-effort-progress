@@ -119,7 +119,7 @@ export default function TimerSettingsScreen({ onBack }: Props) {
                 Timer settings
               </h1>
               <p className="mt-1 text-sm text-white/55">
-                Only timer controls live here.
+                Minimal workout timer controls only.
               </p>
             </div>
           </div>
@@ -171,7 +171,7 @@ export default function TimerSettingsScreen({ onBack }: Props) {
               Set seconds
             </div>
             <div className="flex flex-wrap gap-2">
-              {[30, 45, 60].map((value) => (
+              {[30, 45, 60, 90, 120].map((value) => (
                 <TimerChip
                   key={`set-${value}`}
                   active={timerSettings.setSeconds === value}
@@ -187,7 +187,7 @@ export default function TimerSettingsScreen({ onBack }: Props) {
               Rest seconds
             </div>
             <div className="flex flex-wrap gap-2">
-              {[60, 90, 120].map((value) => (
+              {[30, 45, 60, 90, 120, 150, 180].map((value) => (
                 <TimerChip
                   key={`rest-${value}`}
                   active={timerSettings.restSeconds === value}
@@ -222,7 +222,7 @@ export default function TimerSettingsScreen({ onBack }: Props) {
         </SectionCard>
 
         <div className="rounded-[18px] border border-white/10 bg-white/[0.03] px-4 py-3 text-xs text-white/45">
-          Timer state is fully separated from Profile &amp; App and only controlled here.
+          Timer state is separated from Profile &amp; App and tuned only here.
         </div>
       </div>
     </div>

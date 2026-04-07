@@ -19,6 +19,7 @@ type WorkoutFlowProps = {
   initialFocus?: Focus;
   onBack: () => void;
   onComplete: () => void;
+  onOpenTimerSettings?: () => void;
 };
 
 type Step = 'choose' | 'preview' | 'active' | 'complete';
@@ -181,28 +182,28 @@ function PresetCard({
     <button
       type="button"
       onClick={onSelect}
-      className="rounded-[18px] border border-white/10 bg-black p-3 text-left transition hover:bg-[#0c0c0c]"
+      className="rounded-[18px] border border-white/12 bg-[#080808] p-3 text-left text-white transition hover:border-white/18 hover:bg-[#101010]"
     >
-      <div className="text-[10px] font-black uppercase tracking-[0.16em] text-lime-200/80">
+      <div className="text-[10px] font-black uppercase tracking-[0.16em] text-lime-200">
         {preset.vibe}
       </div>
       <div className="mt-1 flex items-center justify-between gap-3">
         <div>
           <h3 className="text-lg font-black text-white">{preset.title}</h3>
-          <p className="text-sm text-white/84">{preset.subtitle}</p>
+          <p className="text-sm text-white/90">{preset.subtitle}</p>
         </div>
         <div className="flex h-9 w-9 items-center justify-center rounded-[12px] border border-white/10 bg-white/[0.04] text-white/84">
           <ChevronRight className="h-4 w-4" />
         </div>
       </div>
 
-      <p className="mt-2 text-sm text-white/88">{preset.description}</p>
+      <p className="mt-2 text-sm leading-relaxed text-white/92">{preset.description}</p>
 
       <div className="mt-3 flex flex-wrap gap-1.5">
         {preset.exercises.map((exercise) => (
           <span
             key={exercise}
-            className="rounded-full border border-white/10 bg-[#090909] px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-white/82"
+            className="rounded-full border border-white/12 bg-[#101010] px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-white/92"
           >
             {exercise}
           </span>
@@ -310,6 +311,7 @@ export default function WorkoutFlow({
   initialFocus,
   onBack,
   onComplete,
+  onOpenTimerSettings,
 }: WorkoutFlowProps) {
   const initialPreset = initialFocus
     ? PRESETS.find((preset) => preset.id === initialFocus) ?? null
@@ -457,6 +459,11 @@ export default function WorkoutFlow({
   };
 
   const openTimerSettings = () => {
+    if (onOpenTimerSettings) {
+      onOpenTimerSettings();
+      return;
+    }
+
     window.dispatchEvent(new CustomEvent('open-menu-timer'));
   };
 
