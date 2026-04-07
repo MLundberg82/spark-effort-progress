@@ -22,9 +22,12 @@
     "@capacitor/splash-screen": "^7.0.0",
     "@capacitor/status-bar": "^7.0.0",
     "@revenuecat/purchases-capacitor": "^10.0.0",
+    "clsx": "^2.1.1",
     "lucide-react": "^0.468.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "react-router-dom": "^7.14.0",
+    "tailwind-merge": "^3.5.0",
     "tailwindcss-animate": "^1.0.7"
   },
   "devDependencies": {

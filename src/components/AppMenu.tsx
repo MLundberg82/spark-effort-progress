@@ -50,16 +50,16 @@ function MenuButton({
       className={[
         'flex w-full items-center gap-3 rounded-[20px] border px-3.5 py-3.5 text-left transition',
         isPremium
-          ? 'border-yellow-300/35 bg-[#4a3400] hover:bg-[#5c4100] shadow-[0_0_28px_rgba(250,204,21,0.18)]'
-          : 'border-white/12 bg-[#0a0a0a] hover:bg-[#131313]',
+          ? 'border-yellow-300/40 bg-gradient-to-br from-[#6b4a00] via-[#8a6200] to-[#4f3700] hover:brightness-110 shadow-[0_0_30px_rgba(250,204,21,0.22)]'
+          : 'border-white/12 bg-[#0a0a0a] hover:bg-[#141414]',
       ].join(' ')}
     >
       <div
         className={[
           'flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] border',
           isPremium
-            ? 'border-yellow-300/35 bg-yellow-300/12 text-yellow-100'
-            : 'border-white/12 bg-[#141414] text-lime-300',
+            ? 'border-yellow-200/40 bg-yellow-300/12 text-yellow-100'
+            : 'border-white/12 bg-[#161616] text-lime-300',
         ].join(' ')}
       >
         {icon}
@@ -74,11 +74,10 @@ function MenuButton({
         >
           {label}
         </div>
-
         <div
           className={[
             'mt-1 text-sm leading-snug',
-            isPremium ? 'text-yellow-50/90' : 'text-white/88',
+            isPremium ? 'text-yellow-50/95' : 'text-white/90',
           ].join(' ')}
         >
           {description}
@@ -122,7 +121,7 @@ export default function AppMenu({
         </button>
       </div>
 
-      <section className="rounded-[22px] border border-white/12 bg-black p-4 shadow-[0_10px_30px_rgba(0,0,0,0.32)]">
+      <section className="rounded-[22px] border border-white/12 bg-black p-4 shadow-[0_10px_30px_rgba(0,0,0,0.34)]">
         <div className="space-y-2.5">
           <MenuButton
             label="Daily Check-In"
@@ -169,7 +168,7 @@ export default function AppMenu({
         </div>
       </section>
 
-      <section className="mt-auto rounded-[22px] border border-white/12 bg-black p-4 shadow-[0_10px_30px_rgba(0,0,0,0.32)]">
+      <section className="mt-auto rounded-[22px] border border-white/12 bg-black p-4 shadow-[0_10px_30px_rgba(0,0,0,0.34)]">
         <div className="space-y-2.5">
           <MenuButton
             label="Terms of Use"

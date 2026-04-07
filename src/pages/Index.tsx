@@ -1,18 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import {
-  Clock3,
-  Crown,
-  FileText,
-  Flame,
-  History as HistoryIcon,
-  Mail,
-  Settings as SettingsIcon,
-  Shield,
-  UtensilsCrossed,
-  X,
-} from 'lucide-react';
+import { ArrowLeft, FileText, Shield } from 'lucide-react';
 
-import gymratLogo from '@/assets/logo.png';
+import AppMenu from '@/components/AppMenu';
 import DailyCheckInScreen from '@/components/DailyCheckInScreen';
 import GymRatGallery from '@/components/GymRatGallery';
 import HistoryScreen from '@/components/HistoryScreen';
@@ -42,22 +31,10 @@ type MenuView =
   | 'nutrition'
   | 'terms'
   | 'privacy';
-type WorkoutFocus = 'chest' | 'back' | 'arms' | 'legs' | 'walk' | undefined;
+type WorkoutFocus = 'chest' | 'back' | 'arms' | 'legs' | undefined;
 
 type IndexScreenProps = {
   openPaywall?: (trigger: string) => void;
-};
-
-type RootMenuProps = {
-  onClose: () => void;
-  onOpenDaily: () => void;
-  onOpenHistory: () => void;
-  onOpenNutrition: () => void;
-  onOpenSettings: () => void;
-  onOpenTimer: () => void;
-  onOpenPremium: () => void;
-  onOpenTerms: () => void;
-  onOpenPrivacy: () => void;
 };
 
 function MenuScreenShell({
@@ -91,174 +68,6 @@ function MenuScreenShell({
   );
 }
 
-function MenuButton({
-  label,
-  description,
-  icon,
-  onClick,
-  premium = false,
-}: {
-  label: string;
-  description: string;
-  icon: ReactNode;
-  onClick: () => void;
-  premium?: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={[
-        'flex w-full items-center gap-3 rounded-[20px] border px-3.5 py-3.5 text-left transition',
-        premium
-          ? 'border-yellow-300/35 bg-[#4b3500] hover:bg-[#5d4300] shadow-[0_0_28px_rgba(250,204,21,0.18)]'
-          : 'border-white/12 bg-[#0a0a0a] hover:bg-[#121212]',
-      ].join(' ')}
-    >
-      <div
-        className={[
-          'flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] border',
-          premium
-            ? 'border-yellow-300/35 bg-yellow-300/12 text-yellow-100'
-            : 'border-white/12 bg-[#141414] text-lime-300',
-        ].join(' ')}
-      >
-        {icon}
-      </div>
-
-      <div className="min-w-0">
-        <div
-          className={[
-            'text-sm font-black uppercase tracking-[0.14em]',
-            premium ? 'text-yellow-50' : 'text-lime-200',
-          ].join(' ')}
-        >
-          {label}
-        </div>
-        <div
-          className={[
-            'mt-1 text-sm leading-snug',
-            premium ? 'text-yellow-50/92' : 'text-white/88',
-          ].join(' ')}
-        >
-          {description}
-        </div>
-      </div>
-    </button>
-  );
-}
-
-function RootMenu({
-  onClose,
-  onOpenDaily,
-  onOpenHistory,
-  onOpenNutrition,
-  onOpenSettings,
-  onOpenTimer,
-  onOpenPremium,
-  onOpenTerms,
-  onOpenPrivacy,
-}: RootMenuProps) {
-  return (
-    <div className="flex min-h-full flex-col gap-4">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-3">
-          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[18px] border border-white/12 bg-black p-2.5">
-            <img
-              src={gymratLogo}
-              alt="GymRat"
-              className="h-full w-full object-contain"
-            />
-          </div>
-        </div>
-
-        <button
-          type="button"
-          onClick={onClose}
-          className="inline-flex h-11 w-11 items-center justify-center rounded-[14px] border border-white/12 bg-black text-white transition hover:bg-[#111111]"
-          aria-label="Close menu"
-        >
-          <X className="h-4.5 w-4.5" />
-        </button>
-      </div>
-
-      <section className="rounded-[22px] border border-white/12 bg-black p-4 shadow-[0_10px_30px_rgba(0,0,0,0.32)]">
-        <div className="space-y-2.5">
-          <MenuButton
-            label="Daily Check-In"
-            description="Streak, next focus and momentum snapshot."
-            onClick={onOpenDaily}
-            icon={<Flame className="h-4.5 w-4.5" />}
-          />
-
-          <MenuButton
-            label="Timer Settings"
-            description="Only timer controls, durations and loop mode."
-            onClick={onOpenTimer}
-            icon={<Clock3 className="h-4.5 w-4.5" />}
-          />
-
-          <MenuButton
-            label="History"
-            description="Logged sessions, archive and recent consistency."
-            onClick={onOpenHistory}
-            icon={<HistoryIcon className="h-4.5 w-4.5" />}
-          />
-
-          <MenuButton
-            label="Nutrition"
-            description="Macros, calories and daily food log."
-            onClick={onOpenNutrition}
-            icon={<UtensilsCrossed className="h-4.5 w-4.5" />}
-          />
-
-          <MenuButton
-            label="Profile & App"
-            description="Body stats, training level and language."
-            onClick={onOpenSettings}
-            icon={<SettingsIcon className="h-4.5 w-4.5" />}
-          />
-
-          <MenuButton
-            label="Get Premium"
-            description="Unlock the heavier version of GymRat."
-            onClick={onOpenPremium}
-            icon={<Crown className="h-4.5 w-4.5" />}
-            premium
-          />
-        </div>
-      </section>
-
-      <section className="mt-auto rounded-[22px] border border-white/12 bg-black p-4 shadow-[0_10px_30px_rgba(0,0,0,0.32)]">
-        <div className="space-y-2.5">
-          <MenuButton
-            label="Terms of Use"
-            description="Open the in-app terms."
-            onClick={onOpenTerms}
-            icon={<Shield className="h-4.5 w-4.5" />}
-          />
-
-          <MenuButton
-            label="Privacy Policy"
-            description="Open the in-app privacy policy."
-            onClick={onOpenPrivacy}
-            icon={<FileText className="h-4.5 w-4.5" />}
-          />
-
-          <MenuButton
-            label="Contact"
-            description="hello@getgymrat.com"
-            onClick={() => {
-              window.location.href = 'mailto:hello@getgymrat.com';
-            }}
-            icon={<Mail className="h-4.5 w-4.5" />}
-          />
-        </div>
-      </section>
-    </div>
-  );
-}
-
 function LegalScreen({
   title,
   sections,
@@ -268,6 +77,8 @@ function LegalScreen({
   sections: Array<{ heading: string; body: string }>;
   onBack: () => void;
 }) {
+  const isTerms = title === 'Terms of Use';
+
   return (
     <div className="min-h-full">
       <div className="flex w-full flex-col gap-4">
@@ -278,18 +89,27 @@ function LegalScreen({
             className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] border border-white/12 bg-black text-white transition hover:bg-[#111111]"
             aria-label="Back"
           >
-            <X className="h-4.5 w-4.5 rotate-45" />
+            <ArrowLeft className="h-4.5 w-4.5" />
           </button>
 
           <div>
-            <div className="text-[11px] font-black uppercase tracking-[0.18em] text-lime-200">
-              Legal
+            <div className="flex items-center gap-2 text-lime-200">
+              {isTerms ? (
+                <Shield className="h-4.5 w-4.5" />
+              ) : (
+                <FileText className="h-4.5 w-4.5" />
+              )}
+              <span className="text-[11px] font-black uppercase tracking-[0.18em]">
+                Legal
+              </span>
             </div>
+
             <h1 className="mt-1 text-2xl font-black uppercase tracking-tight text-white">
               {title}
             </h1>
-            <p className="mt-1 text-sm text-white/82">
-              Last updated April 2, 2026 · hello@getgymrat.com
+
+            <p className="mt-1 text-sm text-white/84">
+              In-app legal view · hello@getgymrat.com
             </p>
           </div>
         </div>
@@ -303,7 +123,7 @@ function LegalScreen({
               <h3 className="text-sm font-black uppercase tracking-[0.14em] text-lime-200">
                 {section.heading}
               </h3>
-              <p className="mt-2 text-sm leading-relaxed text-white/88">
+              <p className="mt-2 text-sm leading-relaxed text-white/90">
                 {section.body}
               </p>
             </section>
@@ -323,22 +143,22 @@ const TERMS_SECTIONS = [
   {
     heading: 'Health disclaimer',
     body:
-      'The app provides general fitness and wellness information only. It does not provide medical advice, diagnosis or treatment. Users should consult a qualified professional before major exercise or nutrition changes, especially when injury, pain or medical conditions are involved.',
+      'The app provides general fitness and wellness information only. It does not provide medical advice, diagnosis or treatment. Users should consult a qualified professional before major exercise or nutrition changes.',
   },
   {
     heading: 'Premium subscriptions',
     body:
-      'Some features may require a paid subscription. Pricing is shown at purchase. Subscriptions may renew automatically unless cancelled through the platform used for the subscription, such as Apple App Store or Google Play, unless otherwise stated.',
+      'Some features may require a paid subscription. Pricing is shown at purchase. Subscriptions may renew automatically unless cancelled through the platform used for the subscription, such as Apple App Store or Google Play.',
   },
   {
     heading: 'Acceptable use',
     body:
-      'Users may not misuse the service, attempt unauthorized access, interfere with security or service operations, reverse engineer where not allowed by law, or upload harmful content.',
+      'Users may not misuse the service, attempt unauthorized access, interfere with security or service operations, or upload harmful content.',
   },
   {
     heading: 'Availability and liability',
     body:
-      'The service may change over time and is provided as is and as available to the fullest extent permitted by law. GetGymRat does not guarantee uninterrupted or error-free service availability.',
+      'The service may change over time and is provided as is and as available to the fullest extent permitted by law. GetGymRat does not guarantee uninterrupted or error-free availability.',
   },
 ];
 
@@ -383,7 +203,7 @@ export default function IndexScreen({ openPaywall }: IndexScreenProps) {
   const canGoBackInMenu = menuStack.length > 1;
 
   useEffect(() => {
-    if ((baseView === 'home' || baseView === 'workout') && !menuMounted) {
+    if (baseView === 'home' && !menuMounted) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = 'auto';
@@ -433,6 +253,7 @@ export default function IndexScreen({ openPaywall }: IndexScreenProps) {
     const handleOpenTimerMenu = () => {
       setMenuMounted(true);
       setMenuStack(['timer']);
+
       window.requestAnimationFrame(() => {
         window.requestAnimationFrame(() => {
           setMenuOpen(true);
@@ -615,7 +436,7 @@ export default function IndexScreen({ openPaywall }: IndexScreenProps) {
               ].join(' ')}
             >
               <div className="mx-auto w-full max-w-[520px]">
-                <RootMenu
+                <AppMenu
                   onClose={closeMenu}
                   onOpenDaily={() => pushMenuView('daily')}
                   onOpenHistory={() => pushMenuView('history')}
