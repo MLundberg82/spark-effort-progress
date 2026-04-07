@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import AppMenu from '@/components/AppMenu';
 import DailyCheckInScreen from '@/components/DailyCheckInScreen';
 import GymRatGallery from '@/components/GymRatGallery';
 import HistoryScreen from '@/components/HistoryScreen';
 import HomeScreen from '@/components/HomeScreen';
+import LegalScreen from '@/components/LegalScreen';
 import NutritionScreen from '@/components/NutritionScreen';
 import PremiumPaywall from '@/components/PremiumPaywall';
 import SettingsScreen from '@/components/SettingsScreen';
@@ -21,7 +22,15 @@ import {
 } from '@/lib/gamificationStore';
 
 type BaseView = 'home' | 'gallery' | 'shop' | 'workout';
-type MenuView = 'root' | 'settings' | 'timer' | 'daily' | 'history' | 'nutrition';
+type MenuView =
+  | 'root'
+  | 'settings'
+  | 'timer'
+  | 'daily'
+  | 'history'
+  | 'nutrition'
+  | 'terms'
+  | 'privacy';
 type WorkoutFocus = 'chest' | 'back' | 'arms' | 'legs' | undefined;
 
 type IndexScreenProps = {
@@ -33,7 +42,7 @@ function MenuScreenShell({
   isVisible,
   onOutsideClick,
 }: {
-  children: ReactNode;
+  children: React.ReactNode;
   isVisible: boolean;
   onOutsideClick: () => void;
 }) {
@@ -42,15 +51,15 @@ function MenuScreenShell({
       className={[
         'fixed inset-0 z-[70] transition-opacity duration-300 ease-out',
         isVisible
-          ? 'bg-black/40 opacity-100 backdrop-blur-[6px]'
+          ? 'bg-black/42 opacity-100 backdrop-blur-[6px]'
           : 'pointer-events-none bg-black/0 opacity-0',
       ].join(' ')}
       onClick={onOutsideClick}
     >
       <div
         className={[
-          'ml-auto h-full w-full overflow-hidden border-l border-white/10',
-          'bg-[#050505]/58 shadow-[-18px_0_52px_rgba(0,0,0,0.42)] backdrop-blur-2xl',
+          'ml-auto h-full w-full overflow-hidden border-l border-white/12',
+          'bg-[#050505]/78 shadow-[-18px_0_52px_rgba(0,0,0,0.42)] backdrop-blur-2xl',
           'transition-transform duration-300 ease-out',
           isVisible ? 'translate-x-0' : 'translate-x-full',
         ].join(' ')}
@@ -215,6 +224,14 @@ export default function IndexScreen({ openPaywall }: IndexScreenProps) {
       return <NutritionScreen onBack={popMenuView} />;
     }
 
+    if (currentMenuView === 'terms') {
+      return <LegalScreen variant="terms" onBack={popMenuView} />;
+    }
+
+    if (currentMenuView === 'privacy') {
+      return <LegalScreen variant="privacy" onBack={popMenuView} />;
+    }
+
     return null;
   };
 
@@ -271,7 +288,6 @@ export default function IndexScreen({ openPaywall }: IndexScreenProps) {
             >
               <div className="mx-auto w-full max-w-[520px]">
                 <AppMenu
-                  isPremium={appState.premiumActive}
                   onClose={closeMenu}
                   onOpenDaily={() => pushMenuView('daily')}
                   onOpenHistory={() => pushMenuView('history')}
@@ -279,19 +295,23 @@ export default function IndexScreen({ openPaywall }: IndexScreenProps) {
                   onOpenSettings={() => pushMenuView('settings')}
                   onOpenTimer={() => pushMenuView('timer')}
                   onOpenPremium={() => openPremium('menu')}
+                  onOpenTerms={() => pushMenuView('terms')}
+                  onOpenPrivacy={() => pushMenuView('privacy')}
                 />
               </div>
             </div>
 
             <div
               className={[
-                'absolute inset-0 overflow-y-auto border-l border-white/10 bg-[#050505]/68 px-4 pb-8 pt-4 backdrop-blur-2xl transition-all duration-300 ease-out',
+                'absolute inset-0 overflow-y-auto border-l border-white/12 bg-[#050505]/82 px-4 pb-8 pt-4 backdrop-blur-2xl transition-all duration-300 ease-out',
                 currentMenuView === 'root'
                   ? 'translate-x-full opacity-0'
                   : 'translate-x-0 opacity-100',
               ].join(' ')}
             >
-              <div className="mx-auto w-full max-w-[520px]">{renderSubmenuContent()}</div>
+              <div className="mx-auto w-full max-w-[520px]">
+                {renderSubmenuContent()}
+              </div>
             </div>
           </div>
         </MenuScreenShell>

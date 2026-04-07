@@ -2,12 +2,12 @@ import { type ReactNode } from 'react';
 import {
   Clock3,
   Crown,
+  FileText,
   Flame,
   History,
   Mail,
   Settings,
   Shield,
-  Sparkles,
   UtensilsCrossed,
   X,
 } from 'lucide-react';
@@ -15,7 +15,6 @@ import {
 import gymratLogo from '@/assets/logo.png';
 
 type AppMenuProps = {
-  isPremium: boolean;
   onClose: () => void;
   onOpenDaily: () => void;
   onOpenHistory: () => void;
@@ -23,6 +22,8 @@ type AppMenuProps = {
   onOpenSettings: () => void;
   onOpenTimer: () => void;
   onOpenPremium: () => void;
+  onOpenTerms: () => void;
+  onOpenPrivacy: () => void;
 };
 
 type MenuButtonProps = {
@@ -31,13 +32,6 @@ type MenuButtonProps = {
   onClick: () => void;
   icon: ReactNode;
   accent?: 'default' | 'premium';
-};
-
-type FooterLinkCardProps = {
-  href: string;
-  label: string;
-  description: string;
-  icon: ReactNode;
 };
 
 function MenuButton({
@@ -49,13 +43,19 @@ function MenuButton({
 }: MenuButtonProps) {
   const cardClasses =
     accent === 'premium'
-      ? 'border-lime-300/22 bg-lime-300/[0.16] hover:bg-lime-300/[0.20] shadow-[0_0_24px_rgba(163,230,53,0.12)]'
-      : 'border-white/14 bg-black/38 hover:bg-black/46';
+      ? 'border-yellow-300/35 bg-yellow-300/[0.18] hover:bg-yellow-300/[0.24] shadow-[0_0_28px_rgba(250,204,21,0.14)]'
+      : 'border-white/14 bg-black/52 hover:bg-black/58';
 
   const iconClasses =
     accent === 'premium'
-      ? 'border-lime-300/22 bg-lime-300/[0.14] text-lime-100'
-      : 'border-white/12 bg-white/[0.08] text-white/88';
+      ? 'border-yellow-300/35 bg-yellow-300/[0.18] text-yellow-100'
+      : 'border-white/14 bg-white/[0.10] text-lime-200';
+
+  const textClasses =
+    accent === 'premium' ? 'text-[#1d1400]' : 'text-white';
+
+  const descriptionClasses =
+    accent === 'premium' ? 'text-[#3d2b00]/90' : 'text-white/86';
 
   return (
     <button
@@ -76,10 +76,20 @@ function MenuButton({
       </div>
 
       <div className="min-w-0">
-        <div className="text-sm font-black uppercase tracking-[0.14em] text-white">
+        <div
+          className={[
+            'text-sm font-black uppercase tracking-[0.14em]',
+            textClasses,
+          ].join(' ')}
+        >
           {label}
         </div>
-        <div className="mt-1 text-sm leading-snug text-white/82">
+        <div
+          className={[
+            'mt-1 text-sm leading-snug',
+            descriptionClasses,
+          ].join(' ')}
+        >
           {description}
         </div>
       </div>
@@ -87,37 +97,7 @@ function MenuButton({
   );
 }
 
-function FooterLinkCard({
-  href,
-  label,
-  description,
-  icon,
-}: FooterLinkCardProps) {
-  return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noreferrer"
-      className="flex items-center gap-3 rounded-[18px] border border-white/14 bg-black/38 px-3.5 py-3 transition hover:bg-black/46"
-    >
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] border border-white/12 bg-white/[0.08] text-white/88">
-        {icon}
-      </div>
-
-      <div className="min-w-0">
-        <div className="text-sm font-black uppercase tracking-[0.14em] text-white">
-          {label}
-        </div>
-        <div className="mt-1 text-sm leading-snug text-white/76">
-          {description}
-        </div>
-      </div>
-    </a>
-  );
-}
-
 export default function AppMenu({
-  isPremium,
   onClose,
   onOpenDaily,
   onOpenHistory,
@@ -125,40 +105,33 @@ export default function AppMenu({
   onOpenSettings,
   onOpenTimer,
   onOpenPremium,
+  onOpenTerms,
+  onOpenPrivacy,
 }: AppMenuProps) {
   return (
     <div className="flex min-h-full flex-col gap-4">
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[16px] border border-white/14 bg-black/38 p-2">
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[18px] border border-white/16 bg-black/52 p-2.5 shadow-[0_10px_28px_rgba(0,0,0,0.24)]">
             <img
               src={gymratLogo}
               alt="GymRat"
               className="h-full w-full object-contain"
             />
           </div>
-
-          <div className="min-w-0">
-            <div className="text-sm font-black uppercase tracking-[0.14em] text-white">
-              GYMRAT
-            </div>
-            <div className="mt-1 text-sm text-white/78">
-              {isPremium ? 'Premium active' : 'Base mode'}
-            </div>
-          </div>
         </div>
 
         <button
           type="button"
           onClick={onClose}
-          className="inline-flex h-11 w-11 items-center justify-center rounded-[14px] border border-white/14 bg-black/38 text-white transition hover:bg-black/46"
+          className="inline-flex h-11 w-11 items-center justify-center rounded-[14px] border border-white/16 bg-black/52 text-white transition hover:bg-black/60"
           aria-label="Close menu"
         >
           <X className="h-4.5 w-4.5" />
         </button>
       </div>
 
-      <section className="rounded-[22px] border border-white/14 bg-white/[0.06] p-4 shadow-[0_10px_30px_rgba(0,0,0,0.18)]">
+      <section className="rounded-[22px] border border-white/16 bg-white/[0.08] p-4 shadow-[0_10px_30px_rgba(0,0,0,0.22)] backdrop-blur-xl">
         <div className="space-y-2.5">
           <MenuButton
             label="Daily Check-In"
@@ -176,7 +149,7 @@ export default function AppMenu({
 
           <MenuButton
             label="History"
-            description="Logged sessions, workout archive and recent consistency."
+            description="Logged sessions, archive and recent consistency."
             onClick={onOpenHistory}
             icon={<History className="h-4.5 w-4.5" />}
           />
@@ -205,26 +178,28 @@ export default function AppMenu({
         </div>
       </section>
 
-      <section className="mt-auto rounded-[22px] border border-white/14 bg-white/[0.06] p-4 shadow-[0_10px_30px_rgba(0,0,0,0.18)]">
+      <section className="mt-auto rounded-[22px] border border-white/16 bg-white/[0.08] p-4 shadow-[0_10px_30px_rgba(0,0,0,0.22)] backdrop-blur-xl">
         <div className="space-y-2.5">
-          <FooterLinkCard
-            href="https://getgymrat.com/terms"
+          <MenuButton
             label="Terms of Use"
-            description="Use of the app, premium terms, acceptable use and non-medical disclaimer."
+            description="In-app terms for use of the service and premium."
+            onClick={onOpenTerms}
             icon={<Shield className="h-4.5 w-4.5" />}
           />
 
-          <FooterLinkCard
-            href="https://getgymrat.com/privacy"
+          <MenuButton
             label="Privacy Policy"
-            description="How workout, nutrition, device and usage data may be collected and handled."
-            icon={<Sparkles className="h-4.5 w-4.5" />}
+            description="How data, logs and diagnostics are handled."
+            onClick={onOpenPrivacy}
+            icon={<FileText className="h-4.5 w-4.5" />}
           />
 
-          <FooterLinkCard
-            href="mailto:hello@getgymrat.com"
+          <MenuButton
             label="Contact"
             description="hello@getgymrat.com"
+            onClick={() => {
+              window.location.href = 'mailto:hello@getgymrat.com';
+            }}
             icon={<Mail className="h-4.5 w-4.5" />}
           />
         </div>
