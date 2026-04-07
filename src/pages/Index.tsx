@@ -3,7 +3,9 @@ import { useEffect, useMemo, useState } from 'react';
 import AppMenu from '@/components/AppMenu';
 import DailyCheckInScreen from '@/components/DailyCheckInScreen';
 import GymRatGallery from '@/components/GymRatGallery';
+import HistoryScreen from '@/components/HistoryScreen';
 import HomeScreen from '@/components/HomeScreen';
+import NutritionScreen from '@/components/NutritionScreen';
 import PremiumPaywall from '@/components/PremiumPaywall';
 import SettingsScreen from '@/components/SettingsScreen';
 import ShopScreen from '@/components/ShopScreen';
@@ -37,7 +39,7 @@ export default function IndexScreen({ openPaywall }: IndexScreenProps) {
   const canGoBackInMenu = menuStack.length > 1;
 
   useEffect(() => {
-    if (baseView === 'home') {
+    if (baseView === 'home' && !menuOpen) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = 'auto';
@@ -46,18 +48,7 @@ export default function IndexScreen({ openPaywall }: IndexScreenProps) {
     return () => {
       document.body.style.overflow = 'auto';
     };
-  }, [baseView]);
-
-  useEffect(() => {
-    if (!menuOpen) return;
-
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-
-    return () => {
-      document.body.style.overflow = previousOverflow || 'auto';
-    };
-  }, [menuOpen]);
+  }, [baseView, menuOpen]);
 
   useEffect(() => {
     const rerender = () => setRefreshKey((prev) => prev + 1);
@@ -65,26 +56,30 @@ export default function IndexScreen({ openPaywall }: IndexScreenProps) {
     window.addEventListener('premium-updated', rerender);
     window.addEventListener('shop-updated', rerender);
     window.addEventListener('storage', rerender);
+    window.addEventListener('nutrition-updated', rerender);
+    window.addEventListener('profile-updated', rerender);
+    window.addEventListener('gymrat-profile-updated', rerender);
 
     return () => {
       window.removeEventListener('premium-updated', rerender);
       window.removeEventListener('shop-updated', rerender);
       window.removeEventListener('storage', rerender);
+      window.removeEventListener('nutrition-updated', rerender);
+      window.removeEventListener('profile-updated', rerender);
+      window.removeEventListener('gymrat-profile-updated', rerender);
     };
   }, []);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (!menuOpen) return;
+      if (!menuOpen || event.key !== 'Escape') return;
 
-      if (event.key === 'Escape') {
-        event.preventDefault();
+      event.preventDefault();
 
-        if (canGoBackInMenu) {
-          setMenuStack((prev) => prev.slice(0, -1));
-        } else {
-          closeMenu();
-        }
+      if (canGoBackInMenu) {
+        setMenuStack((prev) => prev.slice(0, -1));
+      } else {
+        closeMenu();
       }
     };
 
@@ -111,8 +106,8 @@ export default function IndexScreen({ openPaywall }: IndexScreenProps) {
   };
 
   const openMenu = () => {
-    setMenuStack(['root']);
     setMenuOpen(true);
+    setMenuStack(['root']);
   };
 
   const pushMenuView = (view: MenuView) => {
@@ -140,22 +135,6 @@ export default function IndexScreen({ openPaywall }: IndexScreenProps) {
     closeMenu();
   };
 
-  const openGalleryFromMenu = () => {
-    closeMenu();
-    setBaseView('gallery');
-  };
-
-  const openShopFromMenu = () => {
-    closeMenu();
-    setBaseView('shop');
-  };
-
-  const openPremiumFromMenu = () => {
-    closeMenu();
-    setPremiumOpen(true);
-    openPaywall?.('menu');
-  };
-
   const renderMenuOverlay = () => {
     if (!menuOpen) return null;
 
@@ -171,10 +150,16 @@ export default function IndexScreen({ openPaywall }: IndexScreenProps) {
             onOpenDaily={() => pushMenuView('daily')}
             onOpenHistory={() => pushMenuView('history')}
             onOpenNutrition={() => pushMenuView('nutrition')}
-            onOpenGallery={openGalleryFromMenu}
-            onOpenShop={openShopFromMenu}
+            onOpenShop={() => {
+              closeMenu();
+              setBaseView('shop');
+            }}
             onOpenSettings={() => pushMenuView('settings')}
-            onOpenPremium={openPremiumFromMenu}
+            onOpenPremium={() => {
+              closeMenu();
+              setPremiumOpen(true);
+              openPaywall?.('menu');
+            }}
           />
         )}
 
@@ -190,84 +175,11 @@ export default function IndexScreen({ openPaywall }: IndexScreenProps) {
         )}
 
         {currentMenuView === 'history' && (
-          <div
-            className="absolute inset-y-0 right-0 flex w-[80%] max-w-[420px] flex-col border-l border-white/10 bg-[#0a0a0a]/96 shadow-[-24px_0_80px_rgba(0,0,0,0.45)]"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="flex items-center justify-between border-b border-white/10 px-5 pb-4 pt-6">
-              <button
-                type="button"
-                onClick={popMenuView}
-                className="inline-flex h-10 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] px-4 text-[11px] font-black uppercase tracking-[0.16em] text-white/80 transition hover:bg-white/[0.08] hover:text-white"
-              >
-                Back
-              </button>
-
-              <div className="text-right">
-                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-white/35">
-                  Menu
-                </p>
-                <h2 className="text-base font-black uppercase tracking-[0.16em] text-white">
-                  History
-                </h2>
-              </div>
-            </div>
-
-            <div className="flex-1 px-5 py-5">
-              <div className="rounded-[24px] border border-white/10 bg-white/[0.04] p-5">
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40">
-                  Coming next
-                </p>
-                <h3 className="mt-2 text-lg font-black text-white">
-                  History stays inside the menu stack now.
-                </h3>
-                <p className="mt-2 text-sm leading-6 text-white/65">
-                  Back takes you to the previous menu layer instead of dropping
-                  you to home.
-                </p>
-              </div>
-            </div>
-          </div>
+          <HistoryScreen onBack={popMenuView} />
         )}
 
         {currentMenuView === 'nutrition' && (
-          <div
-            className="absolute inset-y-0 right-0 flex w-[80%] max-w-[420px] flex-col border-l border-white/10 bg-[#0a0a0a]/96 shadow-[-24px_0_80px_rgba(0,0,0,0.45)]"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="flex items-center justify-between border-b border-white/10 px-5 pb-4 pt-6">
-              <button
-                type="button"
-                onClick={popMenuView}
-                className="inline-flex h-10 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] px-4 text-[11px] font-black uppercase tracking-[0.16em] text-white/80 transition hover:bg-white/[0.08] hover:text-white"
-              >
-                Back
-              </button>
-
-              <div className="text-right">
-                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-white/35">
-                  Menu
-                </p>
-                <h2 className="text-base font-black uppercase tracking-[0.16em] text-white">
-                  Nutrition
-                </h2>
-              </div>
-            </div>
-
-            <div className="flex-1 px-5 py-5">
-              <div className="rounded-[24px] border border-white/10 bg-white/[0.04] p-5">
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40">
-                  Coming next
-                </p>
-                <h3 className="mt-2 text-lg font-black text-white">
-                  Nutrition also respects the same menu stack.
-                </h3>
-                <p className="mt-2 text-sm leading-6 text-white/65">
-                  Outside click closes the menu. Back moves one layer up.
-                </p>
-              </div>
-            </div>
-          </div>
+          <NutritionScreen onBack={popMenuView} />
         )}
       </div>
     );
