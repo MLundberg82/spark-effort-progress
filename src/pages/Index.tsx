@@ -40,14 +40,18 @@ function MenuScreenShell({
   return (
     <div
       className={[
-        'fixed inset-0 z-[70] transition-opacity duration-300',
-        isVisible ? 'bg-black/50 opacity-100 backdrop-blur-[5px]' : 'pointer-events-none bg-black/0 opacity-0',
+        'fixed inset-0 z-[70] transition-opacity duration-300 ease-out',
+        isVisible
+          ? 'bg-black/40 opacity-100 backdrop-blur-[6px]'
+          : 'pointer-events-none bg-black/0 opacity-0',
       ].join(' ')}
       onClick={onOutsideClick}
     >
       <div
         className={[
-          'ml-auto h-full w-full max-w-[560px] overflow-y-auto border-l border-white/10 bg-[#050505]/92 shadow-[-20px_0_60px_rgba(0,0,0,0.45)] backdrop-blur-xl transition-transform duration-300 ease-out',
+          'ml-auto h-full w-full overflow-hidden border-l border-white/10',
+          'bg-[#050505]/58 shadow-[-18px_0_52px_rgba(0,0,0,0.42)] backdrop-blur-2xl',
+          'transition-transform duration-300 ease-out',
           isVisible ? 'translate-x-0' : 'translate-x-full',
         ].join(' ')}
         onClick={(event) => event.stopPropagation()}
@@ -146,6 +150,7 @@ export default function IndexScreen({ openPaywall }: IndexScreenProps) {
   const openMenu = () => {
     setMenuMounted(true);
     setMenuStack(['root']);
+
     window.requestAnimationFrame(() => {
       window.requestAnimationFrame(() => {
         setMenuOpen(true);
@@ -184,22 +189,7 @@ export default function IndexScreen({ openPaywall }: IndexScreenProps) {
     openPaywall?.(trigger);
   };
 
-  const renderMenuContent = () => {
-    if (currentMenuView === 'root') {
-      return (
-        <AppMenu
-          isPremium={appState.premiumActive}
-          onClose={closeMenu}
-          onOpenDaily={() => pushMenuView('daily')}
-          onOpenHistory={() => pushMenuView('history')}
-          onOpenNutrition={() => pushMenuView('nutrition')}
-          onOpenSettings={() => pushMenuView('settings')}
-          onOpenTimer={() => pushMenuView('timer')}
-          onOpenPremium={() => openPremium('menu')}
-        />
-      );
-    }
-
+  const renderSubmenuContent = () => {
     if (currentMenuView === 'settings') {
       return <SettingsScreen onBack={popMenuView} />;
     }
@@ -270,7 +260,40 @@ export default function IndexScreen({ openPaywall }: IndexScreenProps) {
 
       {menuMounted ? (
         <MenuScreenShell isVisible={menuOpen} onOutsideClick={closeMenu}>
-          {renderMenuContent()}
+          <div className="relative h-full w-full overflow-hidden">
+            <div
+              className={[
+                'absolute inset-0 overflow-y-auto px-4 pb-8 pt-4 transition-all duration-300 ease-out',
+                currentMenuView === 'root'
+                  ? 'translate-x-0 scale-100 opacity-100'
+                  : '-translate-x-6 scale-[0.985] opacity-55',
+              ].join(' ')}
+            >
+              <div className="mx-auto w-full max-w-[520px]">
+                <AppMenu
+                  isPremium={appState.premiumActive}
+                  onClose={closeMenu}
+                  onOpenDaily={() => pushMenuView('daily')}
+                  onOpenHistory={() => pushMenuView('history')}
+                  onOpenNutrition={() => pushMenuView('nutrition')}
+                  onOpenSettings={() => pushMenuView('settings')}
+                  onOpenTimer={() => pushMenuView('timer')}
+                  onOpenPremium={() => openPremium('menu')}
+                />
+              </div>
+            </div>
+
+            <div
+              className={[
+                'absolute inset-0 overflow-y-auto border-l border-white/10 bg-[#050505]/68 px-4 pb-8 pt-4 backdrop-blur-2xl transition-all duration-300 ease-out',
+                currentMenuView === 'root'
+                  ? 'translate-x-full opacity-0'
+                  : 'translate-x-0 opacity-100',
+              ].join(' ')}
+            >
+              <div className="mx-auto w-full max-w-[520px]">{renderSubmenuContent()}</div>
+            </div>
+          </div>
         </MenuScreenShell>
       ) : null}
 

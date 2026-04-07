@@ -510,14 +510,14 @@ export default function WorkoutFlow({
           </div>
         </section>
 
-        <button
-          type="button"
-          onClick={startWorkout}
-          className="inline-flex min-h-[46px] items-center justify-center gap-2 rounded-[16px] bg-lime-300 px-4 py-3 text-[11px] font-black uppercase tracking-[0.14em] text-black transition hover:brightness-105"
-        >
-          Start workout
-          <ChevronRight className="h-4 w-4" />
-        </button>
+<button
+  type="button"
+  onClick={startWorkout}
+  className="inline-flex min-h-[46px] items-center justify-center gap-2 rounded-[16px] border border-white/12 bg-white/[0.08] px-4 py-3 text-[11px] font-black uppercase tracking-[0.14em] text-white transition hover:bg-white/[0.12]"
+>
+  Start workout
+  <ChevronRight className="h-4 w-4" />
+</button>
       </ScreenShell>
     );
   }
