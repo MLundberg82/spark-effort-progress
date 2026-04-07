@@ -1,4 +1,3 @@
-// src/components/DailyCheckInScreen.tsx
 import { useMemo } from 'react';
 import {
   ArrowRight,
@@ -45,11 +44,11 @@ function FocusBar({
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between gap-3">
-        <span className="text-sm font-semibold text-white/78">{label}</span>
-        <span className="text-xs font-black text-white/45">{Math.round(value)}</span>
+        <span className="text-sm font-semibold text-white/82">{label}</span>
+        <span className="text-xs font-black text-white/50">{Math.round(value)}</span>
       </div>
 
-      <div className="h-2 overflow-hidden rounded-full bg-white/8">
+      <div className="h-2 overflow-hidden rounded-full bg-white/10">
         <div
           className="h-full rounded-full bg-lime-300 transition-all"
           style={{ width: `${width}%` }}
@@ -69,8 +68,8 @@ function StatCard({
   value: string | number;
 }) {
   return (
-    <div className="rounded-[18px] border border-white/10 bg-white/[0.04] p-3">
-      <div className="flex items-center gap-2 text-white/55">
+    <div className="rounded-[18px] border border-white/12 bg-black/32 p-3">
+      <div className="flex items-center gap-2 text-white/62">
         {icon}
         <span className="text-[10px] font-black uppercase tracking-[0.16em]">
           {label}
@@ -92,20 +91,20 @@ export default function DailyCheckInScreen({ onStartWorkout, onClose }: Props) {
 
   return (
     <div
-      className="absolute inset-y-0 right-0 flex w-[80%] max-w-[420px] flex-col border-l border-white/10 bg-[#0a0a0a]/96 shadow-[-24px_0_80px_rgba(0,0,0,0.45)]"
+      className="absolute inset-y-0 right-0 flex w-[80%] max-w-[420px] flex-col border-l border-white/12 bg-[#070707]/98 shadow-[-24px_0_80px_rgba(0,0,0,0.58)]"
       onClick={(event) => event.stopPropagation()}
     >
       <div className="flex items-center justify-between border-b border-white/10 px-5 pb-4 pt-6">
         <button
           type="button"
           onClick={onClose}
-          className="inline-flex h-10 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] px-4 text-[11px] font-black uppercase tracking-[0.16em] text-white/80 transition hover:bg-white/[0.08] hover:text-white"
+          className="inline-flex h-10 items-center justify-center rounded-2xl border border-white/10 bg-black/30 px-4 text-[11px] font-black uppercase tracking-[0.16em] text-white/82 transition hover:bg-black/45 hover:text-white"
         >
           Back
         </button>
 
         <div className="text-right">
-          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-white/35">
+          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-white/38">
             Daily Check-In
           </p>
           <h1 className="text-base font-black uppercase tracking-[0.16em] text-white">
@@ -116,8 +115,8 @@ export default function DailyCheckInScreen({ onStartWorkout, onClose }: Props) {
 
       <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-6 pt-4">
         <div className="space-y-3">
-          <div className="rounded-[24px] border border-white/10 bg-white/[0.04] p-4">
-            <p className="text-sm leading-6 text-white/62">
+          <div className="rounded-[24px] border border-white/12 bg-white/[0.055] p-4">
+            <p className="text-sm leading-6 text-white/72">
               Quick streak, recovery and next-focus overview from your recent training.
             </p>
 
@@ -145,48 +144,48 @@ export default function DailyCheckInScreen({ onStartWorkout, onClose }: Props) {
             </div>
           </div>
 
-          <div className="rounded-[24px] border border-white/10 bg-white/[0.04] p-4">
-            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-lime-300/80">
+          <div className="rounded-[24px] border border-white/12 bg-white/[0.055] p-4">
+            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-lime-300/85">
               Recommended next focus
             </p>
 
-            <h2 className="mt-2 text-[22px] font-black leading-none text-white">
+            <h2 className="mt-2 text-[20px] font-black leading-none text-white">
               {muscleLabels[suggestion.focusArea]} day
             </h2>
 
-            <p className="mt-3 text-sm leading-6 text-white/65">
+            <p className="mt-3 text-sm leading-6 text-white/72">
               {suggestion.reason}
             </p>
 
-            <div className="mt-4 flex gap-2">
+            <div className="mt-4 grid grid-cols-2 gap-2">
               <button
                 type="button"
                 onClick={() => onStartWorkout(suggestion.focusArea)}
-                className="inline-flex min-h-[50px] flex-1 items-center justify-center gap-2 rounded-[18px] bg-lime-300 px-4 py-3 text-sm font-black uppercase tracking-[0.14em] text-black shadow-[0_18px_50px_rgba(163,230,53,0.18)] transition hover:brightness-105"
+                className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-[16px] bg-lime-300 px-3 py-2.5 text-[11px] font-black uppercase tracking-[0.12em] text-black shadow-[0_18px_50px_rgba(163,230,53,0.16)] transition hover:brightness-105"
               >
-                Start recommended
+                Start
                 <ArrowRight className="h-4 w-4" />
               </button>
 
               <button
                 type="button"
                 onClick={() => onStartWorkout()}
-                className="inline-flex min-h-[50px] flex-1 items-center justify-center rounded-[18px] border border-white/10 bg-white/[0.05] px-4 py-3 text-sm font-black uppercase tracking-[0.14em] text-white transition hover:bg-white/[0.08]"
+                className="inline-flex min-h-[44px] items-center justify-center rounded-[16px] border border-white/10 bg-black/30 px-3 py-2.5 text-[11px] font-black uppercase tracking-[0.12em] text-white transition hover:bg-black/45"
               >
-                Start anyway
+                Choose
               </button>
             </div>
           </div>
 
-          <div className="rounded-[24px] border border-white/10 bg-white/[0.04] p-4">
-            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/40">
+          <div className="rounded-[24px] border border-white/12 bg-white/[0.055] p-4">
+            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/42">
               PR watch
             </p>
 
             {topPR ? (
               <>
                 <h3 className="mt-2 text-lg font-black text-white">{topPR.exercise}</h3>
-                <p className="mt-2 text-sm leading-6 text-white/65">
+                <p className="mt-2 text-sm leading-6 text-white/72">
                   You are only {topPR.diff} kg from your current best. Strong day to push if energy is there.
                 </p>
               </>
@@ -195,24 +194,24 @@ export default function DailyCheckInScreen({ onStartWorkout, onClose }: Props) {
                 <h3 className="mt-2 text-lg font-black text-white">
                   No immediate PR target
                 </h3>
-                <p className="mt-2 text-sm leading-6 text-white/65">
+                <p className="mt-2 text-sm leading-6 text-white/72">
                   That is fine. Today can still be a consistency win.
                 </p>
               </>
             )}
           </div>
 
-          <div className="rounded-[24px] border border-white/10 bg-white/[0.04] p-4">
-            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/40">
+          <div className="rounded-[24px] border border-white/12 bg-white/[0.055] p-4">
+            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/42">
               Walk fallback
             </p>
-            <p className="mt-2 text-sm leading-6 text-white/65">
+            <p className="mt-2 text-sm leading-6 text-white/72">
               A walk can keep identity, momentum and streak alive even on a lighter day.
             </p>
           </div>
 
-          <div className="rounded-[24px] border border-white/10 bg-white/[0.04] p-4">
-            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/40">
+          <div className="rounded-[24px] border border-white/12 bg-white/[0.055] p-4">
+            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/42">
               Recent focus balance
             </p>
 

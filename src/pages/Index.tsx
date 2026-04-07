@@ -20,7 +20,7 @@ import {
 } from '@/lib/gamificationStore';
 
 type BaseView = 'home' | 'gallery' | 'shop' | 'workout';
-type MenuView = 'root' | 'settings' | 'daily' | 'history' | 'nutrition';
+type MenuView = 'root' | 'settings' | 'timer' | 'daily' | 'history' | 'nutrition';
 type WorkoutFocus = 'chest' | 'back' | 'arms' | 'legs' | undefined;
 
 type IndexScreenProps = {
@@ -140,7 +140,7 @@ export default function IndexScreen({ openPaywall }: IndexScreenProps) {
 
     return (
       <div
-        className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm"
+        className="fixed inset-0 z-50 bg-black/90 backdrop-blur-sm"
         onClick={closeMenu}
       >
         {currentMenuView === 'root' && (
@@ -155,6 +155,7 @@ export default function IndexScreen({ openPaywall }: IndexScreenProps) {
               setBaseView('shop');
             }}
             onOpenSettings={() => pushMenuView('settings')}
+            onOpenTimerSettings={() => pushMenuView('timer')}
             onOpenPremium={() => {
               closeMenu();
               setPremiumOpen(true);
@@ -164,7 +165,11 @@ export default function IndexScreen({ openPaywall }: IndexScreenProps) {
         )}
 
         {currentMenuView === 'settings' && (
-          <SettingsScreen onBack={popMenuView} />
+          <SettingsScreen onBack={popMenuView} initialSection="profile" />
+        )}
+
+        {currentMenuView === 'timer' && (
+          <SettingsScreen onBack={popMenuView} initialSection="timer" />
         )}
 
         {currentMenuView === 'daily' && (
