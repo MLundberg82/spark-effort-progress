@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, Crown, Lock, Sparkles } from 'lucide-react';
 
-import EquippedRatPreview from '@/components/EquippedRatPreview';
 import { getBackgroundImage, getItemImage } from '@/lib/assetRegistry';
 import type { SlotKey } from '@/lib/assetTypes';
 import { getLevelFromXP, getTotalXP } from '@/lib/gamificationStore';
@@ -16,7 +15,7 @@ import {
 
 type ShopScreenProps = {
   onBack: () => void;
-  onOpenPaywall: () => void;
+  onOpenPaywall?: () => void;
 };
 
 const slotLabels: Record<SlotKey, string> = {
@@ -50,10 +49,12 @@ function getDisplayAsset(item: ShopItem) {
 
 function getResolvedLevel(value: unknown): number {
   if (typeof value === 'number') return value;
+
   if (value && typeof value === 'object' && 'level' in value) {
     const candidate = (value as { level?: unknown }).level;
     if (typeof candidate === 'number') return candidate;
   }
+
   return 1;
 }
 
@@ -76,11 +77,38 @@ function SlotButton({
         'rounded-full border px-3 py-2 text-xs font-black transition',
         active
           ? 'border-lime-300/30 bg-lime-300/12 text-white'
-          : 'border-white/10 bg-white/[0.05] text-white/70 hover:text-white',
+          : 'border-white/10 bg-white/[0.05] text-white/70 hover:bg-white/[0.08] hover:text-white',
       ].join(' ')}
     >
       {label}
-      {equipped ? <span className="ml-2 text-[10px] text-lime-300/80">•</span> : null}
+      {equipped ? (
+        <span className="ml-2 text-[10px] text-lime-300/80">•</span>
+      ) : null}
+    </button>
+  );
+}
+
+function ShopTabButton({
+  active,
+  label,
+  onClick,
+}: {
+  active: boolean;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={[
+        'flex-1 rounded-full border px-3 py-2 text-xs font-black transition',
+        active
+          ? 'border-lime-300/30 bg-lime-300/12 text-white'
+          : 'border-white/10 bg-white/[0.05] text-white/65 hover:bg-white/[0.08] hover:text-white',
+      ].join(' ')}
+    >
+      {label}
     </button>
   );
 }
@@ -98,7 +126,7 @@ function ItemCard({
   const asset = getDisplayAsset(item);
 
   return (
-    <div className="rounded-[24px] border border-white/10 bg-white/[0.05] p-3 shadow-[0_12px_34px_rgba(0,0,0,0.22)]">
+    <div className="rounded-[22px] border border-white/10 bg-white/[0.04] p-3 shadow-[0_12px_34px_rgba(0,0,0,0.22)]">
       <div className="mb-3 overflow-hidden rounded-[18px] border border-white/10 bg-black/20">
         {asset ? (
           <img
@@ -118,7 +146,11 @@ function ItemCard({
         <div className="min-w-0">
           <h3 className="truncate text-sm font-black text-white">{item.name}</h3>
           <p className="mt-1 text-xs text-white/55">
-            {isEquipped ? 'Equipped now' : item.owned ? 'Owned' : item.priceLabel ?? '9 kr'}
+            {isEquipped
+              ? 'Equipped now'
+              : item.owned
+                ? 'Owned'
+                : item.priceLabel ?? '9 kr'}
           </p>
         </div>
 
@@ -149,7 +181,13 @@ function ItemCard({
               : 'bg-gradient-to-r from-lime-300 via-emerald-400 to-yellow-300 text-black hover:brightness-105',
         ].join(' ')}
       >
-        {locked ? 'Unlock Premium' : isEquipped ? 'Equipped' : item.owned ? 'Equip' : `Buy · ${item.priceLabel ?? '9 kr'}`}
+        {locked
+          ? 'Unlock Premium'
+          : isEquipped
+            ? 'Equipped'
+            : item.owned
+              ? 'Equip'
+              : `Buy · ${item.priceLabel ?? '9 kr'}`}
       </button>
     </div>
   );
@@ -191,139 +229,135 @@ export default function ShopScreen({
   }, [items, activeSlot, activeTab]);
 
   const ownedCount = items.filter((item) => item.owned).length;
-  const equippedCount = slotOrder.filter((slot) => Boolean(getEquippedItemIdForSlot(slot))).length;
+  const equippedCount = slotOrder.filter((slot) =>
+    Boolean(getEquippedItemIdForSlot(slot)),
+  ).length;
+  const currentSlotEquipped = getEquippedItemIdForSlot(activeSlot);
 
   const handleBuyOrEquip = (item: ShopItem) => {
     if (!canAccessShopItem(item)) {
-      onOpenPaywall();
+      onOpenPaywall?.();
       return;
     }
 
-    if (!item.owned) ownItem(item.id);
+    if (!item.owned) {
+      ownItem(item.id);
+    }
+
     equipItem(item.id);
     setRefreshKey((value) => value + 1);
   };
 
-  const currentSlotEquipped = getEquippedItemIdForSlot(activeSlot);
-
   return (
-    <div className="min-h-[100dvh] bg-[#06080b] text-white">
-      <div className="mx-auto flex min-h-[100dvh] w-full max-w-md flex-col px-4 pb-5 pt-4">
-        <div className="mb-3 flex items-center justify-between gap-3">
+    <div className="min-h-screen bg-[#050505] text-white">
+      <div className="mx-auto flex min-h-screen w-full max-w-[460px] flex-col px-4 pb-6 pt-4">
+        <div className="flex items-start justify-between gap-3">
           <button
             type="button"
             onClick={onBack}
-            className="flex h-11 w-11 items-center justify-center rounded-[18px] border border-white/10 bg-white/[0.06] text-white transition hover:bg-white/[0.09]"
+            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-[16px] border border-white/10 bg-white/[0.04] text-white/80 transition hover:bg-white/[0.08] hover:text-white"
             aria-label="Back"
           >
-            <ArrowLeft className="h-5 w-5" />
+            <ArrowLeft className="h-4 w-4" />
           </button>
 
-          <div className="text-center">
-            <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-lime-300/70">
+          <div className="min-w-0 flex-1 text-right">
+            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-white/35">
               Shop
             </p>
-            <h1 className="text-lg font-black tracking-tight">GymRat Identity</h1>
+            <h1 className="mt-1 text-[22px] font-black leading-none text-white">
+              GymRat Identity
+            </h1>
+            <p className="mt-2 text-sm text-white/55">
+              Tight, item-first loadout. No preview clutter.
+            </p>
           </div>
-
-          <button
-            type="button"
-            onClick={onOpenPaywall}
-            className="rounded-full border border-yellow-300/20 bg-yellow-300/10 px-3 py-2 text-[11px] font-black uppercase tracking-[0.18em] text-yellow-100 transition hover:bg-yellow-300/14"
-          >
-            Premium
-          </button>
         </div>
 
-        <div className="mb-3 grid grid-cols-3 gap-2">
-          <div className="rounded-[20px] border border-white/10 bg-white/[0.05] px-3 py-2">
-            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/50">
+        <div className="mt-4 grid grid-cols-3 gap-2">
+          <div className="rounded-[18px] border border-white/10 bg-white/[0.04] p-3">
+            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/35">
               Owned
             </p>
-            <p className="mt-1 text-base font-black">{ownedCount}</p>
+            <p className="mt-1 text-lg font-black text-white">{ownedCount}</p>
           </div>
-          <div className="rounded-[20px] border border-white/10 bg-white/[0.05] px-3 py-2">
-            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/50">
+
+          <div className="rounded-[18px] border border-white/10 bg-white/[0.04] p-3">
+            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/35">
               Equipped
             </p>
-            <p className="mt-1 text-base font-black">{equippedCount}</p>
+            <p className="mt-1 text-lg font-black text-white">{equippedCount}</p>
           </div>
-          <div className="rounded-[20px] border border-white/10 bg-white/[0.05] px-3 py-2">
-            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/50">
+
+          <div className="rounded-[18px] border border-white/10 bg-white/[0.04] p-3">
+            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/35">
               Level
             </p>
-            <p className="mt-1 text-base font-black">{currentLevel}</p>
+            <p className="mt-1 text-lg font-black text-white">{currentLevel}</p>
           </div>
         </div>
 
-        <div className="mb-3 rounded-[28px] border border-white/10 bg-white/[0.04] p-3">
-          <EquippedRatPreview
-            level={currentLevel}
-            prioritySlot={activeSlot === 'background' ? null : activeSlot}
-            className="mx-auto w-full"
+        <div className="mt-4 overflow-x-auto pb-1">
+          <div className="flex min-w-max gap-2">
+            {slotOrder.map((slot) => (
+              <SlotButton
+                key={slot}
+                label={slotLabels[slot]}
+                active={activeSlot === slot}
+                equipped={Boolean(getEquippedItemIdForSlot(slot))}
+                onClick={() => setActiveSlot(slot)}
+              />
+            ))}
+          </div>
+        </div>
+
+        <div className="mt-3 flex gap-2">
+          <ShopTabButton
+            active={activeTab === 'all'}
+            label="All"
+            onClick={() => setActiveTab('all')}
+          />
+          <ShopTabButton
+            active={activeTab === 'regular'}
+            label="Regular"
+            onClick={() => setActiveTab('regular')}
+          />
+          <ShopTabButton
+            active={activeTab === 'premium'}
+            label="Premium"
+            onClick={() => setActiveTab('premium')}
           />
         </div>
 
-        <div className="mb-3 flex flex-wrap gap-2">
-          {slotOrder.map((slot) => (
-            <SlotButton
-              key={slot}
-              label={slotLabels[slot]}
-              active={activeSlot === slot}
-              equipped={Boolean(getEquippedItemIdForSlot(slot))}
-              onClick={() => setActiveSlot(slot)}
-            />
-          ))}
-        </div>
+        {visibleItems.length > 0 ? (
+          <div className="mt-4 grid grid-cols-2 gap-3">
+            {visibleItems.map((item) => {
+              const isEquipped = currentSlotEquipped === item.id;
 
-        <div className="mb-3 flex gap-2">
-          {([
-            { key: 'all', label: 'All' },
-            { key: 'regular', label: 'Regular' },
-            { key: 'premium', label: 'Premium' },
-          ] as const).map((option) => (
-            <button
-              key={option.key}
-              type="button"
-              onClick={() => setActiveTab(option.key)}
-              className={[
-                'flex-1 rounded-full border px-3 py-2 text-xs font-black transition',
-                activeTab === option.key
-                  ? 'border-lime-300/30 bg-lime-300/12 text-white'
-                  : 'border-white/10 bg-white/[0.05] text-white/65 hover:text-white',
-              ].join(' ')}
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
-
-        <div className="grid grid-cols-2 gap-3 overflow-y-auto pb-1">
-          {visibleItems.map((item) => {
-            const isEquipped = currentSlotEquipped === item.id;
-
-            return (
-              <ItemCard
-                key={item.id}
-                item={item}
-                isEquipped={isEquipped}
-                onAction={handleBuyOrEquip}
-              />
-            );
-          })}
-
-          {visibleItems.length === 0 ? (
-            <div className="col-span-2 rounded-[24px] border border-dashed border-white/10 bg-white/[0.04] p-6 text-center">
-              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-white/[0.06]">
-                <Sparkles className="h-5 w-5 text-white/70" />
-              </div>
-              <h3 className="text-sm font-black text-white">No items in this slot yet</h3>
-              <p className="mt-1 text-xs text-white/55">
-                Fill this slot next so the rat keeps feeling more alive.
-              </p>
+              return (
+                <ItemCard
+                  key={item.id}
+                  item={item}
+                  isEquipped={isEquipped}
+                  onAction={handleBuyOrEquip}
+                />
+              );
+            })}
+          </div>
+        ) : (
+          <div className="mt-4 rounded-[22px] border border-dashed border-white/10 bg-white/[0.03] p-5 text-center">
+            <div className="mx-auto inline-flex h-12 w-12 items-center justify-center rounded-[16px] border border-white/10 bg-white/[0.04] text-white/70">
+              <Sparkles className="h-5 w-5" />
             </div>
-          ) : null}
-        </div>
+
+            <h3 className="mt-4 text-base font-black text-white">
+              No items in this slot yet
+            </h3>
+            <p className="mt-2 text-sm leading-6 text-white/58">
+              Fill this slot next so the rat keeps feeling more alive.
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
