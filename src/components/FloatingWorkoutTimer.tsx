@@ -41,11 +41,12 @@ function PhasePill({
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-2xl px-3 py-2 text-[10px] font-black uppercase tracking-[0.14em] transition ${
+      className={[
+        'rounded-[14px] border px-3 py-2 text-[11px] font-black uppercase tracking-[0.14em] transition',
         active
-          ? 'border border-lime-300/25 bg-lime-300/12 text-lime-100'
-          : 'border border-white/10 bg-white/5 text-white/60 hover:bg-white/10'
-      }`}
+          ? 'border-lime-300/30 bg-lime-300/[0.10] text-white'
+          : 'border-white/10 bg-white/[0.04] text-white/72 hover:bg-white/[0.08] hover:text-white',
+      ].join(' ')}
     >
       {label}
     </button>
@@ -87,13 +88,13 @@ export default function FloatingWorkoutTimer() {
   const setActive = activePhase === 'set';
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 w-[min(92vw,300px)] rounded-[24px] border border-white/10 bg-black/88 p-3.5 text-white shadow-[0_20px_60px_rgba(0,0,0,0.45)] backdrop-blur">
+    <div className="fixed left-1/2 top-3 z-[70] w-[calc(100%-24px)] max-w-[420px] -translate-x-1/2 rounded-[24px] border border-white/10 bg-[#070707]/96 px-3.5 py-3 text-white shadow-[0_18px_60px_rgba(0,0,0,0.42)] backdrop-blur-sm">
       <div className="flex items-start justify-between gap-3">
-        <div>
-          <div className="text-[10px] font-black uppercase tracking-[0.18em] text-lime-300/80">
+        <div className="min-w-0">
+          <div className="text-[10px] font-black uppercase tracking-[0.18em] text-lime-300/85">
             Workout timer
           </div>
-          <div className="mt-1 text-[11px] font-bold text-white/55">
+          <div className="mt-1 text-[12px] text-white/58">
             Manual start · {settings.autoLoop ? 'Auto loop on' : 'Single cycle'}
           </div>
         </div>
@@ -104,25 +105,24 @@ export default function FloatingWorkoutTimer() {
             stopWorkoutTimer();
             setTimerState(getWorkoutTimerState());
           }}
-          className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/65 transition hover:bg-white/10 hover:text-white"
+          className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-white/65 transition hover:bg-white/[0.08] hover:text-white"
           aria-label="Stop timer"
         >
-          <X className="h-3.5 w-3.5" />
+          <X className="h-4 w-4" />
         </button>
       </div>
 
-      <div className="mt-3 grid grid-cols-2 gap-2">
+      <div className="mt-3 flex items-center gap-2">
         <PhasePill
-          label={`Set · ${settings.setSeconds}s`}
+          label="Set"
           active={setActive}
           onClick={() => {
             resetWorkoutTimerToPhase('set');
             setTimerState(getWorkoutTimerState());
           }}
         />
-
         <PhasePill
-          label={`Rest · ${settings.restSeconds}s`}
+          label="Rest"
           active={!setActive}
           onClick={() => {
             resetWorkoutTimerToPhase('rest');
@@ -131,16 +131,16 @@ export default function FloatingWorkoutTimer() {
         />
       </div>
 
-      <div className="mt-3 rounded-[20px] border border-white/10 bg-white/[0.04] px-4 py-4 text-center">
-        <div className="text-[10px] font-black uppercase tracking-[0.16em] text-white/45">
+      <div className="mt-3 rounded-[18px] border border-white/10 bg-white/[0.04] px-4 py-4 text-center">
+        <div className="text-[10px] font-black uppercase tracking-[0.18em] text-white/50">
           {setActive ? 'Set phase' : 'Rest phase'}
         </div>
-        <div className="mt-1 text-4xl font-black tracking-tight">
+        <div className="mt-1 text-[36px] font-black tracking-tight text-white">
           {formatSeconds(timerState.remainingSeconds)}
         </div>
       </div>
 
-      <div className="mt-3 grid grid-cols-4 gap-2">
+      <div className="mt-3 grid grid-cols-3 gap-2">
         <button
           type="button"
           onClick={() => {
@@ -151,10 +151,11 @@ export default function FloatingWorkoutTimer() {
             }
             setTimerState(getWorkoutTimerState());
           }}
-          className="inline-flex h-10 items-center justify-center rounded-2xl bg-lime-300 text-black transition hover:brightness-105"
+          className="inline-flex h-11 items-center justify-center gap-2 rounded-[16px] bg-lime-300 text-[11px] font-black uppercase tracking-[0.14em] text-black transition hover:brightness-105"
           aria-label={timerState.running ? 'Pause timer' : 'Start timer'}
         >
           {timerState.running ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+          {timerState.running ? 'Pause' : 'Start'}
         </button>
 
         <button
@@ -163,10 +164,10 @@ export default function FloatingWorkoutTimer() {
             resetWorkoutTimerToPhase(activePhase);
             setTimerState(getWorkoutTimerState());
           }}
-          className="inline-flex h-10 items-center justify-center rounded-2xl border border-white/10 bg-white/5 transition hover:bg-white/10"
+          className="inline-flex h-11 items-center justify-center rounded-[16px] border border-white/10 bg-white/[0.04] transition hover:bg-white/[0.08]"
           aria-label="Reset current phase"
         >
-          <TimerReset className="h-4 w-4" />
+          <RefreshCcw className="h-4 w-4 text-white" />
         </button>
 
         <button
@@ -175,23 +176,14 @@ export default function FloatingWorkoutTimer() {
             switchWorkoutTimerPhase();
             setTimerState(getWorkoutTimerState());
           }}
-          className="inline-flex h-10 items-center justify-center rounded-2xl border border-white/10 bg-white/5 transition hover:bg-white/10"
+          className="inline-flex h-11 items-center justify-center rounded-[16px] border border-white/10 bg-white/[0.04] transition hover:bg-white/[0.08]"
           aria-label="Switch phase"
         >
-          <RefreshCcw className="h-4 w-4" />
-        </button>
-
-        <button
-          type="button"
-          className={`inline-flex h-10 items-center justify-center rounded-2xl border transition ${
-            settings.autoLoop
-              ? 'border-lime-300/25 bg-lime-300/12 text-lime-100'
-              : 'border-white/10 bg-white/5 text-white/60'
-          }`}
-          aria-label="Auto loop indicator"
-          disabled
-        >
-          <Repeat className="h-4 w-4" />
+          {settings.autoLoop ? (
+            <Repeat className="h-4 w-4 text-white" />
+          ) : (
+            <TimerReset className="h-4 w-4 text-white" />
+          )}
         </button>
       </div>
     </div>
