@@ -1,115 +1,23 @@
-import { useEffect, useState } from 'react';
-import {
-  ArrowLeft,
-  Clock3,
-  Minus,
-  PauseCircle,
-  PlayCircle,
-  Plus,
-  RefreshCcw,
-  Repeat,
-} from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { ArrowLeft, Clock3, RotateCcw } from 'lucide-react';
 import {
   getTimerSettings,
-  getWorkoutTimerState,
-  pauseWorkoutTimer,
   resetWorkoutTimerToPhase,
   setTimerSettings,
-  startWorkoutTimer,
-  stopWorkoutTimer,
-  subscribeTimerSettings,
-  subscribeWorkoutTimer,
-  switchWorkoutTimerPhase,
-  tickWorkoutTimer,
-  type TimerPhase,
+  type TimerSettings,
 } from '@/lib/timerStore';
 
-type TimerSettingsScreenProps = {
+type Props = {
   onBack: () => void;
 };
 
-function formatSeconds(total: number) {
-  const minutes = Math.floor(total / 60);
-  const seconds = total % 60;
-
-  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(
-    2,
-    '0',
-  )}`;
-}
-
-function clampSeconds(value: number) {
-  return Math.max(5, Math.min(60 * 60, Math.round(value)));
-}
-
-function IconButton({
-  icon,
-  label,
-  onClick,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.06] text-white/80 transition hover:bg-white/[0.10] hover:text-white"
-      aria-label={label}
-    >
-      {icon}
-    </button>
-  );
-}
-
-function StepperRow({
-  label,
-  value,
-  suffix,
-  onChange,
-}: {
-  label: string;
-  value: number;
-  suffix: string;
-  onChange: (next: number) => void;
-}) {
-  return (
-    <div className="rounded-[24px] border border-white/10 bg-white/[0.06] px-4 py-3.5">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-white/45">
-            {label}
-          </p>
-          <p className="mt-1 text-lg font-black text-white">
-            {value} {suffix}
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <IconButton
-            icon={<Minus size={16} />}
-            label={`Decrease ${label}`}
-            onClick={() => onChange(clampSeconds(value - 5))}
-          />
-          <IconButton
-            icon={<Plus size={16} />}
-            label={`Increase ${label}`}
-            onClick={() => onChange(clampSeconds(value + 5))}
-          />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ToggleButton({
-  label,
+function TimerChip({
   active,
+  label,
   onClick,
 }: {
-  label: string;
   active: boolean;
+  label: string;
   onClick: () => void;
 }) {
   return (
@@ -117,10 +25,10 @@ function ToggleButton({
       type="button"
       onClick={onClick}
       className={[
-        'rounded-[18px] border px-3 py-2.5 text-sm font-black uppercase tracking-[0.1em] transition',
+        'rounded-[14px] border px-3 py-2 text-sm font-bold transition',
         active
-          ? 'border-lime-300/30 bg-lime-300/14 text-white'
-          : 'border-white/10 bg-white/[0.05] text-white/65 hover:text-white',
+          ? 'border-lime-300/30 bg-lime-300/[0.10] text-white'
+          : 'border-white/10 bg-white/[0.04] text-white/78 hover:bg-white/[0.08] hover:text-white',
       ].join(' ')}
     >
       {label}
@@ -128,234 +36,175 @@ function ToggleButton({
   );
 }
 
-export default function TimerSettingsScreen({
-  onBack,
-}: TimerSettingsScreenProps) {
-  const [settings, setSettings] = useState(getTimerSettings());
-  const [timerState, setTimerState] = useState(getWorkoutTimerState());
+export default function TimerSettingsScreen({ onBack }: Props) {
+  const initialTimer = useMemo(() => getTimerSettings(), []);
+  const [timerSettings, setTimerSettingsState] =
+    useState<TimerSettings>(initialTimer);
+  const [saved, setSaved] = useState(false);
 
-  useEffect(() => {
-    const unsubscribeSettings = subscribeTimerSettings(() => {
-      setSettings(getTimerSettings());
-    });
-
-    const unsubscribeTimer = subscribeWorkoutTimer(() => {
-      setTimerState(getWorkoutTimerState());
-    });
-
-    return () => {
-      unsubscribeSettings();
-      unsubscribeTimer();
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!timerState.running) return;
-
-    const interval = window.setInterval(() => {
-      setTimerState(tickWorkoutTimer());
-    }, 1000);
-
-    return () => window.clearInterval(interval);
-  }, [timerState.running]);
-
-  const activePhase: TimerPhase = timerState.phase;
-
-  const updateSetSeconds = (next: number) => {
-    const updated = setTimerSettings({ setSeconds: next });
-    setSettings(updated);
-    setTimerState(getWorkoutTimerState());
+  const flashSaved = () => {
+    setSaved(true);
+    window.setTimeout(() => setSaved(false), 1200);
   };
 
-  const updateRestSeconds = (next: number) => {
-    const updated = setTimerSettings({ restSeconds: next });
-    setSettings(updated);
-    setTimerState(getWorkoutTimerState());
-  };
+  const persistTimer = (partial: Partial<TimerSettings>) => {
+    const next = setTimerSettings(partial);
+    setTimerSettingsState(next);
 
-  const toggleEnabled = () => {
-    const updated = setTimerSettings({ enabled: !settings.enabled });
-    setSettings(updated);
-    setTimerState(getWorkoutTimerState());
-  };
-
-  const toggleAutoLoop = () => {
-    const updated = setTimerSettings({ autoLoop: !settings.autoLoop });
-    setSettings(updated);
-    setTimerState(getWorkoutTimerState());
-  };
-
-  const handlePlayPause = () => {
-    if (timerState.running) {
-      pauseWorkoutTimer();
-    } else {
-      startWorkoutTimer();
+    if (!next.enabled) {
+      resetWorkoutTimerToPhase('set');
     }
 
-    setTimerState(getWorkoutTimerState());
-  };
-
-  const handleResetCurrent = () => {
-    resetWorkoutTimerToPhase(activePhase);
-    setTimerState(getWorkoutTimerState());
-  };
-
-  const handleSwitchPhase = () => {
-    switchWorkoutTimerPhase();
-    setTimerState(getWorkoutTimerState());
-  };
-
-  const handleStop = () => {
-    stopWorkoutTimer();
-    setTimerState(getWorkoutTimerState());
+    flashSaved();
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-[4px]"
-      onClick={onBack}
-    >
-      <div
-        className="min-h-full px-4 pb-6 pt-[max(env(safe-area-inset-top),16px)]"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <div className="mx-auto w-full max-w-[440px] rounded-[32px] border border-white/10 bg-[#0b0b0b]/98 p-4 shadow-[0_28px_80px_rgba(0,0,0,0.55)]">
+    <div className="min-h-full bg-black px-4 pb-6 pt-4 text-white">
+      <div className="mx-auto max-w-2xl">
+        <div className="rounded-[26px] border border-white/10 bg-[#080808] p-4 shadow-[0_24px_80px_rgba(0,0,0,0.5)]">
           <div className="flex items-start justify-between gap-3">
-            <div>
-              <button
-                type="button"
-                onClick={onBack}
-                className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-[0.14em] text-white/55 transition hover:text-white"
-              >
-                <ArrowLeft size={14} />
-                Back
-              </button>
+            <button
+              type="button"
+              onClick={onBack}
+              aria-label="Back"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-[14px] border border-white/10 bg-white/[0.04] text-white/78 transition hover:bg-white/[0.08]"
+            >
+              <ArrowLeft className="h-4.5 w-4.5" />
+            </button>
 
-              <p className="mt-3 text-[10px] font-black uppercase tracking-[0.2em] text-white/42">
+            <div className="min-w-0 flex-1 text-center">
+              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-lime-300/85">
                 Timer
               </p>
-              <h2 className="mt-1 text-[28px] font-black leading-none text-white">
-                Rest & set flow
-              </h2>
-              <p className="mt-2 max-w-[28rem] text-sm leading-relaxed text-white/62">
-                Dedicated timer controls. Cleaner than keeping it jammed into
-                the main menu.
+              <h1 className="mt-1 text-[28px] font-black tracking-tight text-white">
+                Timer settings
+              </h1>
+              <p className="mx-auto mt-2 max-w-[28rem] text-sm leading-5 text-white/72">
+                Only timer controls live here.
               </p>
             </div>
 
-            <div className="rounded-2xl border border-white/10 bg-white/[0.06] p-3 text-white/75">
-              <Clock3 size={18} />
+            <div className="h-10 w-10 shrink-0" />
+          </div>
+
+          <div className="mt-4 rounded-[22px] border border-white/10 bg-[#0b0b0b] p-4">
+            <div className="mb-3 flex items-center gap-2">
+              <span className="flex h-8 w-8 items-center justify-center rounded-[12px] border border-white/10 bg-white/[0.04] text-white/80">
+                <Clock3 className="h-4 w-4" />
+              </span>
+              <h2 className="text-sm font-black tracking-tight text-white">
+                Workout timer
+              </h2>
             </div>
-          </div>
 
-          <div className="mt-4 grid grid-cols-2 gap-2.5">
-            <ToggleButton
-              label={settings.enabled ? 'Timer on' : 'Timer off'}
-              active={settings.enabled}
-              onClick={toggleEnabled}
-            />
-            <ToggleButton
-              label={settings.autoLoop ? 'Loop on' : 'Loop off'}
-              active={settings.autoLoop}
-              onClick={toggleAutoLoop}
-            />
-          </div>
+            <div className="space-y-3">
+              <button
+                type="button"
+                onClick={() => persistTimer({ enabled: !timerSettings.enabled })}
+                className={[
+                  'flex w-full items-center justify-between rounded-[16px] border px-3.5 py-3 text-left transition',
+                  timerSettings.enabled
+                    ? 'border-lime-300/22 bg-lime-300/[0.08]'
+                    : 'border-white/10 bg-white/[0.04]',
+                ].join(' ')}
+              >
+                <div>
+                  <div className="text-sm font-black text-white">Timer enabled</div>
+                  <div className="mt-1 text-xs text-white/62">
+                    {timerSettings.enabled ? 'Visible in workouts' : 'Hidden in workouts'}
+                  </div>
+                </div>
 
-          <div className="mt-4 space-y-3">
-            <StepperRow
-              label="Set duration"
-              value={settings.setSeconds}
-              suffix="sec"
-              onChange={updateSetSeconds}
-            />
+                <div
+                  className={[
+                    'h-6 w-11 rounded-full p-1 transition',
+                    timerSettings.enabled ? 'bg-lime-300' : 'bg-white/12',
+                  ].join(' ')}
+                >
+                  <div
+                    className={[
+                      'h-4 w-4 rounded-full bg-black transition',
+                      timerSettings.enabled ? 'translate-x-5' : 'translate-x-0',
+                    ].join(' ')}
+                  />
+                </div>
+              </button>
 
-            <StepperRow
-              label="Rest duration"
-              value={settings.restSeconds}
-              suffix="sec"
-              onChange={updateRestSeconds}
-            />
-          </div>
+              <div className="grid gap-3 md:grid-cols-2">
+                <div className="rounded-[16px] border border-white/10 bg-white/[0.04] p-3">
+                  <div className="text-[10px] font-black uppercase tracking-[0.18em] text-white/52">
+                    Set seconds
+                  </div>
+                  <div className="mt-2 grid grid-cols-3 gap-2">
+                    {[30, 45, 60].map((value) => (
+                      <TimerChip
+                        key={value}
+                        label={`${value}s`}
+                        active={timerSettings.setSeconds === value}
+                        onClick={() => persistTimer({ setSeconds: value })}
+                      />
+                    ))}
+                  </div>
+                </div>
 
-          <div className="mt-4 rounded-[28px] border border-white/10 bg-white/[0.06] p-4">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-white/45">
-                  Current phase
-                </p>
-                <p className="mt-1 text-lg font-black text-white">
-                  {activePhase === 'set' ? 'Set phase' : 'Rest phase'}
-                </p>
+                <div className="rounded-[16px] border border-white/10 bg-white/[0.04] p-3">
+                  <div className="text-[10px] font-black uppercase tracking-[0.18em] text-white/52">
+                    Rest seconds
+                  </div>
+                  <div className="mt-2 grid grid-cols-3 gap-2">
+                    {[60, 90, 120].map((value) => (
+                      <TimerChip
+                        key={value}
+                        label={`${value}s`}
+                        active={timerSettings.restSeconds === value}
+                        onClick={() => persistTimer({ restSeconds: value })}
+                      />
+                    ))}
+                  </div>
+                </div>
               </div>
 
-              <div className="rounded-2xl border border-white/10 bg-black/20 px-3 py-2 text-base font-black text-white">
-                {formatSeconds(timerState.remainingSeconds)}
+              <div className="grid gap-2 md:grid-cols-2">
+                <button
+                  type="button"
+                  onClick={() => persistTimer({ autoLoop: !timerSettings.autoLoop })}
+                  className={[
+                    'rounded-[14px] border px-3 py-2.5 text-sm font-bold transition',
+                    timerSettings.autoLoop
+                      ? 'border-lime-300/30 bg-lime-300/[0.10] text-white'
+                      : 'border-white/10 bg-white/[0.04] text-white/78 hover:bg-white/[0.06] hover:text-white',
+                  ].join(' ')}
+                >
+                  Auto loop: {timerSettings.autoLoop ? 'On' : 'Off'}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = setTimerSettings({
+                      enabled: true,
+                      setSeconds: 45,
+                      restSeconds: 90,
+                      autoLoop: true,
+                    });
+                    setTimerSettingsState(next);
+                    resetWorkoutTimerToPhase('set');
+                    flashSaved();
+                  }}
+                  className="inline-flex min-h-[42px] items-center justify-center gap-2 rounded-[14px] border border-white/10 bg-white/[0.04] px-3.5 py-2 text-[11px] font-black uppercase tracking-[0.14em] text-white transition hover:bg-white/[0.08]"
+                >
+                  <RotateCcw className="h-4 w-4" />
+                  Reset defaults
+                </button>
               </div>
             </div>
-
-            <div className="mt-4 grid grid-cols-2 gap-2.5">
-              <ToggleButton
-                label="Set"
-                active={activePhase === 'set'}
-                onClick={() => {
-                  resetWorkoutTimerToPhase('set');
-                  setTimerState(getWorkoutTimerState());
-                }}
-              />
-              <ToggleButton
-                label="Rest"
-                active={activePhase === 'rest'}
-                onClick={() => {
-                  resetWorkoutTimerToPhase('rest');
-                  setTimerState(getWorkoutTimerState());
-                }}
-              />
-            </div>
-
-            <div className="mt-4 flex items-center gap-2">
-              <button
-                type="button"
-                onClick={handlePlayPause}
-                className="inline-flex min-h-[52px] flex-1 items-center justify-center gap-2 rounded-[20px] bg-lime-300 px-4 py-3 text-sm font-black uppercase tracking-[0.14em] text-black transition hover:brightness-105"
-              >
-                {timerState.running ? (
-                  <PauseCircle size={18} />
-                ) : (
-                  <PlayCircle size={18} />
-                )}
-                {timerState.running ? 'Pause' : 'Start'}
-              </button>
-
-              <button
-                type="button"
-                onClick={handleResetCurrent}
-                className="inline-flex min-h-[52px] items-center justify-center gap-2 rounded-[20px] border border-white/10 bg-white/[0.05] px-4 py-3 text-sm font-black uppercase tracking-[0.14em] text-white transition hover:bg-white/[0.09]"
-              >
-                <RefreshCcw size={16} />
-                Reset
-              </button>
-            </div>
-
-            <div className="mt-2 flex items-center gap-2">
-              <button
-                type="button"
-                onClick={handleSwitchPhase}
-                className="inline-flex min-h-[46px] flex-1 items-center justify-center gap-2 rounded-[18px] border border-white/10 bg-white/[0.05] px-4 py-2.5 text-xs font-black uppercase tracking-[0.14em] text-white transition hover:bg-white/[0.09]"
-              >
-                <Repeat size={15} />
-                Switch phase
-              </button>
-
-              <button
-                type="button"
-                onClick={handleStop}
-                className="inline-flex min-h-[46px] flex-1 items-center justify-center gap-2 rounded-[18px] border border-white/10 bg-white/[0.05] px-4 py-2.5 text-xs font-black uppercase tracking-[0.14em] text-white/82 transition hover:bg-white/[0.09] hover:text-white"
-              >
-                <PauseCircle size={15} />
-                Stop
-              </button>
-            </div>
           </div>
+
+          {saved ? (
+            <div className="pointer-events-none fixed bottom-5 left-1/2 z-50 -translate-x-1/2 rounded-full border border-lime-300/25 bg-lime-300/12 px-4 py-2 text-sm font-bold text-lime-100 shadow-[0_10px_28px_rgba(132,204,22,0.15)]">
+              Saved
+            </div>
+          ) : null}
         </div>
       </div>
     </div>

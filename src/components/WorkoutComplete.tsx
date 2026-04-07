@@ -1,4 +1,4 @@
-import { Crown, Flame, Sparkles, Trophy } from 'lucide-react';
+import { Flame, Sparkles, Trophy } from 'lucide-react';
 
 type WorkoutCompleteSummary = {
   workoutName: string;
@@ -13,7 +13,7 @@ type WorkoutCompleteSummary = {
   }>;
 };
 
-type Props = {
+type WorkoutCompleteProps = {
   summary: WorkoutCompleteSummary;
   onContinue: () => void;
   onOpenPaywall: () => void;
@@ -43,7 +43,7 @@ export default function WorkoutComplete({
   summary,
   onContinue,
   onOpenPaywall,
-}: Props) {
+}: WorkoutCompleteProps) {
   const hasPRs = Boolean(summary.prs && summary.prs.length > 0);
 
   return (
@@ -79,38 +79,13 @@ export default function WorkoutComplete({
           </div>
 
           {hasPRs ? (
-            <div className="mt-5 rounded-[22px] border border-yellow-300/18 bg-yellow-300/[0.08] p-4">
-              <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-yellow-300/20 bg-yellow-300/10 px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-yellow-100">
-                <Trophy className="h-3.5 w-3.5" />
-                PR unlocked
-              </div>
-
-              <div className="space-y-2.5">
-                {summary.prs?.map((pr) => (
-                  <div
-                    key={`${pr.exercise}-${pr.newWeight}`}
-                    className="rounded-[16px] border border-white/10 bg-black/20 px-3 py-3"
-                  >
-                    <div className="text-sm font-black text-white">{pr.exercise}</div>
-                    <div className="mt-1 text-sm leading-5 text-white/78">
-                      New best: {pr.newWeight} kg
-                      {pr.previousBest > 0
-                        ? ` · Previous: ${pr.previousBest} kg`
-                        : ' · First logged PR'}
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <button
-                type="button"
-                onClick={onOpenPaywall}
-                className="mt-4 inline-flex min-h-[44px] items-center justify-center gap-2 rounded-[14px] border border-yellow-300/20 bg-yellow-300/12 px-4 py-2 text-[11px] font-black uppercase tracking-[0.14em] text-yellow-50 transition hover:bg-yellow-300/16"
-              >
-                <Crown className="h-4 w-4" />
-                See premium
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={onOpenPaywall}
+              className="mt-5 inline-flex min-h-[48px] w-full items-center justify-center gap-2 rounded-[16px] border border-yellow-300/20 bg-yellow-300/12 px-4 py-3 text-[11px] font-black uppercase tracking-[0.14em] text-yellow-50 transition hover:bg-yellow-300/16"
+            >
+              See premium
+            </button>
           ) : null}
         </div>
 
@@ -118,7 +93,7 @@ export default function WorkoutComplete({
           <button
             type="button"
             onClick={onContinue}
-            className="inline-flex min-h-[58px] w-full items-center justify-center rounded-[18px] bg-lime-300 px-5 py-4 text-[13px] font-black uppercase tracking-[0.16em] text-black shadow-[0_20px_50px_rgba(163,230,53,0.16)] transition hover:brightness-105"
+            className="inline-flex min-h-[68px] w-full items-center justify-center rounded-[20px] bg-lime-300 px-5 py-4 text-[14px] font-black uppercase tracking-[0.16em] text-black shadow-[0_20px_50px_rgba(163,230,53,0.16)] transition hover:brightness-105"
           >
             Continue
           </button>

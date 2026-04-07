@@ -8,6 +8,7 @@ import NutritionScreen from '@/components/NutritionScreen';
 import PremiumPaywall from '@/components/PremiumPaywall';
 import SettingsScreen from '@/components/SettingsScreen';
 import ShopScreen from '@/components/ShopScreen';
+import TimerSettingsScreen from '@/components/TimerSettingsScreen';
 import WorkoutFlow from '@/components/WorkoutFlow';
 import {
   getCurrentLevelXP,
@@ -25,6 +26,30 @@ type WorkoutFocus = 'chest' | 'back' | 'arms' | 'legs' | undefined;
 type IndexScreenProps = {
   openPaywall?: (trigger: string) => void;
 };
+
+function MenuScreenShell({
+  children,
+  onOutsideClick,
+}: {
+  children: React.ReactNode;
+  onOutsideClick: () => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-black/55 backdrop-blur-[2px]"
+      onClick={onOutsideClick}
+    >
+      <div className="flex h-full w-full justify-end">
+        <div
+          className="pointer-events-auto h-full w-full max-w-[440px] overflow-y-auto"
+          onClick={(event) => event.stopPropagation()}
+        >
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function IndexScreen({ openPaywall }: IndexScreenProps) {
   const [baseView, setBaseView] = useState<BaseView>('home');
@@ -137,83 +162,76 @@ export default function IndexScreen({ openPaywall }: IndexScreenProps) {
   const renderMenuOverlay = () => {
     if (!menuOpen) return null;
 
-    return (
-      <div
-        className="fixed inset-0 z-50 bg-black/55 backdrop-blur-[2px]"
-        onClick={closeMenu}
-      >
-        <div className="flex h-full w-full justify-end">
-          {currentMenuView === 'root' && (
+    if (currentMenuView === 'root') {
+      return (
+        <div
+          className="fixed inset-0 z-50 bg-black/55 backdrop-blur-[2px]"
+          onClick={closeMenu}
+        >
+          <div className="flex h-full w-full justify-end">
             <AppMenu
               isPremium={appState.premiumActive}
               onClose={closeMenu}
               onOpenDaily={() => pushMenuView('daily')}
               onOpenHistory={() => pushMenuView('history')}
               onOpenNutrition={() => pushMenuView('nutrition')}
-              onOpenShop={() => {
-                closeMenu();
-                setBaseView('shop');
-              }}
               onOpenSettings={() => pushMenuView('settings')}
-              onOpenTimerSettings={() => pushMenuView('timer')}
+              onOpenTimer={() => pushMenuView('timer')}
               onOpenPremium={() => {
                 closeMenu();
                 setPremiumOpen(true);
                 openPaywall?.('menu');
               }}
             />
-          )}
-
-          {currentMenuView === 'settings' && (
-            <div
-              className="pointer-events-auto h-full w-full max-w-[420px]"
-              onClick={(event) => event.stopPropagation()}
-            >
-              <SettingsScreen onBack={popMenuView} />
-            </div>
-          )}
-
-          {currentMenuView === 'timer' && (
-            <div
-              className="pointer-events-auto h-full w-full max-w-[420px]"
-              onClick={(event) => event.stopPropagation()}
-            >
-              <SettingsScreen onBack={popMenuView} />
-            </div>
-          )}
-
-          {currentMenuView === 'daily' && (
-            <div
-              className="pointer-events-auto h-full w-full max-w-[420px]"
-              onClick={(event) => event.stopPropagation()}
-            >
-              <DailyCheckInScreen
-                onClose={popMenuView}
-                onStartWorkout={(focus) => openWorkout(focus as WorkoutFocus)}
-              />
-            </div>
-          )}
-
-          {currentMenuView === 'history' && (
-            <div
-              className="pointer-events-auto h-full w-full max-w-[420px]"
-              onClick={(event) => event.stopPropagation()}
-            >
-              <HistoryScreen onBack={popMenuView} />
-            </div>
-          )}
-
-          {currentMenuView === 'nutrition' && (
-            <div
-              className="pointer-events-auto h-full w-full max-w-[420px]"
-              onClick={(event) => event.stopPropagation()}
-            >
-              <NutritionScreen onBack={popMenuView} />
-            </div>
-          )}
+          </div>
         </div>
-      </div>
-    );
+      );
+    }
+
+    if (currentMenuView === 'settings') {
+      return (
+        <MenuScreenShell onOutsideClick={closeMenu}>
+          <SettingsScreen onBack={popMenuView} />
+        </MenuScreenShell>
+      );
+    }
+
+    if (currentMenuView === 'timer') {
+      return (
+        <MenuScreenShell onOutsideClick={closeMenu}>
+          <TimerSettingsScreen onBack={popMenuView} />
+        </MenuScreenShell>
+      );
+    }
+
+    if (currentMenuView === 'daily') {
+      return (
+        <MenuScreenShell onOutsideClick={closeMenu}>
+          <DailyCheckInScreen
+            onClose={popMenuView}
+            onStartWorkout={(focus) => openWorkout(focus as WorkoutFocus)}
+          />
+        </MenuScreenShell>
+      );
+    }
+
+    if (currentMenuView === 'history') {
+      return (
+        <MenuScreenShell onOutsideClick={closeMenu}>
+          <HistoryScreen onBack={popMenuView} />
+        </MenuScreenShell>
+      );
+    }
+
+    if (currentMenuView === 'nutrition') {
+      return (
+        <MenuScreenShell onOutsideClick={closeMenu}>
+          <NutritionScreen onBack={popMenuView} />
+        </MenuScreenShell>
+      );
+    }
+
+    return null;
   };
 
   if (baseView === 'gallery') {
