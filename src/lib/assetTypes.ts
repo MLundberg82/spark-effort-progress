@@ -29,7 +29,9 @@ export type AssetRecord = {
   src: string;
 };
 
-export type AssetDictionary = Record<string, AssetRecord>;
+// Keep all runtime image sources string-compatible so existing img/src flows,
+// preview components and shop helpers remain production-safe.
+export type AssetDictionary = Record<string, string>;
 
 export type AssetCategory =
   | 'rats'
