@@ -1,5 +1,5 @@
 import { Flame, Sparkles, Trophy } from 'lucide-react';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 
 type WorkoutCompleteSummary = {
   workoutName: string;
@@ -51,15 +51,15 @@ function StatTile({
 }: {
   label: string;
   value: string;
-  icon?: React.ReactNode;
+  icon?: ReactNode;
 }) {
   return (
-    <div className="rounded-[18px] border border-white/10 bg-white/[0.04] px-4 py-3 backdrop-blur-sm">
-      <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.18em] text-zinc-400">
+    <div className="rounded-[22px] border border-white/12 bg-white/[0.035] px-4 py-3 backdrop-blur-sm">
+      <div className="mb-1 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.28em] text-white/45">
         {icon}
-        {label}
+        <span>{label}</span>
       </div>
-      <div className="mt-1.5 text-[22px] font-black text-white">{value}</div>
+      <div className="text-sm font-semibold text-white">{value}</div>
     </div>
   );
 }
@@ -68,87 +68,78 @@ function XPRow({ label, value }: { label: string; value: number }) {
   if (value <= 0) return null;
 
   return (
-    <div className="flex items-center justify-between gap-3 rounded-[14px] border border-white/8 bg-black/40 px-3 py-2">
-      <div className="text-[10px] font-black uppercase tracking-[0.14em] text-white/60">
-        {label}
-      </div>
-      <div className="text-sm font-black text-lime-200">+{value} XP</div>
+    <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-black/25 px-3 py-2 text-sm">
+      <span className="text-white/70">{label}</span>
+      <span className="font-semibold text-lime-300">+{value} XP</span>
     </div>
   );
 }
 
 function getRatForm(level: number): RatForm {
-  if (level >= 100) return { label: 'Final Apex', subtitle: 'Peak mythic form' };
-  if (level >= 90) return { label: 'Mythic IX', subtitle: 'Last ascent' };
-  if (level >= 80) return { label: 'Legend', subtitle: 'Dominant aura' };
-  if (level >= 70) return { label: 'King', subtitle: 'Crowned force' };
-  if (level >= 60) return { label: 'Elite', subtitle: 'Refined power' };
-  if (level >= 50) return { label: 'Titan', subtitle: 'Heavy status' };
-  if (level >= 40) return { label: 'Alpha+', subtitle: 'Hard evolved' };
-  if (level >= 30) return { label: 'Alpha', subtitle: 'Leader energy' };
-  if (level >= 25) return { label: 'Grind IV', subtitle: 'Built by consistency' };
-  if (level >= 20) return { label: 'Grind III', subtitle: 'Visible momentum' };
-  if (level >= 15) return { label: 'Grind II', subtitle: 'Sharper frame' };
-  if (level >= 10) return { label: 'Grind I', subtitle: 'Real progression' };
-  if (level >= 5) return { label: 'Street Rat', subtitle: 'First evolution' };
-  return { label: 'Underground', subtitle: 'Starting form' };
+  if (level >= 100) return { label: 'Ascendant Rat', subtitle: 'Expansion-ready apex state' };
+  if (level >= 90) return { label: 'Immortal Rat', subtitle: 'Untouchable pressure' };
+  if (level >= 80) return { label: 'Legendary Rat', subtitle: 'Rare dominant aura' };
+  if (level >= 70) return { label: 'Ascended Rat', subtitle: 'Transcendent momentum' };
+  if (level >= 60) return { label: 'Overlord Rat', subtitle: 'Crushing presence' };
+  if (level >= 50) return { label: 'Titan Rat', subtitle: 'Heavy elite mass' };
+  if (level >= 40) return { label: 'Warlord Rat', subtitle: 'Battle-built power' };
+  if (level >= 30) return { label: 'Mythic Rat', subtitle: 'Rare evolved force' };
+  if (level >= 25) return { label: 'Apex Rat', subtitle: 'Predator energy' };
+  if (level >= 20) return { label: 'King Rat', subtitle: 'Crowned confidence' };
+  if (level >= 15) return { label: 'Elite Rat', subtitle: 'Visible strength jump' };
+  if (level >= 10) return { label: 'Alpha Rat', subtitle: 'Real progression unlocked' };
+  if (level >= 5) return { label: 'Grind Rat', subtitle: 'First evolution hit' };
+  return { label: 'Underground Rat', subtitle: 'Starting form' };
 }
 
 function CelebrationStyles() {
   return (
     <style>{`
-      @keyframes wc-flash {
-        0% { opacity: 0; transform: scale(0.55); }
-        12% { opacity: 0.95; }
-        100% { opacity: 0; transform: scale(1.9); }
+      @keyframes wc-screenFlash {
+        0% { opacity: 0; }
+        14% { opacity: 1; }
+        100% { opacity: 0; }
       }
       @keyframes wc-shockwave {
-        0% { opacity: 0; transform: translate(-50%, -50%) scale(0.25); }
-        15% { opacity: 0.75; }
-        100% { opacity: 0; transform: translate(-50%, -50%) scale(1.75); }
+        0% { transform: translate(-50%, -50%) scale(0.24); opacity: 0; }
+        16% { opacity: .9; }
+        100% { transform: translate(-50%, -50%) scale(2.4); opacity: 0; }
       }
-      @keyframes wc-smoke {
-        0% { opacity: 0; transform: translateY(18px) scale(0.72); }
-        18% { opacity: 0.3; }
-        100% { opacity: 0; transform: translateY(-58px) scale(1.2); }
+      @keyframes wc-coreBlast {
+        0% { transform: translate(-50%, -50%) scale(.2); opacity: 0; filter: blur(24px); }
+        18% { opacity: 1; }
+        100% { transform: translate(-50%, -50%) scale(1.85); opacity: 0; filter: blur(6px); }
       }
-      @keyframes wc-ember {
-        0% { opacity: 0; transform: translate3d(0, 16px, 0) scale(0.55); }
-        15% { opacity: 0.95; }
-        100% { opacity: 0; transform: translate3d(var(--x), var(--y), 0) scale(1); }
+      @keyframes wc-smokeRise {
+        0% { transform: translate(-50%, 8px) scale(.7); opacity: 0; }
+        18% { opacity: .55; }
+        100% { transform: translate(-50%, -84px) scale(1.28); opacity: 0; }
       }
-      @keyframes wc-panel-rise {
-        0% { opacity: 0; transform: translateY(18px) scale(0.96); }
+      @keyframes wc-emberFlight {
+        0% { transform: translate3d(0,0,0) scale(.5); opacity: 0; }
+        12% { opacity: 1; }
+        100% { transform: translate3d(var(--x), var(--y), 0) scale(1.1); opacity: 0; }
+      }
+      @keyframes wc-metalSweep {
+        0% { transform: translateX(-120%) skewX(-18deg); opacity: 0; }
+        18% { opacity: .85; }
+        100% { transform: translateX(220%) skewX(-18deg); opacity: 0; }
+      }
+      @keyframes wc-cardRise {
+        0% { opacity: 0; transform: translateY(28px) scale(.98); }
         100% { opacity: 1; transform: translateY(0) scale(1); }
       }
-      @keyframes wc-metal-sweep {
-        0% { opacity: 0; transform: translateX(-140%) skewX(-18deg); }
-        20% { opacity: 0.65; }
-        100% { opacity: 0; transform: translateX(190%) skewX(-18deg); }
+      @keyframes wc-floatGlow {
+        0%, 100% { transform: translateY(0); opacity: .52; }
+        50% { transform: translateY(-8px); opacity: .9; }
       }
-      @keyframes wc-soft-pulse {
-        0%, 100% { transform: scale(1); opacity: 0.55; }
-        50% { transform: scale(1.06); opacity: 0.9; }
+      @keyframes wc-morphOld {
+        0% { opacity: 1; transform: scale(1) rotate(0deg); filter: blur(0); }
+        100% { opacity: 0; transform: scale(1.12) rotate(-4deg); filter: blur(14px); }
       }
-      @keyframes wc-morph-out {
-        0%, 22% { opacity: 0.95; transform: translate(-50%, -50%) scale(1) rotate(0deg); filter: blur(0px); }
-        100% { opacity: 0; transform: translate(-50%, -50%) scale(1.3) rotate(-6deg); filter: blur(10px); }
-      }
-      @keyframes wc-morph-in {
-        0%, 26% { opacity: 0; transform: translate(-50%, -50%) scale(0.75) rotate(6deg); filter: blur(10px); }
-        100% { opacity: 1; transform: translate(-50%, -50%) scale(1) rotate(0deg); filter: blur(0px); }
-      }
-      @keyframes wc-float {
-        0%, 100% { transform: translateY(0px); }
-        50% { transform: translateY(-6px); }
-      }
-      @keyframes wc-screen-shake {
-        0%, 100% { transform: translate3d(0,0,0); }
-        10% { transform: translate3d(-2px, 1px, 0); }
-        20% { transform: translate3d(2px, -1px, 0); }
-        30% { transform: translate3d(-1px, 2px, 0); }
-        40% { transform: translate3d(1px, -2px, 0); }
-        50% { transform: translate3d(-1px, 1px, 0); }
+      @keyframes wc-morphNew {
+        0% { opacity: 0; transform: scale(.78) rotate(4deg); filter: blur(14px); }
+        100% { opacity: 1; transform: scale(1) rotate(0deg); filter: blur(0); }
       }
     `}</style>
   );
@@ -159,39 +150,41 @@ function RatMorphShowcase({ previousLevel, newLevel }: { previousLevel: number; 
   const newForm = getRatForm(newLevel);
 
   return (
-    <div className="relative mt-4 overflow-hidden rounded-[24px] border border-yellow-200/15 bg-black/35 px-4 py-5">
-      <div className="text-[10px] font-black uppercase tracking-[0.2em] text-yellow-100/72">
-        Morphing sequence
-      </div>
-      <div className="mt-4 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
-        <div className="rounded-[18px] border border-white/8 bg-white/[0.03] px-3 py-3 text-center">
-          <div className="text-[10px] font-black uppercase tracking-[0.14em] text-white/45">Previous form</div>
-          <div className="mt-2 text-base font-black text-white">{oldForm.label}</div>
-          <div className="mt-1 text-xs text-white/55">{oldForm.subtitle}</div>
-        </div>
-        <div className="text-xs font-black uppercase tracking-[0.18em] text-yellow-200">Morph</div>
-        <div className="rounded-[18px] border border-yellow-200/20 bg-yellow-300/[0.06] px-3 py-3 text-center shadow-[0_0_22px_rgba(250,204,21,0.08)]">
-          <div className="text-[10px] font-black uppercase tracking-[0.14em] text-yellow-100/65">Unlocked form</div>
-          <div className="mt-2 text-base font-black text-white">{newForm.label}</div>
-          <div className="mt-1 text-xs text-yellow-50/70">{newForm.subtitle}</div>
-        </div>
+    <div className="relative overflow-hidden rounded-[28px] border border-white/14 bg-black/35 px-4 py-5">
+      <div className="mb-4 flex items-center justify-between text-[10px] font-semibold uppercase tracking-[0.28em] text-white/45">
+        <span>Morphing sequence</span>
+        <span className="text-lime-300">New form unlocked</span>
       </div>
 
-      <div className="pointer-events-none absolute inset-0">
-        <div
-          className="absolute left-1/2 top-[58%] h-28 w-24 rounded-[40%] border border-white/15 bg-white/10"
-          style={{
-            animation: 'wc-morph-out 1.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards',
-            clipPath: 'polygon(35% 0%, 68% 7%, 78% 24%, 84% 42%, 79% 74%, 64% 100%, 34% 100%, 18% 75%, 14% 45%, 21% 24%)',
-          }}
-        />
-        <div
-          className="absolute left-1/2 top-[58%] h-32 w-28 rounded-[40%] border border-yellow-100/28 bg-yellow-100/12 shadow-[0_0_24px_rgba(250,204,21,0.18)]"
-          style={{
-            animation: 'wc-morph-in 1.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards',
-            clipPath: 'polygon(31% 0%, 72% 8%, 84% 22%, 89% 44%, 85% 78%, 67% 100%, 35% 100%, 15% 80%, 12% 44%, 18% 20%)',
-          }}
-        />
+      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+        <div className="rounded-[22px] border border-white/10 bg-white/[0.035] px-3 py-4 text-center">
+          <div className="mb-2 text-[10px] uppercase tracking-[0.24em] text-white/40">Previous form</div>
+          <div
+            className="mx-auto mb-3 flex h-20 w-20 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-3xl"
+            style={{ animation: 'wc-morphOld 0.8s ease forwards' }}
+          >
+            🐀
+          </div>
+          <div className="text-sm font-semibold text-white">{oldForm.label}</div>
+          <div className="mt-1 text-xs text-white/55">{oldForm.subtitle}</div>
+        </div>
+
+        <div className="text-center">
+          <div className="mb-1 text-[10px] uppercase tracking-[0.28em] text-amber-200/70">Morph</div>
+          <div className="mx-auto h-px w-8 bg-gradient-to-r from-transparent via-amber-200/80 to-transparent" />
+        </div>
+
+        <div className="rounded-[22px] border border-lime-300/20 bg-lime-300/[0.06] px-3 py-4 text-center shadow-[0_0_40px_rgba(190,242,100,0.08)]">
+          <div className="mb-2 text-[10px] uppercase tracking-[0.24em] text-lime-200/80">Unlocked form</div>
+          <div
+            className="mx-auto mb-3 flex h-20 w-20 items-center justify-center rounded-full border border-lime-300/20 bg-lime-300/[0.08] text-3xl"
+            style={{ animation: 'wc-morphNew 0.9s ease 0.22s both, wc-floatGlow 2.4s ease-in-out 1.2s infinite' }}
+          >
+            👑
+          </div>
+          <div className="text-sm font-semibold text-white">{newForm.label}</div>
+          <div className="mt-1 text-xs text-white/60">{newForm.subtitle}</div>
+        </div>
       </div>
     </div>
   );
@@ -215,8 +208,8 @@ function CelebrationFX({
         size: milestoneUnlocked ? 7 + (index % 5) * 2 : 6 + (index % 4) * 2,
         delay: index * 0.05,
         duration: 1.05 + (index % 4) * 0.18,
-        x: `${Math.round((Math.cos(index) * 90) + ((index % 3) - 1) * 32)}px`,
-        y: `${-90 - ((index % 5) * 24)}px`,
+        x: `${Math.round(Math.cos(index) * 90 + ((index % 3) - 1) * 32)}px`,
+        y: `${-90 - (index % 5) * 24}px`,
       })),
     [leveledUp, milestoneUnlocked],
   );
@@ -235,66 +228,62 @@ function CelebrationFX({
   );
 
   return (
-    <div className="pointer-events-none absolute inset-x-0 top-0 h-[360px] overflow-hidden">
+    <div className="pointer-events-none absolute inset-x-0 top-0 z-0 h-[330px] overflow-hidden rounded-[34px]">
       {(leveledUp || milestoneUnlocked) ? (
         <>
           <div
-            className="absolute left-1/2 top-[110px] h-24 w-24 -translate-x-1/2 rounded-full bg-orange-300/70 blur-[10px]"
-            style={{ animation: 'wc-flash 0.9s ease-out forwards' }}
+            className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,237,160,0.35),rgba(255,140,0,0.12)_24%,rgba(0,0,0,0)_58%)]"
+            style={{ animation: 'wc-screenFlash 0.72s ease-out both' }}
           />
           <div
-            className="absolute left-1/2 top-[110px] h-44 w-44 rounded-full border border-orange-200/45"
-            style={{ animation: 'wc-shockwave 1.2s ease-out forwards' }}
+            className="absolute left-1/2 top-[120px] h-36 w-36 rounded-full border border-amber-200/70"
+            style={{ animation: 'wc-shockwave 1s ease-out 0.04s both' }}
           />
           <div
-            className="absolute left-1/2 top-[110px] h-60 w-60 rounded-full border border-yellow-200/18"
-            style={{ animation: 'wc-shockwave 1.45s ease-out 0.12s forwards', opacity: 0 }}
+            className="absolute left-1/2 top-[120px] h-44 w-44 rounded-full bg-[radial-gradient(circle,rgba(255,235,170,0.95)_0%,rgba(255,149,0,0.6)_18%,rgba(255,79,0,0.12)_54%,transparent_75%)] mix-blend-screen"
+            style={{ animation: 'wc-coreBlast 0.95s ease-out both' }}
           />
         </>
       ) : null}
 
       {hasPRs ? (
         <>
-          <div className="absolute inset-x-10 top-10 h-24 rounded-[30px] border border-white/8 bg-white/[0.025] backdrop-blur-[2px]" />
-          <div
-            className="absolute left-0 right-0 top-12 h-28 bg-gradient-to-r from-transparent via-white/30 to-transparent"
-            style={{ animation: 'wc-metal-sweep 1.4s ease-out forwards' }}
-          />
-          <div
-            className="absolute right-10 top-12 h-14 w-14 rounded-full border border-yellow-200/18 bg-yellow-200/10 shadow-[0_0_30px_rgba(250,204,21,0.08)]"
-            style={{ animation: 'wc-soft-pulse 1.5s ease-in-out infinite' }}
-          />
+          <div className="absolute inset-x-6 top-10 h-28 overflow-hidden rounded-[28px] border border-amber-100/10 bg-gradient-to-r from-white/[0.04] to-white/[0.01]">
+            <div
+              className="absolute inset-y-0 w-20 bg-gradient-to-r from-transparent via-amber-100/55 to-transparent blur-md"
+              style={{ animation: 'wc-metalSweep 1.15s ease-out 0.2s both' }}
+            />
+          </div>
+          <div className="absolute inset-x-8 top-[76px] h-px bg-gradient-to-r from-transparent via-amber-100/80 to-transparent opacity-75" />
         </>
       ) : null}
 
       {smoke.map((puff) => (
         <div
-          key={`smoke-${puff.id}`}
-          className="absolute rounded-full bg-white/10 blur-[18px]"
+          key={puff.id}
+          className="absolute rounded-full bg-white/16 blur-2xl"
           style={{
             left: `${puff.left}%`,
             top: `${puff.top}%`,
-            width: puff.size,
-            height: puff.size * 0.72,
-            animation: `wc-smoke ${puff.duration}s ease-out ${puff.delay}s forwards`,
-            opacity: 0,
+            width: `${puff.size}px`,
+            height: `${puff.size}px`,
+            animation: `wc-smokeRise ${puff.duration}s ease-out ${puff.delay}s both`,
           }}
         />
       ))}
 
       {embers.map((ember) => (
         <span
-          key={`ember-${ember.id}`}
-          className="absolute rounded-full bg-gradient-to-b from-yellow-100 via-orange-300 to-red-500 shadow-[0_0_18px_rgba(251,146,60,0.35)]"
+          key={ember.id}
+          className="absolute rounded-full bg-gradient-to-b from-yellow-200 via-amber-300 to-orange-500 shadow-[0_0_18px_rgba(251,191,36,0.45)]"
           style={{
             left: `${ember.left}%`,
             top: `${ember.top}%`,
-            width: ember.size,
-            height: ember.size,
-            opacity: 0,
+            width: `${ember.size}px`,
+            height: `${ember.size}px`,
             ['--x' as string]: ember.x,
             ['--y' as string]: ember.y,
-            animation: `wc-ember ${ember.duration}s cubic-bezier(0.18, 0.75, 0.3, 1) ${ember.delay}s forwards`,
+            animation: `wc-emberFlight ${ember.duration}s cubic-bezier(.14,.72,.22,.98) ${ember.delay}s both`,
           }}
         />
       ))}
@@ -302,153 +291,127 @@ function CelebrationFX({
   );
 }
 
-export default function WorkoutComplete({
-  summary,
-  onContinue,
-}: WorkoutCompleteProps) {
+export default function WorkoutComplete({ summary, onContinue }: WorkoutCompleteProps) {
   const hasPRs = Boolean(summary.prs && summary.prs.length > 0);
   const progression = summary.progression;
   const leveledUp = Boolean(progression?.leveledUp);
   const milestoneUnlocked = Boolean(progression?.milestoneUnlocked);
+  const [showContent, setShowContent] = useState(!(leveledUp || milestoneUnlocked || hasPRs));
+
+  useEffect(() => {
+    setShowContent(!(leveledUp || milestoneUnlocked || hasPRs));
+
+    if (!(leveledUp || milestoneUnlocked || hasPRs)) {
+      return undefined;
+    }
+
+    const timeout = window.setTimeout(() => setShowContent(true), milestoneUnlocked ? 920 : leveledUp ? 760 : 420);
+    return () => window.clearTimeout(timeout);
+  }, [hasPRs, leveledUp, milestoneUnlocked]);
 
   return (
-    <div className="min-h-screen bg-black px-5 py-5 text-white">
+    <div className="relative overflow-hidden rounded-[34px] border border-white/10 bg-[#03040a] p-5 shadow-[0_18px_50px_rgba(0,0,0,0.42)]">
       <CelebrationStyles />
-      <div
-        className="mx-auto flex min-h-[calc(100vh-2.5rem)] max-w-md flex-col"
-        style={{ animation: milestoneUnlocked || leveledUp ? 'wc-screen-shake 0.48s linear 1' : undefined }}
-      >
-        <div className="relative overflow-hidden rounded-[28px] border border-white/10 bg-zinc-950/90 p-5 shadow-[0_24px_90px_rgba(0,0,0,0.48)]">
-          <CelebrationFX hasPRs={hasPRs} leveledUp={leveledUp} milestoneUnlocked={milestoneUnlocked} />
+      <CelebrationFX hasPRs={hasPRs} leveledUp={leveledUp} milestoneUnlocked={milestoneUnlocked} />
 
-          <div className="relative z-10">
-            <div className="inline-flex items-center gap-2 rounded-full border border-lime-300/20 bg-lime-300/10 px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-lime-200">
-              <Flame className="h-3.5 w-3.5" />
-              Workout complete
-            </div>
-
-            {milestoneUnlocked ? (
-              <div
-                className="relative mt-4 overflow-hidden rounded-[22px] border border-yellow-300/25 bg-[radial-gradient(circle_at_top,_rgba(250,204,21,0.26),_rgba(251,146,60,0.12)_22%,_rgba(132,204,22,0.08)_48%,_rgba(0,0,0,0.28)_100%)] px-4 py-4 shadow-[0_0_35px_rgba(250,204,21,0.08)]"
-                style={{ animation: 'wc-panel-rise 0.65s cubic-bezier(0.2, 0.8, 0.2, 1) both' }}
-              >
-                <div className="text-[10px] font-black uppercase tracking-[0.2em] text-yellow-100/80">
-                  Mega BOOM
-                </div>
-                <h2 className="mt-2 text-[28px] font-black tracking-tight text-white">
-                  New rat unlocked
-                </h2>
-                <p className="mt-2 text-sm leading-6 text-yellow-50/88">
-                  Level {progression?.unlockedMilestoneLevel} reached. Full explosion, smoke burst and rat morph into the next form.
-                </p>
-                {progression ? (
-                  <RatMorphShowcase previousLevel={progression.previousLevel} newLevel={progression.newLevel} />
-                ) : null}
-              </div>
-            ) : leveledUp ? (
-              <div
-                className="relative mt-4 overflow-hidden rounded-[22px] border border-orange-300/20 bg-[radial-gradient(circle_at_top,_rgba(251,146,60,0.28),_rgba(132,204,22,0.08)_48%,_rgba(0,0,0,0.25)_100%)] px-4 py-4 shadow-[0_0_28px_rgba(251,146,60,0.08)]"
-                style={{ animation: 'wc-panel-rise 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both' }}
-              >
-                <div className="text-[10px] font-black uppercase tracking-[0.2em] text-orange-100/78">
-                  Boom
-                </div>
-                <h2 className="mt-2 text-[24px] font-black tracking-tight text-white">
-                  Level up
-                </h2>
-                <p className="mt-2 text-sm leading-6 text-zinc-100/88">
-                  Level {progression?.previousLevel} → {progression?.newLevel}. Explosion first, then smoke and glow as the rat powers up.
-                </p>
-              </div>
-            ) : null}
-
-            {hasPRs ? (
-              <div
-                className="relative mt-4 overflow-hidden rounded-[20px] border border-red-300/18 bg-[radial-gradient(circle_at_top,_rgba(248,113,113,0.16),_rgba(251,191,36,0.08)_45%,_rgba(0,0,0,0.2)_100%)] px-4 py-4"
-                style={{ animation: 'wc-panel-rise 0.55s cubic-bezier(0.2, 0.8, 0.2, 1) both' }}
-              >
-                <div className="pointer-events-none absolute inset-0 overflow-hidden">
-                  <div
-                    className="absolute inset-y-0 left-[-40%] w-[38%] bg-gradient-to-r from-transparent via-white/28 to-transparent"
-                    style={{ animation: 'wc-metal-sweep 1.35s ease-out 0.18s forwards' }}
-                  />
-                </div>
-                <div className="relative z-10 text-[10px] font-black uppercase tracking-[0.2em] text-red-100/75">
-                  Bigger BOOM
-                </div>
-                <h3 className="relative z-10 mt-2 text-[20px] font-black tracking-tight text-white">
-                  New PB {summary.prs?.length && summary.prs.length > 1 ? 's' : ''}
-                </h3>
-                <p className="relative z-10 mt-2 text-sm leading-6 text-zinc-200">
-                  Cleaner than a level up, but still a strong progress hit with metallic sweep and impact glow.
-                </p>
-                <div className="relative z-10 mt-3 space-y-2">
-                  {summary.prs?.slice(0, 3).map((pr) => (
-                    <div
-                      key={`${pr.exercise}-${pr.newWeight}`}
-                      className="rounded-[14px] border border-white/8 bg-black/35 px-3 py-2"
-                    >
-                      <div className="text-sm font-black text-white">{pr.exercise}</div>
-                      <div className="mt-1 text-xs font-semibold text-zinc-300">
-                        {pr.previousBest > 0 ? `${pr.previousBest} → ` : ''}
-                        {pr.newWeight} kg
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : null}
-
-            <h1 className="mt-4 text-[30px] font-black tracking-tight text-white">
-              Nice. You moved the rat forward.
-            </h1>
-
-            <p className="mt-3 text-sm leading-6 text-zinc-300">
-              {summary.workoutName} is done. Clean finish, stable save, and progress counted.
-            </p>
-
-            <div className="mt-5 grid grid-cols-2 gap-3">
-              <StatTile label="Duration" value={`${summary.durationMinutes} min`} />
-              <StatTile label="Exercises" value={String(summary.exercisesCompleted)} />
-              <StatTile
-                label="XP earned"
-                value={`+${summary.earnedXP}`}
-                icon={<Sparkles className="h-3.5 w-3.5" />}
-              />
-              <StatTile
-                label="Volume"
-                value={String(Math.round(summary.volume))}
-                icon={<Trophy className="h-3.5 w-3.5" />}
-              />
-            </div>
-
-            {progression ? (
-              <>
-                <div className="mt-5 grid grid-cols-2 gap-3">
-                  <StatTile label="Level" value={`${progression.previousLevel} → ${progression.newLevel}`} />
-                  <StatTile label="Streak" value={`${progression.streak} d`} />
-                </div>
-
-                <div className="mt-5 space-y-2">
-                  <XPRow label="Base" value={progression.breakdown.baseXP} />
-                  <XPRow label="Exercise bonus" value={progression.breakdown.activityXP} />
-                  <XPRow label="Volume bonus" value={progression.breakdown.volumeXP} />
-                  <XPRow label="Duration bonus" value={progression.breakdown.durationXP} />
-                  <XPRow label="First workout" value={progression.breakdown.firstWorkoutXP} />
-                  <XPRow label="Streak bonus" value={progression.breakdown.consistencyXP} />
-                  <XPRow label="PB bonus" value={progression.breakdown.prXP} />
-                  <XPRow label="Premium boost" value={progression.breakdown.premiumBoostXP} />
-                </div>
-              </>
-            ) : null}
-          </div>
+      <div className="relative z-10">
+        <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-lime-300/22 bg-lime-300/[0.08] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.28em] text-lime-200">
+          <Flame className="h-3.5 w-3.5" />
+          Workout complete
         </div>
 
-        <div className="mt-auto pt-4">
+        <div
+          className={showContent ? 'opacity-100' : 'opacity-0'}
+          style={{ animation: showContent ? 'wc-cardRise 0.42s ease-out both' : undefined }}
+        >
+          {milestoneUnlocked ? (
+            <div className="mb-4 overflow-hidden rounded-[30px] border border-amber-200/16 bg-[radial-gradient(circle_at_top,rgba(255,178,36,0.18),rgba(120,58,0,0.12)_34%,rgba(0,0,0,0.16)_74%)] p-4 shadow-[0_0_50px_rgba(255,166,0,0.08)]">
+              <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.32em] text-amber-200/80">Mega BOOM</div>
+              <h2 className="text-3xl font-black tracking-tight text-white">New rat unlocked</h2>
+              <p className="mt-2 max-w-[32rem] text-sm leading-6 text-white/72">
+                Level {progression?.unlockedMilestoneLevel} reached. Big explosion first, then smoke, glow and morph into the next form.
+              </p>
+              {progression ? (
+                <div className="mt-4">
+                  <RatMorphShowcase previousLevel={progression.previousLevel} newLevel={progression.newLevel} />
+                </div>
+              ) : null}
+            </div>
+          ) : leveledUp ? (
+            <div className="mb-4 overflow-hidden rounded-[30px] border border-amber-200/16 bg-[radial-gradient(circle_at_top,rgba(255,178,36,0.16),rgba(76,37,0,0.12)_34%,rgba(0,0,0,0.16)_74%)] p-4 shadow-[0_0_42px_rgba(255,166,0,0.06)]">
+              <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.32em] text-amber-100/80">BOOM</div>
+              <h2 className="text-3xl font-black tracking-tight text-white">Level up</h2>
+              <p className="mt-2 text-sm leading-6 text-white/72">
+                Level {progression?.previousLevel} → {progression?.newLevel}. Blast first, then smoke and glow as the rat powers up.
+              </p>
+            </div>
+          ) : null}
+
+          {hasPRs ? (
+            <div className="mb-4 overflow-hidden rounded-[30px] border border-white/12 bg-[linear-gradient(135deg,rgba(116,21,0,0.38),rgba(28,12,0,0.16)_45%,rgba(0,0,0,0.22))] p-4 shadow-[0_0_34px_rgba(245,158,11,0.05)]">
+              <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.32em] text-white/55">Bigger BOOM</div>
+              <h3 className="text-2xl font-black tracking-tight text-white">New PB{summary.prs?.length && summary.prs.length > 1 ? 's' : ''}</h3>
+              <p className="mt-2 text-sm leading-6 text-white/72">
+                Cleaner than a level up, but still a strong progress hit with metallic sweep and impact glow.
+              </p>
+
+              <div className="mt-4 grid gap-3">
+                {summary.prs?.slice(0, 3).map((pr) => (
+                  <div key={`${pr.exercise}-${pr.newWeight}`} className="rounded-[20px] border border-white/14 bg-black/28 px-4 py-3">
+                    <div className="font-semibold text-white">{pr.exercise}</div>
+                    <div className="mt-1 text-sm text-white/65">
+                      {pr.previousBest > 0 ? `${pr.previousBest} → ` : ''}
+                      {pr.newWeight} kg
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          <div className="mt-4">
+            <h1 className="text-4xl font-black tracking-tight text-white">Nice. You moved the rat forward.</h1>
+            <p className="mt-3 max-w-[36rem] text-base leading-7 text-white/70">
+              {summary.workoutName} is done. Clean finish, stable save, and progress counted.
+            </p>
+          </div>
+
+          <div className="mt-5 grid grid-cols-2 gap-3">
+            <StatTile label="Workout" value={summary.workoutName} icon={<Sparkles className="h-4 w-4 text-lime-300" />} />
+            <StatTile label="XP gained" value={`${summary.earnedXP} XP`} icon={<Flame className="h-4 w-4 text-amber-300" />} />
+            <StatTile label="Duration" value={`${summary.durationMinutes} min`} icon={<Sparkles className="h-4 w-4 text-white/65" />} />
+            <StatTile label="Exercises" value={`${summary.exercisesCompleted}`} icon={<Trophy className="h-4 w-4 text-white/65" />} />
+          </div>
+
+          {progression ? (
+            <div className="mt-4 rounded-[28px] border border-white/10 bg-white/[0.035] p-4">
+              <div className="mb-3 flex items-center justify-between">
+                <div>
+                  <div className="text-[10px] font-semibold uppercase tracking-[0.28em] text-white/45">XP breakdown</div>
+                  <div className="mt-1 text-base font-semibold text-white">Level {progression.newLevel} · Streak {progression.streak}</div>
+                </div>
+                <div className="rounded-full border border-lime-300/20 bg-lime-300/[0.07] px-3 py-1 text-xs font-semibold text-lime-200">
+                  +{progression.breakdown.totalXP} XP
+                </div>
+              </div>
+
+              <div className="grid gap-2">
+                <XPRow label="Base" value={progression.breakdown.baseXP} />
+                <XPRow label="Activity" value={progression.breakdown.activityXP} />
+                <XPRow label="Volume" value={progression.breakdown.volumeXP} />
+                <XPRow label="Duration" value={progression.breakdown.durationXP} />
+                <XPRow label="First workout" value={progression.breakdown.firstWorkoutXP} />
+                <XPRow label="Streak" value={progression.breakdown.consistencyXP} />
+                <XPRow label="PB bonus" value={progression.breakdown.prXP} />
+                <XPRow label="Premium boost" value={progression.breakdown.premiumBoostXP} />
+              </div>
+            </div>
+          ) : null}
+
           <button
             type="button"
             onClick={onContinue}
-            className="inline-flex min-h-[68px] w-full items-center justify-center rounded-[20px] bg-lime-300 px-5 py-4 text-[14px] font-black uppercase tracking-[0.16em] text-black shadow-[0_20px_50px_rgba(163,230,53,0.16)] transition hover:brightness-105"
+            className="mt-5 inline-flex w-full items-center justify-center rounded-[22px] border border-lime-300/18 bg-[linear-gradient(180deg,rgba(190,242,100,0.22),rgba(101,163,13,0.14))] px-5 py-4 text-base font-semibold text-white shadow-[0_12px_30px_rgba(101,163,13,0.16)] transition hover:scale-[1.01] hover:border-lime-300/28"
           >
             Continue
           </button>
