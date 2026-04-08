@@ -12,7 +12,8 @@ import {
 } from 'lucide-react';
 
 import WorkoutComplete from '@/components/WorkoutComplete';
-import { addWorkoutHistory, detectPRs } from '@/lib/historyStore';
+import { addCompletedActivityXP } from '@/lib/gamificationStore';
+import { addWorkoutHistory, detectPRs, type ExerciseEntry, type MuscleGroup } from '@/lib/historyStore';
 import { logStreakActivity } from '@/lib/streakStore';
 
 type Focus = 'chest' | 'back' | 'arms' | 'legs' | 'walk';
@@ -54,6 +55,25 @@ type WorkoutCompleteSummary = {
     newWeight: number;
     previousBest: number;
   }>;
+  progression?: {
+    previousLevel: number;
+    newLevel: number;
+    streak: number;
+    leveledUp: boolean;
+    milestoneUnlocked: boolean;
+    unlockedMilestoneLevel: number | null;
+    breakdown: {
+      baseXP: number;
+      activityXP: number;
+      volumeXP: number;
+      durationXP: number;
+      firstWorkoutXP: number;
+      consistencyXP: number;
+      prXP: number;
+      premiumBoostXP: number;
+      totalXP: number;
+    };
+  };
 };
 
 const REST_TIMER_KEY = 'gymrat-rest-timer-seconds';
@@ -352,6 +372,7 @@ export default function WorkoutFlow({
     volume: 0,
     earnedXP: 75,
     prs: [],
+    progression: undefined,
   });
   const [sessionStartedAt, setSessionStartedAt] = useState<number | null>(null);
   const [walkElapsedSeconds, setWalkElapsedSeconds] = useState(0);
@@ -457,6 +478,7 @@ export default function WorkoutFlow({
   const completeWorkout = () => {
     if (!selectedPreset) return;
 
+    const completedAt = new Date().toISOString();
     const durationSeconds = selectedPreset.id === 'walk'
       ? walkElapsedSeconds
       : Math.max(
@@ -466,11 +488,11 @@ export default function WorkoutFlow({
           ),
         );
     const durationMinutes = Math.max(1, Math.round(durationSeconds / 60));
-    const historyExercises = selectedPreset.id === 'walk'
+    const historyExercises: ExerciseEntry[] = selectedPreset.id === 'walk'
       ? [
           {
             name: 'Walk Session',
-            muscleGroup: 'core' as const,
+            muscleGroup: 'core',
             sets: [
               {
                 reps: durationMinutes,
@@ -481,7 +503,7 @@ export default function WorkoutFlow({
         ]
       : selectedPreset.exercises.map((exercise) => ({
           name: exercise,
-          muscleGroup: selectedPreset.id,
+          muscleGroup: selectedPreset.id as MuscleGroup,
           sets: (workoutLog[exercise] ?? [])
             .map((entry) => ({
               reps: Number(entry.reps) || 0,
@@ -497,18 +519,40 @@ export default function WorkoutFlow({
       workoutName: selectedPreset.title,
       exercises: completedExercises.length > 0 ? completedExercises : historyExercises,
       durationMinutes,
-      completedAt: new Date().toISOString(),
+      completedAt,
     });
 
     setIsRunning(false);
-    logStreakActivity();
+    const streakState = logStreakActivity(completedAt);
+    const progression = addCompletedActivityXP({
+      kind: selectedPreset.id === 'walk' ? 'walk' : 'strength',
+      exercisesCompleted:
+        selectedPreset.id === 'walk'
+          ? 1
+          : Math.max(1, completedExercises.length),
+      volume: totalVolume,
+      durationMinutes,
+      streak: streakState.current,
+      prCount: prs.length,
+      completedAt,
+    });
+
     setSummary({
       workoutName: selectedPreset.title,
       durationMinutes,
       exercisesCompleted: selectedPreset.id === 'walk' ? 1 : selectedPreset.exercises.length,
       volume: totalVolume,
-      earnedXP: totalVolume > 0 ? 120 : selectedPreset.id === 'walk' ? 40 : 60,
+      earnedXP: progression.breakdown.totalXP,
       prs,
+      progression: {
+        previousLevel: progression.previousLevel,
+        newLevel: progression.newLevel,
+        streak: progression.streak,
+        leveledUp: progression.leveledUp,
+        milestoneUnlocked: progression.milestoneUnlocked,
+        unlockedMilestoneLevel: progression.unlockedMilestoneLevel,
+        breakdown: progression.breakdown,
+      },
     });
     setStep('complete');
   };

@@ -10,7 +10,6 @@ import {
   Timer,
   TrendingUp,
 } from 'lucide-react';
-
 import {
   calculateWorkoutVolume,
   getExerciseNameOptions,
@@ -24,6 +23,51 @@ type Props = {
   onBack: () => void;
 };
 
+function ScreenShell({
+  eyebrow,
+  title,
+  subtitle,
+  onBack,
+  children,
+}: {
+  eyebrow: string;
+  title: string;
+  subtitle: string;
+  onBack: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="min-h-full bg-[radial-gradient(circle_at_top,_rgba(163,230,53,0.12),_transparent_35%),linear-gradient(180deg,#0b0b0b_0%,#050505_100%)] px-4 pb-6 pt-4 text-white">
+      <div className="mx-auto flex max-w-xl flex-col gap-4">
+        <button
+          onClick={onBack}
+          className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-white/82 transition hover:bg-white/[0.08] hover:text-white"
+          aria-label="Back"
+        >
+          <ArrowLeft className="h-5 w-5" />
+        </button>
+
+        <div className="space-y-2">
+          <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-white/56">
+            <HistoryIcon className="h-3.5 w-3.5 text-lime-300" />
+            {eyebrow}
+          </div>
+          <div>
+            <h1 className="text-[30px] font-black leading-[1.02] tracking-[-0.03em] text-white">
+              {title}
+            </h1>
+            <p className="mt-2 max-w-md text-sm leading-6 text-white/64">{subtitle}</p>
+          </div>
+        </div>
+
+        <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-4 shadow-[0_24px_80px_rgba(0,0,0,0.35)] backdrop-blur-xl">
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SectionCard({
   title,
   icon,
@@ -34,17 +78,14 @@ function SectionCard({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-[22px] border border-white/14 bg-white/[0.06] p-4 shadow-[0_10px_30px_rgba(0,0,0,0.18)]">
-      <div className="mb-3 flex items-center gap-2.5">
-        <div className="flex h-10 w-10 items-center justify-center rounded-[14px] border border-white/12 bg-white/[0.08] text-white/88">
+    <section className="rounded-[22px] border border-white/10 bg-black/28 p-4">
+      <div className="mb-3 flex items-center gap-2 text-white">
+        <div className="flex h-9 w-9 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.05] text-lime-300">
           {icon}
         </div>
-        <h2 className="text-sm font-black uppercase tracking-[0.14em] text-white">
-          {title}
-        </h2>
+        <h2 className="text-sm font-bold tracking-[-0.02em] text-white">{title}</h2>
       </div>
-
-      <div className="space-y-3">{children}</div>
+      {children}
     </section>
   );
 }
@@ -59,15 +100,12 @@ function StatCard({
   value: string | number;
 }) {
   return (
-    <div className="rounded-[18px] border border-white/12 bg-black/28 p-3">
-      <div className="flex items-center gap-2 text-white/62">
-        {icon}
-        <span className="text-[11px] font-black uppercase tracking-[0.14em]">
-          {label}
-        </span>
+    <div className="rounded-[20px] border border-white/10 bg-white/[0.03] p-3">
+      <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-white/48">
+        <span className="text-lime-300">{icon}</span>
+        <span>{label}</span>
       </div>
-
-      <div className="mt-2 text-lg font-black text-white">{value}</div>
+      <div className="mt-2 text-xl font-black tracking-[-0.03em] text-white">{value}</div>
     </div>
   );
 }
@@ -84,10 +122,8 @@ function FilterSelect({
   label: string;
 }) {
   return (
-    <label className="block">
-      <div className="mb-2 text-[11px] font-black uppercase tracking-[0.14em] text-white/52">
-        {label}
-      </div>
+    <label className="flex flex-col gap-2">
+      <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/46">{label}</span>
       <select
         value={value}
         onChange={(event) => onChange(event.target.value)}
@@ -136,9 +172,7 @@ export default function HistoryScreen({ onBack }: Props) {
       }
 
       if (exerciseFilter !== 'all') {
-        const hasExercise = workout.exercises.some(
-          (exercise) => exercise.name === exerciseFilter,
-        );
+        const hasExercise = workout.exercises.some((exercise) => exercise.name === exerciseFilter);
         if (!hasExercise) return false;
       }
 
@@ -147,88 +181,44 @@ export default function HistoryScreen({ onBack }: Props) {
   }, [history, workoutFilter, exerciseFilter]);
 
   const totalVolume = useMemo(() => {
-    return filteredHistory.reduce(
-      (sum, workout) => sum + calculateWorkoutVolume(workout),
-      0,
-    );
+    return filteredHistory.reduce((sum, workout) => sum + calculateWorkoutVolume(workout), 0);
   }, [filteredHistory]);
 
   const totalMinutes = useMemo(() => {
-    return filteredHistory.reduce(
-      (sum, workout) => sum + (workout.durationMinutes ?? 0),
-      0,
-    );
+    return filteredHistory.reduce((sum, workout) => sum + (workout.durationMinutes ?? 0), 0);
   }, [filteredHistory]);
 
   const totalExercises = useMemo(() => {
-    return filteredHistory.reduce(
-      (sum, workout) => sum + workout.exercises.length,
-      0,
-    );
+    return filteredHistory.reduce((sum, workout) => sum + workout.exercises.length, 0);
   }, [filteredHistory]);
 
   return (
-    <div className="min-h-full">
-      <div className="flex w-full flex-col gap-4">
-        <div className="flex items-start gap-3">
-          <button
-            type="button"
-            onClick={onBack}
-            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] border border-white/14 bg-black/38 text-white transition hover:bg-black/46"
-            aria-label="Back"
-          >
-            <ArrowLeft className="h-4.5 w-4.5" />
-          </button>
-
-          <div>
-            <div className="text-[11px] font-black uppercase tracking-[0.18em] text-white/56">
-              History
-            </div>
-            <h1 className="mt-1 text-2xl font-black uppercase tracking-tight text-white">
-              Training archive
-            </h1>
-            <p className="mt-1 text-sm text-white/78">
-              Sessions, volume and consistency in one clean view.
-            </p>
-          </div>
-        </div>
-
-        <SectionCard title="Overview" icon={<HistoryIcon className="h-4.5 w-4.5" />}>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <StatCard
-              icon={<Flame className="h-4 w-4" />}
-              label="Workouts"
-              value={filteredHistory.length}
-            />
-            <StatCard
-              icon={<TrendingUp className="h-4 w-4" />}
-              label="Volume"
-              value={`${totalVolume} kg`}
-            />
-            <StatCard
-              icon={<Timer className="h-4 w-4" />}
-              label="Minutes"
-              value={totalMinutes}
-            />
-            <StatCard
-              icon={<Dumbbell className="h-4 w-4" />}
-              label="Exercises"
-              value={totalExercises}
-            />
+    <ScreenShell
+      eyebrow="History"
+      title="Training archive"
+      subtitle="Sessions, volume and consistency in one clean view."
+      onBack={onBack}
+    >
+      <div className="space-y-4">
+        <SectionCard title="Overview" icon={<TrendingUp className="h-4 w-4" />}>
+          <div className="grid grid-cols-2 gap-3">
+            <StatCard icon={<HistoryIcon className="h-4 w-4" />} label="Workouts" value={filteredHistory.length} />
+            <StatCard icon={<Flame className="h-4 w-4" />} label="Volume" value={`${totalVolume} kg`} />
+            <StatCard icon={<Timer className="h-4 w-4" />} label="Minutes" value={totalMinutes} />
+            <StatCard icon={<Dumbbell className="h-4 w-4" />} label="Exercises" value={totalExercises} />
           </div>
         </SectionCard>
 
-        <SectionCard title="Filters" icon={<Filter className="h-4.5 w-4.5" />}>
-          <div className="grid gap-3 sm:grid-cols-2">
+        <SectionCard title="Filters" icon={<Filter className="h-4 w-4" />}>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <FilterSelect
-              label="Workout"
+              label="Workouts"
               value={workoutFilter}
               onChange={setWorkoutFilter}
               options={workoutOptions}
             />
-
             <FilterSelect
-              label="Exercise"
+              label="Exercises"
               value={exerciseFilter}
               onChange={setExerciseFilter}
               options={exerciseOptions}
@@ -236,9 +226,9 @@ export default function HistoryScreen({ onBack }: Props) {
           </div>
         </SectionCard>
 
-        <SectionCard title="Logs" icon={<HistoryIcon className="h-4.5 w-4.5" />}>
+        <SectionCard title="Sessions" icon={<HistoryIcon className="h-4 w-4" />}>
           {filteredHistory.length === 0 ? (
-            <div className="rounded-[18px] border border-dashed border-white/14 bg-black/28 px-4 py-5 text-sm text-white/72">
+            <div className="rounded-[18px] border border-dashed border-white/10 bg-white/[0.02] px-4 py-5 text-sm text-white/48">
               No workouts yet. Start your first one and the archive will come alive.
             </div>
           ) : (
@@ -249,91 +239,55 @@ export default function HistoryScreen({ onBack }: Props) {
                 const workoutDate = new Date(workout.completedAt);
 
                 return (
-                  <div
-                    key={workout.id}
-                    className="rounded-[18px] border border-white/12 bg-black/28"
-                  >
+                  <div key={workout.id} className="overflow-hidden rounded-[20px] border border-white/10 bg-white/[0.03]">
                     <button
-                      type="button"
                       onClick={() => setExpanded(isOpen ? null : workout.id)}
                       className="w-full px-3.5 py-3 text-left"
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <div className="text-[10px] font-black uppercase tracking-[0.14em] text-white/50">
+                          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/40">
                             Workout log
                           </div>
-                          <h3 className="mt-1 text-base font-black text-white">
+                          <h3 className="mt-1 truncate text-base font-black tracking-[-0.03em] text-white">
                             {workout.workoutName}
                           </h3>
-                          <div className="mt-1 text-sm text-white/72">
-                            {workoutDate.toLocaleDateString()}
-                          </div>
+                          <div className="mt-1 text-xs text-white/48">{workoutDate.toLocaleDateString()}</div>
                         </div>
-
-                        <div className="pt-1 text-white/78">
-                          {isOpen ? (
-                            <ChevronUp className="h-4.5 w-4.5" />
-                          ) : (
-                            <ChevronDown className="h-4.5 w-4.5" />
-                          )}
+                        <div className="mt-1 text-white/54">
+                          {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                         </div>
                       </div>
 
-                      <div className="mt-3 grid grid-cols-3 gap-2">
-                        <div className="rounded-[14px] border border-white/10 bg-white/[0.05] px-3 py-2">
-                          <div className="text-[10px] font-black uppercase tracking-[0.12em] text-white/46">
-                            Volume
-                          </div>
-                          <div className="mt-1 text-sm font-bold text-white">
-                            {volume} kg
-                          </div>
+                      <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
+                        <div className="rounded-2xl border border-white/8 bg-black/22 px-3 py-2">
+                          <div className="text-white/40">Volume</div>
+                          <div className="mt-1 font-bold text-white">{volume} kg</div>
                         </div>
-
-                        <div className="rounded-[14px] border border-white/10 bg-white/[0.05] px-3 py-2">
-                          <div className="text-[10px] font-black uppercase tracking-[0.12em] text-white/46">
-                            Time
-                          </div>
-                          <div className="mt-1 text-sm font-bold text-white">
-                            {workout.durationMinutes} min
-                          </div>
+                        <div className="rounded-2xl border border-white/8 bg-black/22 px-3 py-2">
+                          <div className="text-white/40">Time</div>
+                          <div className="mt-1 font-bold text-white">{workout.durationMinutes} min</div>
                         </div>
-
-                        <div className="rounded-[14px] border border-white/10 bg-white/[0.05] px-3 py-2">
-                          <div className="text-[10px] font-black uppercase tracking-[0.12em] text-white/46">
-                            Exercises
-                          </div>
-                          <div className="mt-1 text-sm font-bold text-white">
-                            {workout.exercises.length}
-                          </div>
+                        <div className="rounded-2xl border border-white/8 bg-black/22 px-3 py-2">
+                          <div className="text-white/40">Exercises</div>
+                          <div className="mt-1 font-bold text-white">{workout.exercises.length}</div>
                         </div>
                       </div>
                     </button>
 
                     {isOpen ? (
-                      <div className="border-t border-white/10 px-3.5 py-3">
+                      <div className="border-t border-white/8 px-3.5 py-3">
                         <div className="space-y-3">
                           {workout.exercises.map((exercise, index) => (
-                            <div
-                              key={`${workout.id}-${exercise.name}-${index}`}
-                              className="rounded-[16px] border border-white/10 bg-white/[0.05] p-3"
-                            >
-                              <h4 className="text-sm font-black text-white">
-                                {exercise.name}
-                              </h4>
-
+                            <div key={`${exercise.name}-${index}`} className="rounded-[18px] border border-white/8 bg-black/20 p-3">
+                              <h4 className="text-sm font-bold text-white">{exercise.name}</h4>
                               <div className="mt-2 space-y-2">
                                 {exercise.sets.map((set, setIndex) => (
                                   <div
-                                    key={`${exercise.name}-${setIndex}`}
-                                    className="flex items-center justify-between rounded-[12px] border border-white/8 bg-black/24 px-3 py-2 text-sm text-white/80"
+                                    key={`${exercise.name}-set-${setIndex}`}
+                                    className="rounded-2xl border border-white/8 bg-white/[0.02] px-3 py-2 text-sm text-white/72"
                                   >
-                                    <span className="font-semibold">
-                                      Set {setIndex + 1}
-                                    </span>
-                                    <span>
-                                      {set.reps} reps · {set.weight} kg
-                                    </span>
+                                    Set {setIndex + 1} · {set.reps} reps · {set.weight} kg
                                   </div>
                                 ))}
                               </div>
@@ -349,6 +303,6 @@ export default function HistoryScreen({ onBack }: Props) {
           )}
         </SectionCard>
       </div>
-    </div>
+    </ScreenShell>
   );
 }

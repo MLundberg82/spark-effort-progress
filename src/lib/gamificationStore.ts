@@ -1,17 +1,48 @@
 import { checkPremium } from '@/lib/premiumStore';
 
+export type ActivityKind = 'strength' | 'walk';
+
 export type XPBreakdown = {
   baseXP: number;
   volumeXP: number;
   consistencyXP: number;
   premiumBoostXP: number;
   totalXP: number;
+  activityXP: number;
+  firstWorkoutXP: number;
+  prXP: number;
+  durationXP: number;
 };
 
 export type WorkoutXPInput = {
   exercisesCompleted: number;
   volume: number;
   streak?: number;
+};
+
+export type CompletedActivityXPInput = {
+  kind: ActivityKind;
+  exercisesCompleted: number;
+  volume: number;
+  durationMinutes: number;
+  streak: number;
+  prCount?: number;
+  completedAt?: string;
+};
+
+export type ProgressionResult = {
+  breakdown: XPBreakdown;
+  previousXP: number;
+  newXP: number;
+  previousLevel: number;
+  newLevel: number;
+  streak: number;
+  totalWorkouts: number;
+  leveledUp: boolean;
+  levelsGained: number;
+  milestoneUnlocked: boolean;
+  unlockedMilestoneLevel: number | null;
+  firstWorkoutOfDay: boolean;
 };
 
 const STORAGE_KEY = 'gymrat-gamification';
@@ -22,6 +53,8 @@ type GamificationState = {
   streak: number;
   lastWorkoutDate: string | null;
 };
+
+const MILESTONE_LEVELS = [5, 10, 15, 20, 25, 30, 40, 50, 60, 70, 80, 90, 100] as const;
 
 function getDefaultState(): GamificationState {
   return {
@@ -79,12 +112,35 @@ function dayDiff(a: Date, b: Date) {
 function getXPSpanForLevel(level: number) {
   const safeLevel = Math.max(1, Math.floor(level));
 
-  return Math.floor(
-    250 +
-      (safeLevel - 1) * 18 +
-      Math.max(0, safeLevel - 10) * 6 +
-      Math.max(0, safeLevel - 25) * 8
+  if (safeLevel === 1) return 50;
+  if (safeLevel === 2) return 65;
+  if (safeLevel === 3) return 80;
+  if (safeLevel === 4) return 95;
+  if (safeLevel <= 14) return 110 + (safeLevel - 5) * 15;
+  if (safeLevel <= 29) return 260 + (safeLevel - 15) * 20;
+  return 560 + (safeLevel - 30) * 25;
+}
+
+function getHighestMilestoneBetween(previousLevel: number, newLevel: number) {
+  const crossed = MILESTONE_LEVELS.filter(
+    (level) => level > previousLevel && level <= newLevel,
   );
+
+  return crossed.length > 0 ? crossed[crossed.length - 1] : null;
+}
+
+function wasFirstWorkoutToday(lastWorkoutDate: string | null, completedAt: Date) {
+  if (!lastWorkoutDate) return true;
+  const diff = dayDiff(completedAt, new Date(lastWorkoutDate));
+  return diff > 0;
+}
+
+export function getMilestoneLevels() {
+  return [...MILESTONE_LEVELS];
+}
+
+export function isMilestoneLevel(level: number) {
+  return MILESTONE_LEVELS.includes(level as (typeof MILESTONE_LEVELS)[number]);
 }
 
 export function getTotalXP() {
@@ -172,22 +228,42 @@ export function isPremium() {
   return checkPremium().isActive;
 }
 
-export function calculateWorkoutXP(input: WorkoutXPInput): XPBreakdown {
-  const currentStreak = input.streak ?? getStreak();
-  const baseXP = Math.max(40, input.exercisesCompleted * 18);
-  const volumeXP = Math.max(0, Math.floor(input.volume / 120));
-  const consistencyXP =
-    currentStreak >= 30
-      ? 40
-      : currentStreak >= 14
-        ? 25
-        : currentStreak >= 7
-          ? 15
-          : currentStreak >= 3
-            ? 8
-            : 0;
+export function calculateCompletedActivityXP(
+  input: CompletedActivityXPInput,
+  options?: {
+    firstWorkoutOfDay?: boolean;
+  },
+): XPBreakdown {
+  const isWalk = input.kind === 'walk';
+  const prCount = Math.max(0, Math.floor(input.prCount ?? 0));
+  const currentStreak = Math.max(1, Math.floor(input.streak));
+  const baseXP = isWalk ? 20 : 40;
+  const activityXP =
+    !isWalk && input.exercisesCompleted >= 5
+      ? 10
+      : !isWalk && input.exercisesCompleted >= 3
+        ? 5
+        : 0;
+  const volumeXP = !isWalk ? Math.max(0, Math.floor(input.volume / 1200) * 5) : 0;
+  const durationXP =
+    input.durationMinutes >= 45
+      ? 10
+      : input.durationMinutes >= 30
+        ? 5
+        : 0;
+  const firstWorkoutXP = options?.firstWorkoutOfDay ?? true ? 10 : 0;
+  const consistencyXP = Math.min(20, currentStreak * 2);
+  const prXP = prCount * 25;
 
-  const subtotal = baseXP + volumeXP + consistencyXP;
+  const subtotal =
+    baseXP +
+    activityXP +
+    volumeXP +
+    durationXP +
+    firstWorkoutXP +
+    consistencyXP +
+    prXP;
+
   const premiumBoostXP = isPremium() ? Math.floor(subtotal * 0.15) : 0;
   const totalXP = subtotal + premiumBoostXP;
 
@@ -197,52 +273,77 @@ export function calculateWorkoutXP(input: WorkoutXPInput): XPBreakdown {
     consistencyXP,
     premiumBoostXP,
     totalXP,
+    activityXP,
+    firstWorkoutXP,
+    prXP,
+    durationXP,
   };
 }
 
-export function addWorkoutXP(input: WorkoutXPInput) {
+export function calculateWorkoutXP(input: WorkoutXPInput): XPBreakdown {
+  return calculateCompletedActivityXP({
+    kind: 'strength',
+    exercisesCompleted: input.exercisesCompleted,
+    volume: input.volume,
+    durationMinutes: 0,
+    streak: input.streak ?? getStreak(),
+    prCount: 0,
+  });
+}
+
+export function addCompletedActivityXP(
+  input: CompletedActivityXPInput,
+): ProgressionResult {
   const state = readState();
-  const xp = calculateWorkoutXP(input);
-  const now = new Date();
+  const completedAt = input.completedAt ? new Date(input.completedAt) : new Date();
+  const firstWorkoutOfDay = wasFirstWorkoutToday(state.lastWorkoutDate, completedAt);
+  const breakdown = calculateCompletedActivityXP(input, { firstWorkoutOfDay });
 
-  let nextStreak = 1;
-
-  if (state.lastWorkoutDate) {
-    const last = new Date(state.lastWorkoutDate);
-    const diff = dayDiff(now, last);
-
-    if (diff <= 0) {
-      nextStreak = state.streak || 1;
-    } else if (diff === 1) {
-      nextStreak = Math.max(1, state.streak + 1);
-    } else {
-      nextStreak = 1;
-    }
-  }
+  const previousXP = state.totalXP;
+  const newXP = previousXP + breakdown.totalXP;
+  const previousLevel = getLevelFromXP(previousXP);
+  const newLevel = getLevelFromXP(newXP);
+  const unlockedMilestoneLevel = getHighestMilestoneBetween(previousLevel, newLevel);
 
   const next: GamificationState = {
-    totalXP: state.totalXP + xp.totalXP,
+    totalXP: newXP,
     totalWorkouts: state.totalWorkouts + 1,
-    streak: nextStreak,
-    lastWorkoutDate: now.toISOString(),
+    streak: Math.max(1, Math.floor(input.streak)),
+    lastWorkoutDate: completedAt.toISOString(),
   };
 
   writeState(next);
 
   return {
-    ...xp,
-    previousXP: state.totalXP,
-    newXP: next.totalXP,
-    previousLevel: getLevelFromXP(state.totalXP),
-    newLevel: getLevelFromXP(next.totalXP),
+    breakdown,
+    previousXP,
+    newXP,
+    previousLevel,
+    newLevel,
     streak: next.streak,
+    totalWorkouts: next.totalWorkouts,
+    leveledUp: newLevel > previousLevel,
+    levelsGained: Math.max(0, newLevel - previousLevel),
+    milestoneUnlocked: unlockedMilestoneLevel !== null,
+    unlockedMilestoneLevel,
+    firstWorkoutOfDay,
   };
+}
+
+export function addWorkoutXP(input: WorkoutXPInput) {
+  return addCompletedActivityXP({
+    kind: 'strength',
+    exercisesCompleted: input.exercisesCompleted,
+    volume: input.volume,
+    durationMinutes: 0,
+    streak: input.streak ?? getStreak(),
+    prCount: 0,
+  });
 }
 
 export function addXP(amount: number) {
   const state = readState();
   const safeAmount = Math.max(0, Math.floor(amount));
-
   const next: GamificationState = {
     ...state,
     totalXP: state.totalXP + safeAmount,
@@ -260,7 +361,6 @@ export function addXP(amount: number) {
 
 export function setTotalXP(totalXP: number) {
   const state = readState();
-
   const next: GamificationState = {
     ...state,
     totalXP: Math.max(0, Math.floor(totalXP)),
