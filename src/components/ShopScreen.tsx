@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, Crown, Lock, Sparkles } from 'lucide-react';
-
 import { getBackgroundImage, getItemImage } from '@/lib/assetRegistry';
-import type { SlotKey } from '@/lib/assetTypes';
+import type { EquippedItems, SlotKey } from '@/lib/assetTypes';
 import { getLevelFromXP, getTotalXP } from '@/lib/gamificationStore';
+import EquippedRatPreview from '@/components/EquippedRatPreview';
 import {
   canAccessShopItem,
   equipItem,
   getEquippedItemIdForSlot,
+  getEquippedState,
   getShopItems,
   ownItem,
   type ShopItem,
@@ -58,6 +59,13 @@ function getResolvedLevel(value: unknown): number {
   return 1;
 }
 
+function getPreviewPrioritySlot(
+  slot: SlotKey | null | undefined,
+): 'head' | 'eyes' | 'neck' | 'top' | 'pants' | 'feet' | 'aura' | undefined {
+  if (!slot || slot === 'background') return undefined;
+  return slot;
+}
+
 function SlotButton({
   label,
   active,
@@ -71,19 +79,16 @@ function SlotButton({
 }) {
   return (
     <button
-      type="button"
       onClick={onClick}
       className={[
-        'rounded-full border px-3 py-2 text-xs font-black transition',
+        'rounded-full border px-3 py-2 text-xs font-black uppercase tracking-[0.22em] transition',
         active
-          ? 'border-lime-300/30 bg-lime-300/12 text-white'
-          : 'border-white/10 bg-white/[0.05] text-white/70 hover:bg-white/[0.08] hover:text-white',
+          ? 'border-lime-300/70 bg-lime-300/12 text-lime-100'
+          : 'border-white/10 bg-white/[0.03] text-zinc-400 hover:border-white/20 hover:text-zinc-200',
       ].join(' ')}
     >
       {label}
-      {equipped ? (
-        <span className="ml-2 text-[10px] text-lime-300/80">•</span>
-      ) : null}
+      {equipped ? <span className="ml-2 text-lime-300">•</span> : null}
     </button>
   );
 }
@@ -99,13 +104,12 @@ function ShopTabButton({
 }) {
   return (
     <button
-      type="button"
       onClick={onClick}
       className={[
-        'flex-1 rounded-full border px-3 py-2 text-xs font-black transition',
+        'rounded-full px-3 py-2 text-xs font-black uppercase tracking-[0.2em] transition',
         active
-          ? 'border-lime-300/30 bg-lime-300/12 text-white'
-          : 'border-white/10 bg-white/[0.05] text-white/65 hover:bg-white/[0.08] hover:text-white',
+          ? 'bg-white text-black'
+          : 'bg-white/[0.04] text-zinc-400 hover:bg-white/[0.07] hover:text-zinc-100',
       ].join(' ')}
     >
       {label}
@@ -117,63 +121,77 @@ function ItemCard({
   item,
   isEquipped,
   onAction,
+  onPreview,
+  isPreviewing,
 }: {
   item: ShopItem;
   isEquipped: boolean;
   onAction: (item: ShopItem) => void;
+  onPreview: (itemId: string | null) => void;
+  isPreviewing: boolean;
 }) {
   const locked = !item.accessible;
   const asset = getDisplayAsset(item);
 
   return (
-    <div className="rounded-[22px] border border-white/10 bg-white/[0.04] p-3 shadow-[0_12px_34px_rgba(0,0,0,0.22)]">
-      <div className="mb-3 overflow-hidden rounded-[18px] border border-white/10 bg-black/20">
+    <div
+      className={[
+        'rounded-[24px] border p-3 shadow-[0_24px_80px_rgba(0,0,0,0.35)] transition',
+        isPreviewing
+          ? 'border-lime-300/40 bg-lime-300/[0.06]'
+          : 'border-white/10 bg-black/40',
+      ].join(' ')}
+    >
+      <button
+        type="button"
+        onClick={() => onPreview(isPreviewing ? null : item.id)}
+        className="w-full text-left"
+      >
         {asset ? (
-          <img
-            src={asset}
-            alt={item.name}
-            className="h-28 w-full object-contain p-3"
-            draggable={false}
-          />
+          <div className="mb-3 overflow-hidden rounded-[18px] border border-white/10 bg-black/40">
+            <img
+              src={asset}
+              alt={item.name}
+              className="h-28 w-full object-cover"
+            />
+          </div>
         ) : (
-          <div className="flex h-28 items-center justify-center text-2xl">
+          <div className="mb-3 flex h-28 items-center justify-center rounded-[18px] border border-white/10 bg-black/40 text-3xl">
             {item.icon || item.emoji || '✨'}
           </div>
         )}
-      </div>
 
-      <div className="mb-2 flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <h3 className="truncate text-sm font-black text-white">{item.name}</h3>
-          <p className="mt-1 text-xs text-white/55">
-            {isEquipped
-              ? 'Equipped now'
-              : item.owned
-                ? 'Owned'
-                : item.priceLabel ?? '9 kr'}
-          </p>
-        </div>
+        <h3 className="text-sm font-black text-white">{item.name}</h3>
+        <p className="mt-1 text-xs text-zinc-400">
+          {isEquipped ? 'Equipped now' : item.owned ? 'Owned' : item.priceLabel ?? '9 kr'}
+        </p>
 
-        <div className="shrink-0">
+        <div className="mt-2 flex items-center gap-2">
           {locked ? (
-            <span className="inline-flex items-center gap-1 rounded-full bg-yellow-300/12 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-yellow-100">
+            <span className="inline-flex items-center gap-1 rounded-full border border-yellow-300/25 bg-yellow-300/10 px-2 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-yellow-100">
               <Lock className="h-3 w-3" />
               Locked
             </span>
           ) : item.isPremium ? (
-            <span className="inline-flex items-center gap-1 rounded-full bg-yellow-300/12 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-yellow-100">
+            <span className="inline-flex items-center gap-1 rounded-full border border-lime-300/25 bg-lime-300/10 px-2 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-lime-100">
               <Crown className="h-3 w-3" />
               Premium
             </span>
           ) : null}
+
+          {isPreviewing ? (
+            <span className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-white/[0.05] px-2 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-white">
+              <Sparkles className="h-3 w-3" />
+              Previewing
+            </span>
+          ) : null}
         </div>
-      </div>
+      </button>
 
       <button
-        type="button"
         onClick={() => onAction(item)}
         className={[
-          'mt-2 w-full rounded-[18px] px-3 py-2.5 text-sm font-black transition',
+          'mt-3 w-full rounded-[18px] px-3 py-2.5 text-sm font-black transition',
           locked
             ? 'bg-yellow-300/12 text-yellow-100 hover:bg-yellow-300/16'
             : isEquipped
@@ -181,13 +199,7 @@ function ItemCard({
               : 'bg-gradient-to-r from-lime-300 via-emerald-400 to-yellow-300 text-black hover:brightness-105',
         ].join(' ')}
       >
-        {locked
-          ? 'Unlock Premium'
-          : isEquipped
-            ? 'Equipped'
-            : item.owned
-              ? 'Equip'
-              : `Buy · ${item.priceLabel ?? '9 kr'}`}
+        {locked ? 'Unlock Premium' : isEquipped ? 'Equipped' : item.owned ? 'Equip' : `Buy · ${item.priceLabel ?? '9 kr'}`}
       </button>
     </div>
   );
@@ -200,6 +212,7 @@ export default function ShopScreen({
   const [activeSlot, setActiveSlot] = useState<SlotKey>('top');
   const [activeTab, setActiveTab] = useState<ShopTab>('all');
   const [refreshKey, setRefreshKey] = useState(0);
+  const [previewItemId, setPreviewItemId] = useState<string | null>(null);
 
   const currentLevel = getResolvedLevel(getLevelFromXP(getTotalXP()));
 
@@ -217,6 +230,10 @@ export default function ShopScreen({
     };
   }, []);
 
+  useEffect(() => {
+    setPreviewItemId(null);
+  }, [activeSlot, activeTab]);
+
   const items = useMemo(() => getShopItems(), [refreshKey]);
 
   const visibleItems = useMemo(() => {
@@ -227,6 +244,26 @@ export default function ShopScreen({
 
     return bySlot;
   }, [items, activeSlot, activeTab]);
+
+  const equippedState = useMemo(() => getEquippedState(), [refreshKey]);
+
+  const previewItem = useMemo(
+    () => visibleItems.find((item) => item.id === previewItemId) ?? null,
+    [visibleItems, previewItemId],
+  );
+
+  const previewEquipped = useMemo<EquippedItems>(() => {
+    if (!previewItem) return equippedState;
+
+    return {
+      ...equippedState,
+      [previewItem.slot]: previewItem.id,
+    };
+  }, [equippedState, previewItem]);
+
+  const previewPrioritySlot = getPreviewPrioritySlot(
+    previewItem?.slot ?? activeSlot,
+  );
 
   const ownedCount = items.filter((item) => item.owned).length;
   const equippedCount = slotOrder.filter((slot) =>
@@ -245,73 +282,84 @@ export default function ShopScreen({
     }
 
     equipItem(item.id);
+    setPreviewItemId(item.id);
     setRefreshKey((value) => value + 1);
   };
 
   return (
-    <div className="min-h-screen bg-[#050505] text-white">
-      <div className="mx-auto flex min-h-screen w-full max-w-[460px] flex-col px-4 pb-6 pt-4">
-        <div className="flex items-start justify-between gap-3">
+    <div className="min-h-full bg-[radial-gradient(circle_at_top,_rgba(163,230,53,0.12),_transparent_26%),linear-gradient(180deg,_#07080b_0%,_#040507_100%)] text-white">
+      <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 p-4">
+        <div className="flex items-center justify-between">
           <button
-            type="button"
             onClick={onBack}
-            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-[16px] border border-white/10 bg-white/[0.04] text-white/80 transition hover:bg-white/[0.08] hover:text-white"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-zinc-100 transition hover:border-white/20 hover:bg-white/[0.07]"
             aria-label="Back"
           >
-            <ArrowLeft className="h-4 w-4" />
+            <ArrowLeft className="h-5 w-5" />
           </button>
 
-          <div className="min-w-0 flex-1 text-right">
-            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-white/35">
-              Shop
-            </p>
-            <h1 className="mt-1 text-[22px] font-black leading-none text-white">
-              GymRat Identity
-            </h1>
-            <p className="mt-2 text-sm text-white/55">
-              Tight, item-first loadout. No preview clutter.
-            </p>
+          <div className="rounded-full border border-lime-300/25 bg-lime-300/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.28em] text-lime-100">
+            Shop
           </div>
         </div>
 
-        <div className="mt-4 grid grid-cols-3 gap-2">
-          <div className="rounded-[18px] border border-white/10 bg-white/[0.04] p-3">
-            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/35">
-              Owned
-            </p>
-            <p className="mt-1 text-lg font-black text-white">{ownedCount}</p>
+        <div className="rounded-[28px] border border-white/10 bg-black/35 p-5 shadow-[0_30px_100px_rgba(0,0,0,0.42)] backdrop-blur-xl">
+          <p className="text-[10px] font-black uppercase tracking-[0.32em] text-zinc-500">
+            GymRat Identity
+          </p>
+          <h1 className="mt-2 text-3xl font-black tracking-tight text-white">
+            Tight, item-first loadout
+          </h1>
+          <p className="mt-2 max-w-xl text-sm text-zinc-400">
+            Preview gear on the rat before you buy or equip it.
+          </p>
+
+          <div className="mt-4 grid grid-cols-3 gap-3">
+            <div className="rounded-[20px] border border-white/10 bg-white/[0.03] p-3">
+              <div className="text-[10px] font-black uppercase tracking-[0.24em] text-zinc-500">
+                Owned
+              </div>
+              <div className="mt-2 text-2xl font-black text-white">{ownedCount}</div>
+            </div>
+
+            <div className="rounded-[20px] border border-white/10 bg-white/[0.03] p-3">
+              <div className="text-[10px] font-black uppercase tracking-[0.24em] text-zinc-500">
+                Equipped
+              </div>
+              <div className="mt-2 text-2xl font-black text-white">{equippedCount}</div>
+            </div>
+
+            <div className="rounded-[20px] border border-white/10 bg-white/[0.03] p-3">
+              <div className="text-[10px] font-black uppercase tracking-[0.24em] text-zinc-500">
+                Level
+              </div>
+              <div className="mt-2 text-2xl font-black text-white">{currentLevel}</div>
+            </div>
           </div>
 
-          <div className="rounded-[18px] border border-white/10 bg-white/[0.04] p-3">
-            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/35">
-              Equipped
-            </p>
-            <p className="mt-1 text-lg font-black text-white">{equippedCount}</p>
-          </div>
-
-          <div className="rounded-[18px] border border-white/10 bg-white/[0.04] p-3">
-            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/35">
-              Level
-            </p>
-            <p className="mt-1 text-lg font-black text-white">{currentLevel}</p>
+          <div className="mt-5 rounded-[24px] border border-white/10 bg-black/30 p-3">
+            <EquippedRatPreview
+              level={currentLevel}
+              className="mx-auto w-full max-w-[320px]"
+              equippedOverride={previewEquipped}
+              prioritySlot={previewPrioritySlot}
+            />
           </div>
         </div>
 
-        <div className="mt-4 overflow-x-auto pb-1">
-          <div className="flex min-w-max gap-2">
-            {slotOrder.map((slot) => (
-              <SlotButton
-                key={slot}
-                label={slotLabels[slot]}
-                active={activeSlot === slot}
-                equipped={Boolean(getEquippedItemIdForSlot(slot))}
-                onClick={() => setActiveSlot(slot)}
-              />
-            ))}
-          </div>
+        <div className="flex flex-wrap gap-2">
+          {slotOrder.map((slot) => (
+            <SlotButton
+              key={slot}
+              label={slotLabels[slot]}
+              active={activeSlot === slot}
+              equipped={Boolean(getEquippedItemIdForSlot(slot))}
+              onClick={() => setActiveSlot(slot)}
+            />
+          ))}
         </div>
 
-        <div className="mt-3 flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <ShopTabButton
             active={activeTab === 'all'}
             label="All"
@@ -330,7 +378,7 @@ export default function ShopScreen({
         </div>
 
         {visibleItems.length > 0 ? (
-          <div className="mt-4 grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-3">
             {visibleItems.map((item) => {
               const isEquipped = currentSlotEquipped === item.id;
 
@@ -339,21 +387,17 @@ export default function ShopScreen({
                   key={item.id}
                   item={item}
                   isEquipped={isEquipped}
+                  isPreviewing={previewItemId === item.id}
+                  onPreview={setPreviewItemId}
                   onAction={handleBuyOrEquip}
                 />
               );
             })}
           </div>
         ) : (
-          <div className="mt-4 rounded-[22px] border border-dashed border-white/10 bg-white/[0.03] p-5 text-center">
-            <div className="mx-auto inline-flex h-12 w-12 items-center justify-center rounded-[16px] border border-white/10 bg-white/[0.04] text-white/70">
-              <Sparkles className="h-5 w-5" />
-            </div>
-
-            <h3 className="mt-4 text-base font-black text-white">
-              No items in this slot yet
-            </h3>
-            <p className="mt-2 text-sm leading-6 text-white/58">
+          <div className="rounded-[24px] border border-white/10 bg-black/30 p-5 text-center">
+            <h3 className="text-lg font-black text-white">No items in this slot yet</h3>
+            <p className="mt-2 text-sm text-zinc-400">
               Fill this slot next so the rat keeps feeling more alive.
             </p>
           </div>
